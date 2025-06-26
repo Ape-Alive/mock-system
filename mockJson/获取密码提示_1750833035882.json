@@ -1,0 +1,27 @@
+{
+  "pathName": "获取密码提示",
+  "path": "/encrypted/tip",
+  "pathType": "GET",
+  "mockType": "mockjsTemplate",
+  "queryParams": {},
+  "headers": {
+    "nas-token": ""
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": {
+        "tip": "@string"
+      },
+      "message": "@string"
+    }
+  },
+  "bodyParams": null,
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "fileName": "获取密码提示_1750833035882.json",
+  "createdAt": "2025-06-25T06:30:35.421Z"
+}

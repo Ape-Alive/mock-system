@@ -1,0 +1,41 @@
+{
+  "pathName": "批量删除",
+  "path": "/file/task/delete/batch",
+  "pathType": "POST",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": ""
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": "@string",
+      "message": "@string"
+    }
+  },
+  "bodyParams": {
+    "action": "@pick([0,1,2])",
+    "srcPath": [
+      {
+        "filePath": "@string",
+        "isDir": "@boolean",
+        "storageInfo": {
+          "partitionLabel": "@string",
+          "partitionUUID": "@string",
+          "storageType": "@pick([0,1,2,3])",
+          "userID": "@string"
+        }
+      }
+    ]
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "fileName": "批量删除_1750833036411.json",
+  "createdAt": "2025-06-25T06:30:35.418Z"
+}

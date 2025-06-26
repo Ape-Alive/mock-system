@@ -1,0 +1,52 @@
+{
+  "pathName": "获取某个文件的详细信息",
+  "path": "/index/fileInfo",
+  "pathType": "POST",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": ""
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": {
+        "extension": "@string",
+        "id": "@integer(1,100000)",
+        "isDir": "@boolean",
+        "lookedAt": "@string",
+        "mime": "@string",
+        "modifiedAt": "@string",
+        "name": "@string",
+        "parentDir": "@string",
+        "partitionLabel": "@string",
+        "partitionUUID": "@string",
+        "path": "@string",
+        "pinyin": "@string",
+        "sha1": "@string",
+        "size": "@integer(1,100000)",
+        "storageType": "@pick([0,1,2,3])",
+        "userID": "@string"
+      },
+      "message": "@string"
+    }
+  },
+  "bodyParams": {
+    "filePath": "@string",
+    "storageInfo": {
+      "partitionLabel": "@string",
+      "partitionUUID": "@string",
+      "storageType": "@pick([0,1,2,3])",
+      "userID": "@string"
+    }
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "fileName": "获取某个文件的详细信息_1750833035976.json",
+  "createdAt": "2025-06-25T06:30:35.415Z"
+}

@@ -1,0 +1,27 @@
+{
+  "pathName": "暂停某个用户的所有文件处理任务",
+  "path": "/api/v2/file/task/pauseAll",
+  "pathType": "POST",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": ""
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": "@string",
+      "message": "@string"
+    }
+  },
+  "bodyParams": null,
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "fileName": "暂停某个用户的所有文件处理任务_1750833036158.json",
+  "createdAt": "2025-06-25T06:30:35.426Z"
+}

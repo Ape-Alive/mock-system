@@ -1,0 +1,36 @@
+{
+  "pathName": "还原回收站文件",
+  "path": "/api/v2/trash/restoreFrom",
+  "pathType": "POST",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": ""
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": "@string",
+      "message": "@string"
+    }
+  },
+  "bodyParams": {
+    "conflictAction": "@integer(1,100000)",
+    "partitionLabel": "@string",
+    "partitionUUID": "@string",
+    "storageType": "@pick([0,1,2,3])",
+    "trashFileNames": [
+      "@string"
+    ],
+    "userID": "@string"
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "fileName": "还原回收站文件_1750833036177.json",
+  "createdAt": "2025-06-25T06:30:35.427Z"
+}

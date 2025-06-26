@@ -1,0 +1,36 @@
+{
+  "pathName": "获取单个文件的授权访问用户ID列表",
+  "path": "/api/v2/fileShare/link/authorizedUserIdList",
+  "pathType": "POST",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": ""
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": {
+        "userIdList": [
+          "@string"
+        ]
+      },
+      "message": "@string"
+    }
+  },
+  "bodyParams": {
+    "partitionUUID": "@string",
+    "relPath": "@string",
+    "storageType": "@pick([1])",
+    "userId": "@string"
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "fileName": "获取单个文件的授权访问用户ID列表_1750833036049.json",
+  "createdAt": "2025-06-25T06:30:35.429Z"
+}

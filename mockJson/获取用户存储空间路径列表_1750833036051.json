@@ -1,0 +1,35 @@
+{
+  "pathName": "获取用户存储空间路径列表",
+  "path": "/api/v2/storage/userSpace/list",
+  "pathType": "GET",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": "",
+    "userId": ""
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": {
+        "storages": [
+          {
+            "absolutePath": "@string",
+            "label": "@string"
+          }
+        ]
+      },
+      "message": "@string"
+    }
+  },
+  "bodyParams": null,
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "fileName": "获取用户存储空间路径列表_1750833036051.json",
+  "createdAt": "2025-06-25T06:30:35.429Z"
+}

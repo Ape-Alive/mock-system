@@ -1,0 +1,41 @@
+{
+  "pathName": "获取链接信息",
+  "path": "/fileShare/link",
+  "pathType": "GET",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IjEzOTAyOTg1NDE5IiwicGFzc3dvcmRWZXJzaW9uIjoiNWQ2OGU1OTQtZDA5MS00NDhlLTg0ZWMtYjE4YjJlNWNkZGEyIiwibGludXhVaWQiOiIxMDAxIiwibGludXhHaWQiOiIxMDAxIiwiZXhwIjoxNzI2NzExNzgzLCJpc3MiOiJOQVMifQ.MJuNU-h5vN1OhRFYZwLuAzRRQ_YdIjtO2JaAtlALwdE",
+    "isDir": "true",
+    "partitionUUID": "cdad35b6-3d2d-4311-b2dd-86de793e2db6",
+    "relPath": "/666"
+  },
+  "headers": {
+    "nas-token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IjEzOTAyOTg1NDE5IiwicGFzc3dvcmRWZXJzaW9uIjoiNWQ2OGU1OTQtZDA5MS00NDhlLTg0ZWMtYjE4YjJlNWNkZGEyIiwibGludXhVaWQiOiIxMDAxIiwibGludXhHaWQiOiIxMDAxIiwiZXhwIjoxNzI2NzExNzgzLCJpc3MiOiJOQVMifQ.MJuNU-h5vN1OhRFYZwLuAzRRQ_YdIjtO2JaAtlALwdE"
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": {
+        "createTime": "@string",
+        "fileName": "@string",
+        "id": "@integer(1,100000)",
+        "isDir": "@boolean",
+        "ownerId": "@string",
+        "partitionUUID": "@string",
+        "relPath": "@string",
+        "status": "@pick([0,1])",
+        "storageType": "@pick([0,1,2,3])",
+        "updateTime": "@string"
+      },
+      "message": "@string"
+    }
+  },
+  "bodyParams": null,
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "fileName": "获取链接信息_1750833036215.json",
+  "createdAt": "2025-06-25T06:30:35.422Z"
+}

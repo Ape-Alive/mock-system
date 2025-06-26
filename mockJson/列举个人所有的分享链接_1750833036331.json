@@ -1,0 +1,64 @@
+{
+  "pathName": "列举个人所有的分享链接",
+  "path": "/fileShare/link/owned",
+  "pathType": "GET",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": "",
+    "ownerId": ""
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": {
+        "links": [
+          {
+            "fileInfo": {
+              "extension": "@string",
+              "id": "@integer(1,100000)",
+              "isDir": "@boolean",
+              "lookedAt": "@string",
+              "mime": "@string",
+              "modifiedAt": "@string",
+              "name": "@string",
+              "parentDir": "@string",
+              "partitionLabel": "@string",
+              "partitionUUID": "@string",
+              "path": "@string",
+              "pinyin": "@string",
+              "sha1": "@string",
+              "size": "@integer(1,100000)",
+              "storageType": "@pick([0,1,2,3])",
+              "userID": "@string"
+            },
+            "linkInfo": {
+              "createTime": "@string",
+              "fileName": "@string",
+              "id": "@integer(1,100000)",
+              "isDir": "@boolean",
+              "ownerId": "@string",
+              "partitionUUID": "@string",
+              "relPath": "@string",
+              "rwMode": "@pick([1,2,4])",
+              "storageType": "@pick([0,1,2,3])",
+              "updateTime": "@string"
+            }
+          }
+        ]
+      },
+      "message": "@string"
+    }
+  },
+  "bodyParams": null,
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "fileName": "列举个人所有的分享链接_1750833036331.json",
+  "createdAt": "2025-06-25T06:30:35.423Z",
+  "group": "ffff"
+}

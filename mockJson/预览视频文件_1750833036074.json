@@ -1,0 +1,26 @@
+{
+  "pathName": "预览视频文件",
+  "path": "/fileShare/link/preview/video",
+  "pathType": "GET",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": "",
+    "linkId": ""
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": [
+      "@integer(1,100000)"
+    ]
+  },
+  "bodyParams": null,
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "fileName": "预览视频文件_1750833036074.json",
+  "createdAt": "2025-06-25T06:30:35.423Z"
+}

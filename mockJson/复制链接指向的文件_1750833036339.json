@@ -1,0 +1,40 @@
+{
+  "pathName": "复制链接指向的文件",
+  "path": "/fileShare/link/copy",
+  "pathType": "POST",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": ""
+  },
+  "headers": {
+    "nas-token": "",
+    "nas-user": ""
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": "@string",
+      "message": "@string"
+    }
+  },
+  "bodyParams": {
+    "action": "@pick([0,1,2])",
+    "dstPath": {
+      "filePath": "@string",
+      "storageInfo": {
+        "partitionLabel": "@string",
+        "partitionUUID": "@string",
+        "storageType": "@pick([0,1,2,3])",
+        "userID": "@string"
+      }
+    },
+    "linkId": "@integer(1,100000)"
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "fileName": "复制链接指向的文件_1750833036339.json",
+  "createdAt": "2025-06-25T06:30:35.422Z"
+}

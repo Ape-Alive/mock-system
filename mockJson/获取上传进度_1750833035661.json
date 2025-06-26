@@ -1,0 +1,33 @@
+{
+  "pathName": "获取上传进度",
+  "path": "/api/v2/upload/progress",
+  "pathType": "POST",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": ""
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": {
+        "taskID": "@string",
+        "totalSize": "@integer(1,100000)",
+        "uploadedSize": "@integer(1,100000)"
+      },
+      "message": "@string"
+    }
+  },
+  "bodyParams": {
+    "taskID": "@string"
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "fileName": "获取上传进度_1750833035661.json",
+  "createdAt": "2025-06-25T06:30:35.424Z"
+}

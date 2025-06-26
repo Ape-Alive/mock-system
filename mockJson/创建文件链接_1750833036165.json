@@ -1,0 +1,32 @@
+{
+  "pathName": "创建文件链接",
+  "path": "/fileShare/link",
+  "pathType": "POST",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": ""
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": "@string",
+      "message": "@string"
+    }
+  },
+  "bodyParams": {
+    "partitionUUID": "@string",
+    "relPath": "@string",
+    "storageType": "@pick([1])",
+    "userId": "@string"
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "fileName": "创建文件链接_1750833036165.json",
+  "createdAt": "2025-06-25T06:30:35.422Z"
+}

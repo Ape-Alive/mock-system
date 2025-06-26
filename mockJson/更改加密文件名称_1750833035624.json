@@ -1,0 +1,52 @@
+{
+  "pathName": "更改加密文件名称",
+  "path": "/api/v2/encrypted/index/rename",
+  "pathType": "POST",
+  "mockType": "mockjsTemplate",
+  "queryParams": {},
+  "headers": {
+    "nas-token": "",
+    "Crypto-Token": ""
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": {
+        "extension": "@string",
+        "id": "@integer(1,100000)",
+        "isDir": "@boolean",
+        "lookedAt": "@string",
+        "mime": "@string",
+        "modifiedAt": "@string",
+        "name": "@string",
+        "parentDir": "@string",
+        "partitionLabel": "@string",
+        "partitionUUID": "@string",
+        "path": "@string",
+        "pinyin": "@string",
+        "sha1": "@string",
+        "size": "@integer(1,100000)",
+        "storageType": "@pick([0,1,2,3])",
+        "userID": "@string"
+      },
+      "message": "@string"
+    }
+  },
+  "bodyParams": {
+    "filePath": "@string",
+    "newFileName": "@string",
+    "storageInfo": {
+      "partitionLabel": "@string",
+      "partitionUUID": "@string",
+      "storageType": "@pick([0,1,2,3])",
+      "userID": "@string"
+    }
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "fileName": "更改加密文件名称_1750833035624.json",
+  "createdAt": "2025-06-25T06:30:35.429Z"
+}

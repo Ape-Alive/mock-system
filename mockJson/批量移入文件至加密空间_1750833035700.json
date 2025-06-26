@@ -1,0 +1,48 @@
+{
+  "pathName": "批量移入文件至加密空间",
+  "path": "/api/v2/encrypted/file/moveTo",
+  "pathType": "POST",
+  "mockType": "mockjsTemplate",
+  "queryParams": {},
+  "headers": {
+    "nas-token": " eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IjE1MDcwNDU3MDQ2IiwicGFzc3dvcmRWZXJzaW9uIjoiY2YyOWYxNjMtYWU2NS00ZWE0LThkMWEtZjQ1MDM0OGIxZThmIiwicmFuZG9tS2V5IjoiNjkxZTU2YTMtZWNhNy00MmZiLTg3MDYtNzA2YTFjYWEyNjg2IiwiaXNzIjoiTGluY1VzZXJNYW5hZ2VyIn0.n6FSIcnqWu1GJwCi1Q-lJrU3ANlSVi07deI4K3CoXDI"
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": "@string",
+      "message": "@string"
+    }
+  },
+  "bodyParams": {
+    "action": "@pick([0,1,2])",
+    "dstPath": {
+      "filePath": "@string",
+      "storageInfo": {
+        "partitionLabel": "@string",
+        "partitionUUID": "@string",
+        "storageType": "@pick([0,1,2,3])",
+        "userID": "@string"
+      }
+    },
+    "srcPath": [
+      {
+        "filePath": "@string",
+        "isDir": "@boolean",
+        "storageInfo": {
+          "partitionLabel": "@string",
+          "partitionUUID": "@string",
+          "storageType": "@pick([0,1,2,3])",
+          "userID": "@string"
+        }
+      }
+    ]
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "fileName": "批量移入文件至加密空间_1750833035700.json",
+  "createdAt": "2025-06-25T06:30:35.428Z"
+}

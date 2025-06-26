@@ -1,0 +1,32 @@
+{
+  "pathName": "更新指定链接的分享对象",
+  "path": "/fileShare/sharer/update",
+  "pathType": "POST",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": ""
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": "@string",
+      "message": "@string"
+    }
+  },
+  "bodyParams": {
+    "linkId": "@integer(1,100000)",
+    "sharerIdList": [
+      "@string"
+    ]
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "fileName": "更新指定链接的分享对象_1750833036321.json",
+  "createdAt": "2025-06-25T06:30:35.422Z"
+}

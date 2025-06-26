@@ -1,0 +1,28 @@
+{
+  "pathName": "根据文件位置信息获取文件流",
+  "path": "/dynamic/storageFile",
+  "pathType": "GET",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": "",
+    "partitionLabel": "",
+    "partitionUUID": "",
+    "relativeFilePath": "",
+    "storageType": "",
+    "userID": ""
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {}
+  },
+  "bodyParams": null,
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "fileName": "根据文件位置信息获取文件流_1750833036010.json",
+  "createdAt": "2025-06-25T06:30:35.418Z"
+}

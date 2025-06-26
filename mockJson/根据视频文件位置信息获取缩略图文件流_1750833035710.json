@@ -1,0 +1,28 @@
+{
+  "pathName": "根据视频文件位置信息获取缩略图文件流",
+  "path": "/api/v2/dynamic/thumbnail/video",
+  "pathType": "GET",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": "",
+    "partitionLabel": "",
+    "partitionUUID": "60088bba-9679-4d8e-b357-2a2808cbbe7a",
+    "relativeFilePath": "/20241003_195213.mp4",
+    "storageType": 1,
+    "userID": ""
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {}
+  },
+  "bodyParams": null,
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "fileName": "根据视频文件位置信息获取缩略图文件流_1750833035710.json",
+  "createdAt": "2025-06-25T06:30:35.424Z"
+}

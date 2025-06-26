@@ -1,0 +1,66 @@
+{
+  "pathName": "列举分享目录中的所有子文件",
+  "path": "/fileShare/link/listFiles",
+  "pathType": "POST",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": ""
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": {
+        "indexFiles": [
+          {
+            "extension": "@string",
+            "id": "@integer(1,100000)",
+            "isDir": "@boolean",
+            "lookedAt": "@string",
+            "mime": "@string",
+            "modifiedAt": "@string",
+            "name": "@string",
+            "parentDir": "@string",
+            "partitionLabel": "@string",
+            "partitionUUID": "@string",
+            "path": "@string",
+            "pinyin": "@string",
+            "sha1": "@string",
+            "size": "@integer(1,100000)",
+            "storageType": "@pick([0,1,2,3])",
+            "userID": "@string"
+          }
+        ],
+        "page": {
+          "currentPageSize": "@integer(1,100000)",
+          "pageCount": "@integer(1,100000)",
+          "pageIndex": "@integer(1,100000)",
+          "pageSize": "@integer(1,100000)",
+          "total": "@integer(1,100000)"
+        }
+      },
+      "message": "@string"
+    }
+  },
+  "bodyParams": {
+    "linkId": "@integer(1,100000)",
+    "orderParam": {
+      "ascending": "@boolean",
+      "field": "@string"
+    },
+    "page": {
+      "pageIndex": "@integer(1,100000)",
+      "pageSize": "@integer(1,100000)"
+    }
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "fileName": "列举分享目录中的所有子文件_1750833035619.json",
+  "createdAt": "2025-06-25T06:30:35.422Z",
+  "group": "ffff"
+}

@@ -1,0 +1,28 @@
+{
+  "pathName": "根据图片文件位置信息获取缩略图文件流",
+  "path": "/api/v2/dynamic/thumbnail/image",
+  "pathType": "GET",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": "",
+    "partitionLabel": "",
+    "partitionUUID": "",
+    "relativeFilePath": "",
+    "storageType": "",
+    "userID": ""
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {}
+  },
+  "bodyParams": null,
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "fileName": "根据图片文件位置信息获取缩略图文件流_1750833035943.json",
+  "createdAt": "2025-06-25T06:30:35.424Z"
+}

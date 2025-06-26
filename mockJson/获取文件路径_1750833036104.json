@@ -1,0 +1,34 @@
+{
+  "pathName": "获取文件路径",
+  "path": "/storage/path",
+  "pathType": "GET",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": "",
+    "partitionLabel": "",
+    "partitionUUID": "",
+    "relPath": "",
+    "storageType": "",
+    "userID": ""
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": {
+        "path": "@string"
+      },
+      "message": "@string"
+    }
+  },
+  "bodyParams": null,
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "fileName": "获取文件路径_1750833036104.json",
+  "createdAt": "2025-06-25T06:30:35.419Z"
+}

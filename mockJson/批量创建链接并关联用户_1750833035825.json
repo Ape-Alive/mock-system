@@ -1,0 +1,39 @@
+{
+  "pathName": "批量创建链接并关联用户",
+  "path": "/fileShare/link/batchCreate",
+  "pathType": "POST",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": ""
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": "@string",
+      "message": "@string"
+    }
+  },
+  "bodyParams": {
+    "fileLinkList": [
+      {
+        "partitionUUID": "@string",
+        "relPath": "@string",
+        "storageType": "@pick([1])",
+        "userId": "@string"
+      }
+    ],
+    "sharerIdList": [
+      "@string"
+    ]
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "fileName": "批量创建链接并关联用户_1750833035825.json",
+  "createdAt": "2025-06-25T06:30:35.422Z"
+}

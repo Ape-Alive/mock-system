@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mock接口管理平台</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <script src="https://cdn.bootcdn.net/ajax/libs/Mock.js/1.0.0/mock-min.js"></script>
+    <!-- jsTree CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jstree@3.3.15/dist/themes/default/style.min.css" />
+  </head>
+  <body>
+    <header>
+      <div class="container">
+        <h1>Mock接口管理平台</h1>
+        <div class="actions">
+          <button id="theme-toggle" class="btn-icon">
+            <i class="fas fa-moon"></i>
+          </button>
+          <button id="add-mock" class="btn primary"><i class="fas fa-plus"></i> 新建接口</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="container" style="display: flex; gap: 24px; align-items: flex-start">
+      <!-- 分组树形导航 -->
+      <aside id="group-tree" style="min-width: 220px; max-width: 260px">
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            margin-top: 20px;
+          "
+        >
+          <h3>接口分组</h3>
+          <button
+            id="delete-group-btn"
+            class="btn-icon"
+            title="删除分组"
+            style="font-size: 1.1em; border: none; background: none; color: inherit; cursor: pointer; padding: 4px 8px"
+          >
+            <i class="fas fa-trash"></i>
+          </button>
+          <button
+            id="clear-group-btn"
+            class="btn-icon"
+            title="清空分组接口"
+            style="font-size: 1.1em; border: none; background: none; color: inherit; cursor: pointer; padding: 4px 8px"
+          >
+            <i class="fas fa-eraser"></i>
+          </button>
+          <button
+            id="add-group-btn"
+            class="btn-icon"
+            title="新增分组"
+            style="font-size: 1.1em; border: none; background: none; color: inherit; cursor: pointer; padding: 4px 8px"
+          >
+            <i class="fas fa-plus"></i>
+          </button>
+        </div>
+        <!-- <div id="group-action-bar" style="display: flex; gap: 8px; align-items: center; margin-bottom: 10px">
+          <button id="delete-group-btn" class="btn-icon" title="删除分组"><i class="fas fa-trash"></i></button>
+          <button id="clear-group-btn" class="btn-icon" title="清空分组接口"><i class="fas fa-eraser"></i></button>
+        </div> -->
+        <div id="group-tree-jstree"></div>
+      </aside>
+      <section id="mock-list-section" style="flex: 1">
+        <div class="section-header">
+          <h2>接口列表</h2>
+          <div style="display: flex; gap: 10px; align-items: center">
+            <div class="search-box">
+              <input type="text" id="search-input" placeholder="搜索接口..." />
+              <i class="fas fa-search"></i>
+            </div>
+            <button id="import-openapi-btn" class="btn primary" title="导入OpenAPI/Swagger">
+              <i class="fas fa-file-import"></i> 导入OpenAPI/Swagger
+            </button>
+            <button id="toggle-table-mode" class="btn secondary" title="切换表格/卡片模式">
+              <i class="fas fa-table"></i>
+            </button>
+          </div>
+        </div>
+        <div id="mock-list" class="grid-container">
+          <!-- 接口列表将通过JS动态生成 -->
+        </div>
+        <!-- 新增表格模式容器 -->
+        <div id="mock-table-container" style="display: none">
+          <table class="mock-table">
+            <thead>
+              <tr>
+                <th class="checkbox-col"><input type="checkbox" id="table-checkbox-all" /></th>
+                <th>接口名称</th>
+                <th>请求路径</th>
+                <th>请求类型</th>
+                <th>创建时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="mock-table-body">
+              <!-- JS动态生成 -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <!-- 创建/编辑接口的模态框 -->
+    <div id="mock-modal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="modal-title">创建新接口</h3>
+          <button class="btn-icon close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="mock-form">
+            <input type="hidden" id="filename" />
+
+            <div class="form-group">
+              <label for="pathName">接口名称 *</label>
+              <input type="text" id="pathName" required />
+            </div>
+
+            <div class="form-group">
+              <label for="group-input">分组</label>
+              <input type="text" id="group-input" placeholder="如 a/b/c" />
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="path">请求路径 *</label>
+                <input type="text" id="path" placeholder="/api/example" required />
+              </div>
+
+              <div class="form-group">
+                <label for="pathType">请求类型 *</label>
+                <select id="pathType" required>
+                  <option value="GET">GET</option>
+                  <option value="POST">POST</option>
+                  <option value="PUT">PUT</option>
+                  <option value="DELETE">DELETE</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="mockType">Mock类型 *</label>
+                <select id="mockType" required>
+                  <option value="rawJson">原始JSON</option>
+                  <option value="mockjsTemplate">Mock.js模板</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="queryParams">查询参数 (JSON格式)</label>
+              <textarea id="queryParams" rows="3" placeholder='{"param1": "value1", "param2": "value2"}'></textarea>
+            </div>
+
+            <div class="form-group" id="body-group" style="display: none">
+              <label for="bodyParams">Body参数 (JSON格式)</label>
+              <textarea id="bodyParams" rows="4" placeholder='{"key": "value"}'></textarea>
+            </div>
+
+            <div class="form-group">
+              <label for="responseHeaders">响应头内容 (JSON格式) *</label>
+              <textarea
+                id="responseHeaders"
+                rows="3"
+                required
+                placeholder='{"Content-Type": "application/json"}'
+              ></textarea>
+            </div>
+
+            <!-- 修改响应内容部分 -->
+            <div class="form-group">
+              <label for="pathContent">响应内容 (JSON格式) *</label>
+              <textarea id="pathContent" rows="8" required placeholder='{"data": "@cname", "age|18-60": 1}'></textarea>
+
+              <div class="json-preview">
+                <div class="preview-header">
+                  <h4>JSON预览:</h4>
+                  <button id="refresh-preview" class="btn-icon" title="刷新预览">
+                    <i class="fas fa-sync-alt"></i>
+                  </button>
+                </div>
+                <pre id="json-preview"></pre>
+                <div class="preview-notice" id="mockjs-notice">
+                  <i class="fas fa-info-circle"></i> 您正在使用Mock.js模板，预览显示实际生成数据
+                </div>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="button" class="btn secondary close">取消</button>
+              <button type="submit" class="btn primary">保存</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- 加载指示器 -->
+    <div id="loading" class="loading">
+      <div class="spinner"></div>
+    </div>
+
+    <!-- 确认对话框 -->
+    <div id="confirm-modal" class="modal">
+      <div class="modal-content small">
+        <div class="modal-header">
+          <h3>确认操作</h3>
+        </div>
+        <div class="modal-body">
+          <p id="confirm-message">您确定要删除此接口吗？此操作不可撤销。</p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn secondary" id="confirm-cancel">取消</button>
+          <button class="btn danger" id="confirm-action">确认</button>
+        </div>
+      </div>
+    </div>
+    <!-- 测试结果模态框 -->
+
+    <div id="test-modal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>接口测试结果</h3>
+          <button class="btn-icon close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="test-info">
+            <div class="test-method"></div>
+            <div class="test-url"></div>
+            <div class="test-status"></div>
+          </div>
+
+          <div class="tabs">
+            <button class="tab active" data-tab="response">响应内容</button>
+            <button class="tab" data-tab="headers">响应头</button>
+            <button class="tab" data-tab="request">请求详情</button>
+          </div>
+
+          <div class="tab-content">
+            <div id="response" class="tab-pane active">
+              <pre class="response-body"></pre>
+            </div>
+
+            <div id="headers" class="tab-pane">
+              <pre class="response-headers"></pre>
+            </div>
+
+            <div id="request" class="tab-pane">
+              <div class="form-group">
+                <label>请求头</label>
+                <pre class="request-headers"></pre>
+              </div>
+              <div class="form-group">
+                <label>查询参数</label>
+                <pre class="request-query"></pre>
+              </div>
+              <div class="form-group" id="request-body-section">
+                <label>请求体</label>
+                <pre class="request-body"></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn secondary close">关闭</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 导入OpenAPI/Swagger模态框 -->
+    <div id="import-modal" class="modal">
+      <div class="modal-content small">
+        <div class="modal-header">
+          <h3>导入OpenAPI/Swagger</h3>
+          <button class="btn-icon close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="import-form">
+            <div class="form-group">
+              <label for="import-file">选择OpenAPI/Swagger文件 (JSON/YAML)</label>
+              <input
+                type="file"
+                id="import-file"
+                accept=".json,.yaml,.yml,application/json,application/x-yaml,text/yaml"
+              />
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn secondary close">取消</button>
+              <button type="submit" class="btn primary">上传并导入</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- 新增分组弹窗 -->
+    <div id="group-modal" class="modal">
+      <div class="modal-content small">
+        <div class="modal-header">
+          <h3>新增分组</h3>
+          <button class="btn-icon close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="group-form">
+            <div class="form-group">
+              <label for="group-name">分组名称（支持多级，如a/b/c）</label>
+              <input type="text" id="group-name" required placeholder="请输入分组名" />
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn secondary close">取消</button>
+              <button type="submit" class="btn primary">确定</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- 批量分组浮动按钮 -->
+    <button
+      id="batch-move-btn"
+      class="btn-icon"
+      style="position: fixed; right: 80px; top: 300px; z-index: 3000; color: var(--primary-color); font-size: 2em"
+    >
+      <i class="fas fa-share-square"></i>
+    </button>
+    <!-- 批量分组选择弹框 -->
+    <div id="batch-move-modal" class="modal">
+      <div class="modal-content small">
+        <div class="modal-header">
+          <h3>批量分组</h3>
+          <button class="btn-icon close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="batch-move-form">
+            <div class="form-group">
+              <label for="batch-move-group">选择目标分组</label>
+              <select id="batch-move-group" required></select>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn secondary close">取消</button>
+              <button type="submit" class="btn primary">确定</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+    <!-- 依赖 jQuery -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <!-- jsTree JS -->
+    <script src="https://cdn.jsdelivr.net/npm/jstree@3.3.15/dist/jstree.min.js"></script>
+  </body>
+</html>

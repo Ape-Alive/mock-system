@@ -1,0 +1,39 @@
+{
+  "pathName": "批量更新链接的分享对象",
+  "path": "/api/v2/fileShare/sharer/batchUpdate",
+  "pathType": "POST",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": ""
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": "@string",
+      "message": "@string"
+    }
+  },
+  "bodyParams": {
+    "fileList": [
+      {
+        "partitionUUID": "@string",
+        "relPath": "@string",
+        "storageType": "@pick([1])",
+        "userId": "@string"
+      }
+    ],
+    "sharerIdList": [
+      "@string"
+    ]
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "fileName": "批量更新链接的分享对象_1750833035489.json",
+  "createdAt": "2025-06-25T06:30:35.429Z"
+}

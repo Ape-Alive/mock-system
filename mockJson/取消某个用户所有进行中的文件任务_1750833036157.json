@@ -1,0 +1,27 @@
+{
+  "pathName": "取消某个用户所有进行中的文件任务",
+  "path": "/file/task/cancelAll",
+  "pathType": "POST",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": ""
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": "@string",
+      "message": "@string"
+    }
+  },
+  "bodyParams": {},
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "fileName": "取消某个用户所有进行中的文件任务_1750833036157.json",
+  "createdAt": "2025-06-25T06:30:35.417Z"
+}

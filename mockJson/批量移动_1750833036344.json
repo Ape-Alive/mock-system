@@ -1,0 +1,50 @@
+{
+  "pathName": "批量移动",
+  "path": "/api/v2/file/task/move/batch",
+  "pathType": "POST",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": ""
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": "@string",
+      "message": "@string"
+    }
+  },
+  "bodyParams": {
+    "action": "@pick([0,1,2])",
+    "dstPath": {
+      "filePath": "@string",
+      "storageInfo": {
+        "partitionLabel": "@string",
+        "partitionUUID": "@string",
+        "storageType": "@pick([0,1,2,3])",
+        "userID": "@string"
+      }
+    },
+    "srcPath": [
+      {
+        "filePath": "@string",
+        "isDir": "@boolean",
+        "storageInfo": {
+          "partitionLabel": "@string",
+          "partitionUUID": "@string",
+          "storageType": "@pick([0,1,2,3])",
+          "userID": "@string"
+        }
+      }
+    ]
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "fileName": "批量移动_1750833036344.json",
+  "createdAt": "2025-06-25T06:30:35.426Z"
+}

@@ -1,0 +1,32 @@
+{
+  "pathName": "实际上传文件",
+  "path": "/api/v2/upload/file",
+  "pathType": "POST",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": ""
+  },
+  "headers": {
+    "nas-token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IjE1MDcwNDU3MDQ2IiwicGFzc3dvcmRWZXJzaW9uIjoiNGY2MzA2ODAtMzFmNy00MmExLWE4YWMtYTZkOGQ3YzFlZDA2IiwibGludXhVaWQiOiIxMDE4IiwibGludXhHaWQiOiIxMDE4IiwiZXhwIjoxNzM0MzE0ODMzLCJpc3MiOiJOQVMifQ.SKgbTzlBQuGtWUfP74JmGfCKBEdEJKH46U7VaB5oAMA",
+    "taskID": "aa41317d-31b7-4822-8917-3c2bd596c0a7",
+    "Uploaded-Size": "",
+    "Total-Size": 23723,
+    "Content-Length": 23723,
+    "Sha1": "f9800fff3a616bbb3bb9c0119ab903df23eb74eb1"
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": "@string",
+      "message": "@string"
+    }
+  },
+  "bodyParams": null,
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "fileName": "实际上传文件_1750833035469.json",
+  "createdAt": "2025-06-25T06:30:35.424Z"
+}

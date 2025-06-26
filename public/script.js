@@ -1,0 +1,1131 @@
+document.addEventListener('DOMContentLoaded', () => {
+  // 全局变量
+  let mockItems = []
+  let currentEditFilename = null
+  let deleteCallback = null
+  let currentTestItem = null
+  const refreshPreviewBtn = document.getElementById('refresh-preview')
+  const mockjsNotice = document.getElementById('mockjs-notice')
+  // DOM 元素
+  const themeToggle = document.getElementById('theme-toggle')
+  const addMockBtn = document.getElementById('add-mock')
+  const mockList = document.getElementById('mock-list')
+  const searchInput = document.getElementById('search-input')
+  const mockModal = document.getElementById('mock-modal')
+  const confirmModal = document.getElementById('confirm-modal')
+  const mockForm = document.getElementById('mock-form')
+  const modalTitle = document.getElementById('modal-title')
+  const filenameInput = document.getElementById('filename')
+  const pathNameInput = document.getElementById('pathName')
+  const pathInput = document.getElementById('path')
+  const pathTypeSelect = document.getElementById('pathType')
+  const mockTypeSelect = document.getElementById('mockType')
+  const queryParamsTextarea = document.getElementById('queryParams')
+  const headersTextarea = document.getElementById('headers')
+  const pathContentTextarea = document.getElementById('pathContent')
+  const jsonPreview = document.getElementById('json-preview')
+  const loadingIndicator = document.getElementById('loading')
+  const closeButtons = document.querySelectorAll('.close')
+  const confirmCancelBtn = document.getElementById('confirm-cancel')
+  const confirmActionBtn = document.getElementById('confirm-action')
+  let isTableMode = false
+  const toggleTableModeBtn = document.getElementById('toggle-table-mode')
+  const mockTableContainer = document.getElementById('mock-table-container')
+  const mockTableBody = document.getElementById('mock-table-body')
+  const importOpenapiBtn = document.getElementById('import-openapi-btn')
+  const importModal = document.getElementById('import-modal')
+  const importForm = document.getElementById('import-form')
+  const importFileInput = document.getElementById('import-file')
+  const bodyGroup = document.getElementById('body-group')
+  const bodyParamsTextarea = document.getElementById('bodyParams')
+  const responseHeadersTextarea = document.getElementById('responseHeaders')
+  const groupInput = document.getElementById('group-input')
+  let currentGroup = '全部'
+  const groupTreeList = document.getElementById('group-tree-list')
+  const addGroupBtn = document.getElementById('add-group-btn')
+  let selectedFiles = new Set()
+  const batchBar = document.getElementById('batch-group-bar')
+  const selectedCount = document.getElementById('selected-count')
+  const batchGroupInput = document.getElementById('batch-group-input')
+  const batchGroupBtn = document.getElementById('batch-group-btn')
+
+  // 初始化
+  init()
+
+  // 事件监听
+  themeToggle.addEventListener('click', toggleTheme)
+  addMockBtn.addEventListener('click', () => openMockModal())
+  searchInput.addEventListener('input', filterMockList)
+  mockForm.addEventListener('submit', handleFormSubmit)
+  pathContentTextarea.addEventListener('input', updateJsonPreview)
+  closeButtons.forEach((btn) => btn.addEventListener('click', closeAllModals))
+  confirmCancelBtn.addEventListener('click', () => confirmModal.classList.remove('active'))
+  confirmActionBtn.addEventListener('click', handleConfirmAction)
+  refreshPreviewBtn.addEventListener('click', updateJsonPreview)
+  toggleTableModeBtn.addEventListener('click', () => {
+    isTableMode = !isTableMode
+    if (isTableMode) {
+      mockList.style.display = 'none'
+      mockTableContainer.style.display = ''
+      toggleTableModeBtn.innerHTML = '<i class="fas fa-th-large"></i>'
+      renderMockTable(mockItems)
+    } else {
+      mockList.style.display = ''
+      mockTableContainer.style.display = 'none'
+      toggleTableModeBtn.innerHTML = '<i class="fas fa-table"></i>'
+      renderMockList(mockItems)
+    }
+  })
+  updateJsonPreview
+  // 打开导入模态框
+  importOpenapiBtn.addEventListener('click', () => {
+    importModal.classList.add('active')
+  })
+  // 关闭导入模态框
+  importModal.querySelectorAll('.close').forEach((btn) =>
+    btn.addEventListener('click', () => {
+      importModal.classList.remove('active')
+    })
+  )
+  // 提交导入表单
+  importForm.addEventListener('submit', async (e) => {
+    e.preventDefault()
+    const file = importFileInput.files[0]
+    if (!file) {
+      alert('请选择要上传的文件')
+      return
+    }
+    const formData = new FormData()
+    formData.append('file', file)
+    showLoading()
+    try {
+      const response = await fetch('/import-openapi', {
+        method: 'POST',
+        body: formData,
+      })
+      if (!response.ok) {
+        const errText = await response.text()
+        throw new Error(errText || '导入失败')
+      }
+      importModal.classList.remove('active')
+      await loadMockList()
+      alert('导入成功')
+    } catch (err) {
+      showError('导入失败: ' + err.message)
+    } finally {
+      hideLoading()
+    }
+  })
+
+  // 控制body参数输入框显示
+  function updateBodyGroup() {
+    const method = pathTypeSelect.value
+    if (['POST', 'PUT', 'DELETE'].includes(method)) {
+      bodyGroup.style.display = ''
+    } else {
+      bodyGroup.style.display = 'none'
+      bodyParamsTextarea.value = ''
+    }
+  }
+  pathTypeSelect.addEventListener('change', updateBodyGroup)
+  // 初始化时也调用
+  updateBodyGroup()
+
+  // 初始化函数
+  function init() {
+    // 检查主题偏好
+    const savedTheme = localStorage.getItem('theme')
+    if (savedTheme === 'dark') {
+      document.body.classList.add('dark-theme')
+      themeToggle.innerHTML = '<i class="fas fa-sun"></i>'
+    }
+
+    // 加载mock列表
+    loadMockList()
+  }
+
+  // 主题切换
+  function toggleTheme() {
+    document.body.classList.toggle('dark-theme')
+
+    if (document.body.classList.contains('dark-theme')) {
+      localStorage.setItem('theme', 'dark')
+      themeToggle.innerHTML = '<i class="fas fa-sun"></i>'
+    } else {
+      localStorage.setItem('theme', 'light')
+      themeToggle.innerHTML = '<i class="fas fa-moon"></i>'
+    }
+  }
+
+  // 加载mock列表
+  async function loadMockList() {
+    showLoading()
+
+    try {
+      const response = await fetch('/mock-list')
+      if (!response.ok) throw new Error('无法加载接口列表')
+
+      mockItems = await response.json()
+      renderGroupTree(mockItems)
+      renderCurrentGroupList()
+    } catch (error) {
+      showError('加载失败: ' + error.message)
+    } finally {
+      hideLoading()
+    }
+  }
+
+  // 渲染mock列表
+  function renderMockList(items) {
+    mockList.innerHTML = ''
+    mockList.style.display = ''
+    mockTableContainer.style.display = 'none'
+    toggleTableModeBtn.innerHTML = '<i class="fas fa-table"></i>'
+    isTableMode = false
+    if (items.length === 0) {
+      mockList.innerHTML = '<div class="no-results">没有找到接口</div>'
+      return
+    }
+    items.forEach((item) => {
+      const card = createMockCard(item)
+      // 多选复选框
+      const checkboxBox = document.createElement('div')
+      checkboxBox.className = 'mock-checkbox-box'
+      const checkbox = document.createElement('input')
+      checkbox.type = 'checkbox'
+      checkbox.className = 'mock-checkbox'
+      checkbox.checked = selectedFiles.has(item.fileName)
+      checkbox.addEventListener('change', (e) => {
+        if (e.target.checked) selectedFiles.add(item.fileName)
+        else selectedFiles.delete(item.fileName)
+      })
+      checkboxBox.appendChild(checkbox)
+      card.insertBefore(checkboxBox, card.firstChild)
+      mockList.appendChild(card)
+    })
+  }
+
+  function renderMockTable(items) {
+    mockTableBody.innerHTML = ''
+    mockTableContainer.style.display = ''
+    mockList.style.display = 'none'
+    toggleTableModeBtn.innerHTML = '<i class="fas fa-th-large"></i>'
+    isTableMode = true
+    if (items.length === 0) {
+      mockTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center;">没有找到接口</td></tr>'
+      return
+    }
+    items.forEach((item) => {
+      const tr = document.createElement('tr')
+      tr.innerHTML = `
+                <td class="checkbox-col"></td>
+                <td>${item.pathName}</td>
+                <td style="font-family:monospace;word-break:break-all;">${item.path}</td>
+                <td><span class="method ${item.pathType.toLowerCase()}">${item.pathType}</span></td>
+                <td>${formatDate(item.createdAt)}</td>
+                <td>
+                    <button class="btn test" data-filename="${item.fileName}">测试</button>
+                    <button class="btn secondary edit" data-filename="${item.fileName}">编辑</button>
+                    <button class="btn danger delete" data-filename="${item.fileName}">删除</button>
+                </td>
+            `
+      // 多选复选框
+      const checkboxBox = document.createElement('div')
+      checkboxBox.className = 'mock-checkbox-box'
+      const checkbox = document.createElement('input')
+      checkbox.type = 'checkbox'
+      checkbox.className = 'mock-checkbox'
+      checkbox.checked = selectedFiles.has(item.fileName)
+      checkbox.addEventListener('change', (e) => {
+        if (e.target.checked) selectedFiles.add(item.fileName)
+        else selectedFiles.delete(item.fileName)
+      })
+      checkboxBox.appendChild(checkbox)
+      tr.querySelector('td.checkbox-col').appendChild(checkboxBox)
+      // 按钮事件
+      tr.querySelector('.test').addEventListener('click', () => testMockInterface(item))
+      tr.querySelector('.edit').addEventListener('click', () => openMockModal(item.fileName))
+      tr.querySelector('.delete').addEventListener('click', () => openDeleteConfirm(item))
+      mockTableBody.appendChild(tr)
+    })
+    // 全选checkbox逻辑
+    const allCheckbox = document.getElementById('table-checkbox-all')
+    if (allCheckbox) {
+      allCheckbox.checked = items.length > 0 && items.every((item) => selectedFiles.has(item.fileName))
+      allCheckbox.indeterminate = items.some((item) => selectedFiles.has(item.fileName)) && !allCheckbox.checked
+      allCheckbox.onchange = function () {
+        if (this.checked) {
+          items.forEach((item) => selectedFiles.add(item.fileName))
+        } else {
+          items.forEach((item) => selectedFiles.delete(item.fileName))
+        }
+        renderMockTable(items)
+      }
+    }
+  }
+
+  // 创建mock卡片
+  function createMockCard(item) {
+    const card = document.createElement('div')
+    card.className = 'mock-card'
+
+    const methodClass = `method ${item.pathType.toLowerCase()}`
+
+    card.innerHTML = `
+            <div class="mock-header">
+                <span class="${methodClass}">${item.pathType}</span>
+                <h3 class="mock-title">${item.pathName}</h3>
+            </div>
+            <div class="mock-body">
+                <p class="mock-path">${item.path}</p>
+                <div class="mock-meta">
+                    <small>创建: ${formatDate(item.createdAt)}</small>
+                </div>
+            </div>
+            <div class="mock-footer">
+                <button class="btn secondary edit" data-filename="${item.fileName}">编辑</button>
+                <button class="btn danger delete" data-filename="${item.fileName}">删除</button>
+            </div>
+        `
+    card.innerHTML = `
+        <div class="mock-header">
+            <span class="${methodClass}">${item.pathType}</span>
+            <h3 class="mock-title">${item.pathName}</h3>
+        </div>
+        <div class="mock-body">
+            <p class="mock-path">${item.path}</p>
+            <div class="mock-meta">
+                <small>创建: ${formatDate(item.createdAt)}</small>
+            </div>
+        </div>
+        <div class="mock-footer">
+            <button class="btn test" data-filename="${item.fileName}">测试</button>
+            <button class="btn secondary edit" data-filename="${item.fileName}">编辑</button>
+            <button class="btn danger delete" data-filename="${item.fileName}">删除</button>
+        </div>
+    `
+
+    // 添加测试事件
+    card.querySelector('.test').addEventListener('click', () => testMockInterface(item))
+    // 添加编辑和删除事件
+    card.querySelector('.edit').addEventListener('click', () => openMockModal(item.fileName))
+    card.querySelector('.delete').addEventListener('click', () => openDeleteConfirm(item))
+
+    return card
+  }
+  // 在mockTypeSelect事件监听中添加更新预览
+  mockTypeSelect.addEventListener('change', function () {
+    updateJsonPreview()
+    // 显示/隐藏Mock.js使用提示
+    let mockTip = document.getElementById('mockjs-tip')
+    if (this.value === 'mockjsTemplate') {
+      if (!mockTip) {
+        mockTip = document.createElement('div')
+        mockTip.id = 'mockjs-tip'
+        mockTip.className = 'mock-template-tip'
+        mockTip.innerHTML = '<i class="fas fa-lightbulb"></i> 使用Mock.js模板语法，如: "@cname", "age|18-60": 1'
+        pathContentTextarea.parentElement.appendChild(mockTip)
+      }
+    } else if (mockTip) {
+      mockTip.remove()
+    }
+  })
+
+  // 打开mock模态框
+  async function openMockModal(filename = null) {
+    // 重置表单
+    mockForm.reset()
+    currentEditFilename = filename
+    if (filename) {
+      modalTitle.textContent = '编辑接口'
+      await loadMockData(filename)
+    } else {
+      modalTitle.textContent = '创建新接口'
+      filenameInput.value = ''
+      groupInput.value = ''
+    }
+    // 初始化模板提示
+    let mockTip = document.getElementById('mockjs-tip')
+    if (mockTypeSelect.value === 'mockjsTemplate') {
+      if (!mockTip) {
+        mockTip = document.createElement('div')
+        mockTip.id = 'mockjs-tip'
+        mockTip.className = 'mock-template-tip'
+        mockTip.innerHTML = '<i class="fas fa-lightbulb"></i> 使用Mock.js模板语法，如: "@cname", "age|18-60": 1'
+        pathContentTextarea.parentElement.appendChild(mockTip)
+      }
+    } else if (mockTip) {
+      mockTip.remove()
+    }
+    updateJsonPreview()
+    updateBodyGroup()
+    mockModal.classList.add('active')
+    groupInput.value = groupInput.value || (window.lastLoadedMockData && window.lastLoadedMockData.group) || ''
+  }
+
+  // 加载mock数据
+  async function loadMockData(filename) {
+    showLoading()
+
+    try {
+      const response = await fetch(`/mock-item/${filename}`)
+      if (!response.ok) throw new Error('无法加载接口数据')
+
+      const data = await response.json()
+      window.lastLoadedMockData = data
+
+      // 填充表单
+      filenameInput.value = data.fileName
+      pathNameInput.value = data.pathName
+      pathInput.value = data.path
+      pathTypeSelect.value = data.pathType
+      mockTypeSelect.value = data.mockType
+      queryParamsTextarea.value = data.queryParams ? JSON.stringify(data.queryParams, null, 2) : ''
+      headersTextarea.value = data.headers ? JSON.stringify(data.headers, null, 2) : ''
+      pathContentTextarea.value = JSON.stringify(data.pathContent, null, 2)
+      bodyParamsTextarea.value = data.bodyParams ? JSON.stringify(data.bodyParams, null, 2) : ''
+      responseHeadersTextarea.value = data.responseHeaders ? JSON.stringify(data.responseHeaders, null, 2) : ''
+      groupInput.value = data.group || ''
+    } catch (error) {
+      showError('加载失败: ' + error.message)
+    } finally {
+      hideLoading()
+    }
+  }
+
+  // 处理表单提交
+  async function handleFormSubmit(e) {
+    e.preventDefault()
+
+    // 验证JSON
+    if (!isValidJson(pathContentTextarea.value)) {
+      showError('响应内容必须是有效的JSON格式')
+      return
+    }
+
+    if (queryParamsTextarea.value && !isValidJson(queryParamsTextarea.value)) {
+      showError('查询参数必须是有效的JSON格式')
+      return
+    }
+
+    if (headersTextarea.value && !isValidJson(headersTextarea.value)) {
+      showError('请求头必须是有效的JSON格式')
+      return
+    }
+
+    if (['POST', 'PUT', 'DELETE'].includes(pathTypeSelect.value)) {
+      if (!isValidJson(bodyParamsTextarea.value)) {
+        showError('Body参数必须是有效的JSON格式')
+        return
+      }
+    }
+    if (!isValidJson(responseHeadersTextarea.value)) {
+      showError('响应头内容必须是有效的JSON格式')
+      return
+    }
+
+    const mockData = {
+      pathName: pathNameInput.value,
+      path: pathInput.value,
+      pathType: pathTypeSelect.value,
+      mockType: mockTypeSelect.value,
+      queryParams: queryParamsTextarea.value || null,
+      headers: headersTextarea.value || null,
+      pathContent: pathContentTextarea.value,
+      bodyParams: bodyParamsTextarea.value || null,
+      responseHeaders: responseHeadersTextarea.value,
+      group: groupInput.value.trim(),
+    }
+
+    showLoading()
+
+    try {
+      if (currentEditFilename) {
+        // 更新现有mock
+        await updateMock(currentEditFilename, mockData)
+      } else {
+        // 创建新mock
+        await createMock(mockData)
+      }
+
+      // 关闭模态框并刷新列表
+      closeAllModals()
+      await loadMockList()
+    } catch (error) {
+      showError('保存失败: ' + error.message)
+    } finally {
+      hideLoading()
+    }
+  }
+
+  // 创建新mock
+  async function createMock(data) {
+    const response = await fetch('/create-mock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.message || '创建失败')
+    }
+  }
+
+  // 更新mock
+  async function updateMock(filename, data) {
+    const response = await fetch(`/update-mock/${filename}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.message || '更新失败')
+    }
+  }
+
+  // 打开删除确认框
+  function openDeleteConfirm(item) {
+    document.getElementById(
+      'confirm-message'
+    ).textContent = `您确定要删除接口 "${item.pathName}" (${item.path}) 吗？此操作不可撤销。`
+
+    deleteCallback = async () => {
+      showLoading()
+
+      try {
+        const response = await fetch(`/delete-mock/${item.fileName}`, {
+          method: 'DELETE',
+        })
+
+        if (!response.ok) throw new Error('删除失败')
+
+        // 刷新列表
+        await loadMockList()
+      } catch (error) {
+        showError('删除失败: ' + error.message)
+      } finally {
+        hideLoading()
+      }
+    }
+
+    confirmModal.classList.add('active')
+  }
+
+  // 处理确认操作
+  function handleConfirmAction() {
+    if (deleteCallback) {
+      deleteCallback()
+      deleteCallback = null
+    }
+    confirmModal.classList.remove('active')
+  }
+
+  // 过滤mock列表
+  function filterMockList() {
+    const searchTerm = searchInput.value.toLowerCase()
+    if (!searchTerm) {
+      if (isTableMode) {
+        renderMockTable(mockItems)
+      } else {
+        renderMockList(mockItems)
+      }
+      return
+    }
+    const filtered = mockItems.filter(
+      (item) =>
+        item.pathName.toLowerCase().includes(searchTerm) ||
+        item.path.toLowerCase().includes(searchTerm) ||
+        item.pathType.toLowerCase().includes(searchTerm)
+    )
+    if (isTableMode) {
+      renderMockTable(filtered)
+    } else {
+      renderMockList(filtered)
+    }
+  }
+
+  // 更新JSON预览
+  function updateJsonPreview() {
+    try {
+      const content = pathContentTextarea.value.trim()
+      if (!content) {
+        jsonPreview.textContent = '{}'
+        jsonPreview.className = ''
+        mockjsNotice.style.display = 'none'
+        return
+      }
+
+      // 解析JSON
+      const json = JSON.parse(content)
+
+      // 检查是否是Mock.js模板
+      const isMockTemplate = mockTypeSelect.value === 'mockjsTemplate'
+      mockjsNotice.style.display = isMockTemplate ? 'block' : 'none'
+
+      let previewContent
+      if (isMockTemplate) {
+        try {
+          // 使用Mock.js生成数据
+          previewContent = Mock.mock(json)
+        } catch (mockError) {
+          throw new Error(`Mock.js模板错误: ${mockError.message}`)
+        }
+      } else {
+        previewContent = json
+      }
+
+      // 显示预览
+      jsonPreview.textContent = JSON.stringify(previewContent, null, 2)
+      jsonPreview.className = ''
+
+      // 清除任何之前的错误
+      const existingError = jsonPreview.parentElement.querySelector('.json-error')
+      if (existingError) {
+        existingError.remove()
+      }
+    } catch (error) {
+      // 显示错误信息
+      jsonPreview.textContent = '{}'
+      jsonPreview.className = 'error'
+
+      // 清除任何之前的错误
+      const existingError = jsonPreview.parentElement.querySelector('.json-error')
+      if (existingError) {
+        existingError.remove()
+      }
+
+      // 创建错误元素
+      const errorElement = document.createElement('div')
+      errorElement.className = 'json-error'
+      errorElement.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${error.message}`
+
+      jsonPreview.parentElement.appendChild(errorElement)
+    }
+  }
+
+  // 关闭所有模态框
+  function closeAllModals() {
+    mockModal.classList.remove('active')
+    confirmModal.classList.remove('active')
+    document.getElementById('test-modal').classList.remove('active')
+    if (importModal) importModal.classList.remove('active')
+  }
+
+  // 显示加载指示器
+  function showLoading() {
+    loadingIndicator.classList.add('active')
+  }
+
+  // 隐藏加载指示器
+  function hideLoading() {
+    loadingIndicator.classList.remove('active')
+  }
+
+  // 显示错误消息
+  function showError(message) {
+    alert(message) // 实际应用中应使用更友好的UI
+  }
+
+  // 验证JSON
+  function isValidJson(str) {
+    try {
+      JSON.parse(str)
+      return true
+    } catch (e) {
+      return false
+    }
+  }
+
+  // 格式化日期
+  function formatDate(dateString) {
+    const date = new Date(dateString)
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
+  }
+
+  // 添加测试接口函数
+  async function testMockInterface(item) {
+    showLoading()
+    currentTestItem = item
+
+    try {
+      // 获取接口详情
+      const response = await fetch(`/mock-item/${item.fileName}`)
+      if (!response.ok) throw new Error('无法加载接口详情')
+
+      const mockData = await response.json()
+
+      // 准备测试请求
+      const testUrl = new URL(mockData.path, window.location.origin)
+
+      // 添加查询参数
+      if (mockData.queryParams && Object.keys(mockData.queryParams).length > 0) {
+        Object.entries(mockData.queryParams).forEach(([key, value]) => {
+          testUrl.searchParams.append(key, value)
+        })
+      }
+
+      // 准备请求头
+      const headers = mockData.headers || {}
+
+      // 准备请求配置
+      const config = {
+        method: mockData.pathType,
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+      }
+
+      // 如果是POST/PUT/DELETE请求，添加请求体
+      let realRequestBody = null
+      if (['POST', 'PUT', 'DELETE'].includes(mockData.pathType)) {
+        if (mockData.bodyParams) {
+          let tpl = typeof mockData.bodyParams === 'string' ? JSON.parse(mockData.bodyParams) : mockData.bodyParams
+          try {
+            realRequestBody = Mock.mock(tpl)
+          } catch (e) {
+            realRequestBody = tpl
+          }
+          config.body = JSON.stringify(realRequestBody)
+        } else {
+          config.body = JSON.stringify(mockData.pathContent)
+          realRequestBody = mockData.pathContent
+        }
+      }
+
+      // 记录请求详情用于展示
+      const requestDetails = {
+        url: testUrl.toString(),
+        method: mockData.pathType,
+        headers: config.headers,
+        queryParams: mockData.queryParams || {},
+        body: realRequestBody,
+      }
+
+      // 发送测试请求
+      const startTime = Date.now()
+      const testResponse = await fetch(testUrl, config)
+      const responseTime = Date.now() - startTime
+
+      // 获取响应数据
+      let responseData
+      try {
+        responseData = await testResponse.json()
+      } catch {
+        responseData = await testResponse.text()
+      }
+
+      // 获取响应头
+      const responseHeaders = {}
+      testResponse.headers.forEach((value, key) => {
+        responseHeaders[key] = value
+      })
+
+      // 显示测试结果
+      showTestResults({
+        status: testResponse.status,
+        statusText: testResponse.statusText,
+        responseTime,
+        responseData,
+        responseHeaders,
+        request: requestDetails,
+      })
+    } catch (error) {
+      showError('测试失败: ' + error.message)
+    } finally {
+      hideLoading()
+    }
+  }
+
+  // 显示测试结果函数
+  function showTestResults(results) {
+    const testModal = document.getElementById('test-modal')
+    const testMethod = testModal.querySelector('.test-method')
+    const testUrl = testModal.querySelector('.test-url')
+    const testStatus = testModal.querySelector('.test-status')
+    const responseBody = testModal.querySelector('.response-body')
+    const responseHeaders = testModal.querySelector('.response-headers')
+    const requestHeaders = testModal.querySelector('.request-headers')
+    const requestQuery = testModal.querySelector('.request-query')
+    const requestBody = testModal.querySelector('.request-body')
+    const requestBodySection = document.getElementById('request-body-section')
+
+    // 设置基本信息
+    testMethod.textContent = results.request.method
+    testMethod.className = `test-method method ${results.request.method.toLowerCase()}`
+    testUrl.textContent = results.request.url
+    testStatus.textContent = `状态码: ${results.status} ${results.statusText} | 耗时: ${results.responseTime}ms`
+    testStatus.className = `test-status ${
+      results.status >= 200 && results.status < 300 ? 'status-success' : 'status-error'
+    }`
+
+    // 设置响应内容
+    responseBody.textContent =
+      typeof results.responseData === 'string' ? results.responseData : JSON.stringify(results.responseData, null, 2)
+
+    // 设置响应头
+    responseHeaders.textContent = Object.entries(results.responseHeaders)
+      .map(([key, value]) => `${key}: ${value}`)
+      .join('\n')
+
+    // 设置请求详情
+    requestHeaders.textContent = Object.entries(results.request.headers)
+      .map(([key, value]) => `${key}: ${value}`)
+      .join('\n')
+
+    requestQuery.textContent = Object.entries(results.request.queryParams)
+      .map(([key, value]) => `${key}=${value}`)
+      .join('\n')
+
+    // 设置请求体（如果有）
+    if (results.request.body) {
+      requestBody.textContent = JSON.stringify(results.request.body, null, 2)
+      requestBodySection.style.display = 'block'
+    } else {
+      requestBodySection.style.display = 'none'
+    }
+
+    // 激活第一个标签页
+    testModal.querySelector('.tab').classList.add('active')
+    testModal.querySelector('.tab-pane').classList.add('active')
+
+    // 显示模态框
+    testModal.classList.add('active')
+
+    // 添加标签页切换事件
+    testModal.querySelectorAll('.tab').forEach((tab) => {
+      tab.addEventListener('click', () => {
+        // 移除所有激活状态
+        testModal.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'))
+        testModal.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'))
+
+        // 激活当前标签
+        tab.classList.add('active')
+        const tabId = tab.getAttribute('data-tab')
+        document.getElementById(tabId).classList.add('active')
+      })
+    })
+  }
+
+  // 渲染分组树
+  function buildGroupTree(groups) {
+    const tree = {}
+    groups.forEach((group) => {
+      const parts = group
+        .split('/')
+        .map((s) => s.trim())
+        .filter(Boolean)
+      let node = tree
+      parts.forEach((part, idx) => {
+        if (!node[part]) node[part] = {}
+        node = node[part]
+      })
+    })
+    return tree
+  }
+
+  function renderGroupTree(items) {
+    // 统计所有分组
+    const groupSet = new Set()
+    items.forEach((item) => {
+      groupSet.add(item.group && item.group.trim() ? item.group.trim() : '未分组')
+    })
+    const groups = Array.from(groupSet).sort()
+    groupTreeList.innerHTML = ''
+    // 全部分组
+    const allLi = document.createElement('li')
+    allLi.textContent = '全部'
+    allLi.className = currentGroup === '全部' ? 'active' : ''
+    allLi.addEventListener('click', () => {
+      currentGroup = '全部'
+      renderGroupTree(mockItems)
+      renderCurrentGroupList()
+    })
+    groupTreeList.appendChild(allLi)
+    // 构建树
+    const tree = buildGroupTree(groups.filter((g) => g !== '全部'))
+    function renderTreeNode(node, path) {
+      Object.keys(node).forEach((key) => {
+        const fullPath = path ? path + '/' + key : key
+        const li = document.createElement('li')
+        li.textContent = key
+        li.className = currentGroup === fullPath ? 'active' : ''
+        li.addEventListener('click', (e) => {
+          e.stopPropagation()
+          currentGroup = fullPath
+          renderGroupTree(mockItems)
+          renderCurrentGroupList()
+        })
+        // 子节点
+        if (Object.keys(node[key]).length > 0) {
+          const ul = document.createElement('ul')
+          renderTreeNode(node[key], fullPath)
+          li.appendChild(ul)
+        }
+        groupTreeList.appendChild(li)
+      })
+    }
+    renderTreeNode(tree, '')
+  }
+
+  // 渲染当前分组下的接口
+  function renderCurrentGroupList() {
+    let filtered
+    if (currentGroup === '全部') {
+      filtered = mockItems
+    } else if (currentGroup === '未分组') {
+      filtered = mockItems.filter((item) => !item.group || !item.group.trim())
+    } else {
+      filtered = mockItems.filter((item) => (item.group || '').trim() === currentGroup)
+    }
+    if (isTableMode) {
+      renderMockTable(filtered)
+    } else {
+      renderMockList(filtered)
+    }
+  }
+
+  // 新增分组弹窗逻辑
+  const groupModal = document.getElementById('group-modal')
+  const groupForm = document.getElementById('group-form')
+  const groupNameInput = document.getElementById('group-name')
+  addGroupBtn.addEventListener('click', () => {
+    groupModal.classList.add('active')
+    groupNameInput.value = ''
+  })
+  groupModal
+    .querySelectorAll('.close')
+    .forEach((btn) => btn.addEventListener('click', () => groupModal.classList.remove('active')))
+  groupForm.addEventListener('submit', (e) => {
+    e.preventDefault()
+    const groupName = groupNameInput.value.trim()
+    if (!groupName) return alert('请输入分组名')
+    // 选中分组树
+    currentGroup = groupName
+    groupModal.classList.remove('active')
+    renderGroupTree(mockItems)
+    renderCurrentGroupList()
+  })
+
+  // ====== jsTree分组树相关 ======
+  async function loadGroupTree() {
+    const res = await fetch('/api/group-info')
+    const groupData = await res.json()
+    const jsTreeData = groupData.map((g) => ({
+      id: String(g.id),
+      text: g.name,
+      children: groupToJsTree(g.children || []),
+      icon: 'fas fa-folder',
+      data: g,
+    }))
+    $('#group-tree-jstree').jstree('destroy')
+    $('#group-tree-jstree')
+      .off('select_node.jstree')
+      .jstree({
+        core: { data: jsTreeData, check_callback: true },
+      })
+      .on('select_node.jstree', async function (e, data) {
+        const groupId = Number(data.node.id)
+        if (groupId === 0) {
+          renderMockList(mockItems)
+          updateGroupActionButtons({ id: 0, name: '全部' })
+        } else if (groupId === -1) {
+          const filtered = mockItems.filter((item) => !item.group || !item.group.trim())
+          renderMockList(filtered)
+          updateGroupActionButtons({ id: -1, name: '未分组' })
+        } else {
+          const res = await fetch(`/api/group-info/${groupId}`)
+          const group = await res.json()
+          renderMockListByFiles(group.files || [])
+          updateGroupActionButtons(group)
+        }
+      })
+      .on('ready.jstree', function () {
+        // 默认展开所有节点
+        $('#group-tree-jstree').jstree(true).open_all()
+      })
+  }
+  function groupToJsTree(groups) {
+    return groups.map((g) => ({
+      id: String(g.id),
+      text: g.name,
+      children: groupToJsTree(g.children || []),
+      icon: 'fas fa-folder',
+      data: g,
+    }))
+  }
+  function renderMockListByFiles(fileNames) {
+    const filtered = mockItems.filter((item) => fileNames.includes(item.fileName))
+    if (isTableMode) {
+      renderMockTable(filtered)
+    } else {
+      renderMockList(filtered)
+    }
+  }
+  function updateGroupActionButtons(group) {
+    if (group.id === 0 || group.id === -1 || group.name === '全部' || group.name === '未分组') {
+      $('#delete-group-btn').prop('disabled', true)
+      $('#clear-group-btn').prop('disabled', true)
+    } else {
+      $('#delete-group-btn').prop('disabled', false)
+      $('#clear-group-btn').prop('disabled', false)
+      $('#delete-group-btn')
+        .off('click')
+        .on('click', function () {
+          // 使用自定义确认弹框
+          $('#confirm-message').text(`确定删除分组【${group.name}】？此操作不可撤销。`)
+          $('#confirm-modal').addClass('active')
+          $('#confirm-action')
+            .off('click')
+            .on('click', async function () {
+              await fetch(`/api/group-info/${group.id}`, { method: 'DELETE' })
+              $('#confirm-modal').removeClass('active')
+              await loadGroupTree()
+            })
+        })
+      $('#clear-group-btn')
+        .off('click')
+        .on('click', function () {
+          // 使用自定义确认弹框
+          $('#confirm-message').text(`确定清空分组【${group.name}】下所有接口？`)
+          $('#confirm-modal').addClass('active')
+          $('#confirm-action')
+            .off('click')
+            .on('click', async function () {
+              await fetch(`/api/group-info/${group.id}/files`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ files: [] }),
+              })
+              $('#confirm-modal').removeClass('active')
+              await loadGroupTree()
+            })
+        })
+    }
+  }
+  function showAddGroupModal(parentId = 0) {
+    const name = prompt('请输入分组名称')
+    if (name) {
+      fetch('/api/group-info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, parentId }),
+      }).then(() => loadGroupTree())
+    }
+  }
+  $('#add-group-btn').on('click', function () {
+    // 获取当前选中分组id作为父分组
+    let parentId = 0
+    const selected = $('#group-tree-jstree').jstree('get_selected')
+    if (selected && selected.length) {
+      const selId = Number(selected[0])
+      // 选中"全部"或未选中，parentId=0；选中"未分组"，parentId=-1；其它分组，parentId=selId
+      if (selId === 0) {
+        parentId = 0
+      } else if (selId === -1) {
+        parentId = -1
+      } else {
+        parentId = selId
+      }
+    }
+    // 弹出原有弹框
+    $('#group-modal').addClass('active')
+    $('#group-name').val('')
+    // 绑定表单提交事件
+    $('#group-form')
+      .off('submit')
+      .on('submit', function (e) {
+        e.preventDefault()
+        const groupName = $('#group-name').val().trim()
+        if (!groupName) return alert('请输入分组名')
+        fetch('/api/group-info', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: groupName, parentId }),
+        }).then(async (res) => {
+          if (res.ok) {
+            $('#group-modal').removeClass('active')
+            await loadGroupTree()
+          } else {
+            const data = await res.json()
+            alert(data.error || '新增分组失败')
+          }
+        })
+      })
+  })
+  // 关闭新增分组弹框
+  $('#group-modal .close').on('click', function () {
+    $('#group-modal').removeClass('active')
+  })
+  // ====== 批量分组浮动按钮及弹框逻辑 ======
+  function updateBatchMoveBtn() {
+    // 按钮始终显示，但只有勾选接口时可点击
+    $('#batch-move-btn').show()
+    if (selectedFiles.size > 0) {
+      $('#batch-move-btn').prop('disabled', false).removeClass('disabled')
+    } else {
+      $('#batch-move-btn').prop('disabled', true).addClass('disabled')
+    }
+  }
+  $('#batch-move-btn').on('click', async function () {
+    // 获取所有分组（扁平化）
+    const res = await fetch('/api/group-info')
+    const groupData = await res.json()
+    const groupList = flattenGroupList(groupData)
+    // 填充下拉框
+    const $select = $('#batch-move-group')
+    $select.empty()
+    groupList.forEach((g) => {
+      // 排除"全部"和"未分组"
+      if (g.id !== 0 && g.id !== -1) {
+        $select.append(`<option value="${g.id}">${g.name}</option>`)
+      }
+    })
+    // 显示弹框
+    $('#batch-move-modal').addClass('active')
+  })
+  // 关闭弹框
+  $('#batch-move-modal .close, #batch-move-modal [type="button"].close').on('click', function () {
+    $('#batch-move-modal').removeClass('active')
+  })
+  // 提交批量分组
+  $('#batch-move-form').on('submit', async function (e) {
+    e.preventDefault()
+    const groupId = $('#batch-move-group').val()
+    if (!groupId) return alert('请选择目标分组')
+    const fileNames = Array.from(selectedFiles)
+    await fetch(`/api/group-info/${groupId}/files`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ files: fileNames }),
+    })
+    $('#batch-move-modal').removeClass('active')
+    clearSelection()
+    await loadMockList()
+    await loadGroupTree()
+    alert('批量分组成功')
+  })
+  // 展平成一维分组列表
+  function flattenGroupList(groups, arr = [], prefix = '') {
+    for (const g of groups) {
+      // 排除"全部"和"未分组"
+      if (g.id !== 0 && g.id !== -1) {
+        arr.push({ id: g.id, name: prefix ? prefix + '/' + g.name : g.name })
+      }
+      if (g.children && g.children.length) flattenGroupList(g.children, arr, prefix ? prefix + '/' + g.name : g.name)
+    }
+    return arr
+  }
+  // 页面加载时初始化分组树，并在jsTree ready后默认选中"全部"分组
+  $(function () {
+    loadGroupTree().then(() => {
+      $('#group-tree-jstree').on('ready.jstree', function () {
+        $('#group-tree-jstree').jstree(true).deselect_all()
+        $('#group-tree-jstree').jstree(true).select_node('0')
+      })
+    })
+  })
+})

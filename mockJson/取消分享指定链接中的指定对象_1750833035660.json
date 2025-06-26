@@ -1,0 +1,30 @@
+{
+  "pathName": "取消分享指定链接中的指定对象",
+  "path": "/fileShare/sharer/remove",
+  "pathType": "POST",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": ""
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": "@string",
+      "message": "@string"
+    }
+  },
+  "bodyParams": {
+    "linkId": "@integer(1,100000)",
+    "sharerId": "@string"
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "fileName": "取消分享指定链接中的指定对象_1750833035660.json",
+  "createdAt": "2025-06-25T06:30:35.422Z"
+}

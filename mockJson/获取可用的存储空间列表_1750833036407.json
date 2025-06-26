@@ -1,0 +1,39 @@
+{
+  "pathName": "获取可用的存储空间列表",
+  "path": "/api/v2/storage/listAvailable",
+  "pathType": "GET",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": "",
+    "moduleType": ""
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": {
+        "storages": [
+          {
+            "freeSize": "@integer(1,100000)",
+            "name": "@string",
+            "totalSize": "@integer(1,100000)",
+            "type": "@pick([1,2,3])",
+            "usedSize": "@integer(1,100000)",
+            "uuid": "@string"
+          }
+        ]
+      },
+      "message": "@string"
+    }
+  },
+  "bodyParams": null,
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "fileName": "获取可用的存储空间列表_1750833036407.json",
+  "createdAt": "2025-06-25T06:30:35.429Z"
+}

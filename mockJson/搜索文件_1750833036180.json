@@ -1,0 +1,117 @@
+{
+  "pathName": "搜索文件",
+  "path": "/api/v2/index/search",
+  "pathType": "POST",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": ""
+  },
+  "headers": {
+    "nas-token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IjE1MDcwNDU3MDQ2IiwicGFzc3dvcmRWZXJzaW9uIjoiYzVlYjQ2ZTQtZjQ5Mi00MDBjLWExZjEtZjc2NzQ4ZTU1YTZjIiwibGludXhVaWQiOiIxMDA1IiwibGludXhHaWQiOiIxMDA1IiwiZXhwIjoxNzI3ODUzODEyLCJpc3MiOiJOQVMifQ.w3XK2pfJ7hzL3hSTFOWYZrHYiCa5Y-pM5JzEswpUkNs"
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": {
+        "indexFiles": [
+          {
+            "extension": "@string",
+            "id": "@integer(1,100000)",
+            "isDir": "@boolean",
+            "lookedAt": "@string",
+            "mime": "@string",
+            "modifiedAt": "@string",
+            "name": "@string",
+            "parentDir": "@string",
+            "partitionLabel": "@string",
+            "partitionUUID": "@string",
+            "path": "@string",
+            "pinyin": "@string",
+            "sha1": "@string",
+            "size": "@integer(1,100000)",
+            "storageType": "@pick([0,1,2,3])",
+            "userID": "@string"
+          }
+        ],
+        "page": {
+          "currentPageSize": "@integer(1,100000)",
+          "pageCount": "@integer(1,100000)",
+          "pageIndex": "@integer(1,100000)",
+          "pageSize": "@integer(1,100000)",
+          "total": "@integer(1,100000)"
+        }
+      },
+      "message": "@string"
+    }
+  },
+  "bodyParams": {
+    "domain": "@pick([0,1,2,3,4])",
+    "fileType": [
+      "@pick([0,1,2,3,4,5])"
+    ],
+    "queryOptions": {
+      "basePath": {
+        "require": "@boolean",
+        "values": [
+          "@string"
+        ]
+      },
+      "dirFilter": {
+        "isDir": "@boolean",
+        "require": "@boolean"
+      },
+      "extList": {
+        "require": "@boolean",
+        "values": [
+          "@string"
+        ]
+      },
+      "hashList": {
+        "require": "@boolean",
+        "values": [
+          "@string"
+        ]
+      },
+      "idRange": {
+        "endId": "@integer(1,100000)",
+        "startId": "@integer(1,100000)"
+      },
+      "keyWord": {
+        "notIn": "@boolean",
+        "require": "@boolean",
+        "value": "@string"
+      },
+      "page": {
+        "pageIndex": "@integer(1,100000)",
+        "pageSize": "@integer(1,100000)"
+      },
+      "parentPath": {
+        "require": "@boolean",
+        "values": [
+          "@string"
+        ]
+      },
+      "sortOrder": {
+        "ascending": "@boolean",
+        "field": "@string"
+      },
+      "timeRange": {
+        "endTime": "@integer(1,100000)",
+        "startTime": "@integer(1,100000)"
+      }
+    },
+    "storageInfo": {
+      "partitionLabel": "@string",
+      "partitionUUID": "@string",
+      "storageType": "@pick([0,1,2,3])",
+      "userID": "@string"
+    }
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "fileName": "搜索文件_1750833036180.json",
+  "createdAt": "2025-06-25T06:30:35.424Z"
+}

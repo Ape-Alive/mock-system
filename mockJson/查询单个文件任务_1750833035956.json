@@ -1,0 +1,54 @@
+{
+  "pathName": "查询单个文件任务",
+  "path": "/file/task",
+  "pathType": "GET",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": "",
+    "taskId": ""
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": {
+        "completedFileCount": "@integer(1,100000)",
+        "completedFileSize": "@integer(1,100000)",
+        "completionTime": "@string",
+        "conflictAction": "@integer(1,100000)",
+        "createTime": "@string",
+        "destPath": "@string",
+        "fileCount": "@integer(1,100000)",
+        "fileNames": [
+          "@string"
+        ],
+        "fileTotalSize": "@integer(1,100000)",
+        "is_resume": "@integer(1,100000)",
+        "mode": "@integer(1,100000)",
+        "parentId": "@integer(1,100000)",
+        "progress": "@integer(1,100000)",
+        "remainedFileCount": "@integer(1,100000)",
+        "remainedFileSize": "@integer(1,100000)",
+        "source": "@integer(1,100000)",
+        "speed": "@string",
+        "srcPath": "@string",
+        "status": "@integer(1,100000)",
+        "taskId": "@integer(1,100000)",
+        "taskName": "@string",
+        "updateTime": "@string",
+        "userId": "@string"
+      },
+      "message": "@string"
+    }
+  },
+  "bodyParams": null,
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "fileName": "查询单个文件任务_1750833035956.json",
+  "createdAt": "2025-06-25T06:30:35.417Z"
+}

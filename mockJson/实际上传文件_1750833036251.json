@@ -1,0 +1,31 @@
+{
+  "pathName": "实际上传文件",
+  "path": "/upload/file",
+  "pathType": "POST",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": ""
+  },
+  "headers": {
+    "nas-token": "",
+    "taskID": "",
+    "Uploaded-Size": "",
+    "Total-Size": "",
+    "Content-Length": ""
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": "@string",
+      "message": "@string"
+    }
+  },
+  "bodyParams": null,
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "fileName": "实际上传文件_1750833036251.json",
+  "createdAt": "2025-06-25T06:30:35.419Z"
+}
