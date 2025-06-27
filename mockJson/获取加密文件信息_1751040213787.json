@@ -1,0 +1,181 @@
+{
+  "pathName": "获取加密文件信息",
+  "path": "/encrypted/index/fileInfo",
+  "pathType": "POST",
+  "mockType": "mockjsTemplate",
+  "queryParams": {},
+  "queryParamsDesc": {},
+  "headers": {
+    "nas-token": "",
+    "Crypto-Token": ""
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "responseHeadersDesc": {
+    "nas-token": {
+      "desc": "需要鉴权的API请求令牌",
+      "type": "string"
+    },
+    "Crypto-Token": {
+      "desc": "加密空间的API请求令牌",
+      "type": "string"
+    }
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": {
+        "extension": "@string",
+        "id": "@integer(1,100000)",
+        "isDir": "@boolean",
+        "lookedAt": "@string",
+        "mime": "@string",
+        "modifiedAt": "@string",
+        "name": "@string",
+        "parentDir": "@string",
+        "partitionLabel": "@string",
+        "partitionUUID": "@string",
+        "path": "@string",
+        "pinyin": "@string",
+        "sha1": "@string",
+        "size": "@integer(1,100000)",
+        "storageType": "@pick([0,1,2,3])",
+        "userID": "@string"
+      },
+      "message": "@string"
+    }
+  },
+  "pathContentDesc": {
+    "type": "object",
+    "desc": "",
+    "fields": {
+      "code": {
+        "type": "integer",
+        "desc": "状态响应码"
+      },
+      "data": {
+        "type": "object",
+        "desc": "响应数据",
+        "fields": {
+          "extension": {
+            "type": "string",
+            "desc": "文件的后缀名，小写"
+          },
+          "id": {
+            "type": "integer",
+            "desc": ""
+          },
+          "isDir": {
+            "type": "boolean",
+            "desc": "是否是目录"
+          },
+          "lookedAt": {
+            "type": "string",
+            "desc": "文件最后查看时间"
+          },
+          "mime": {
+            "type": "string",
+            "desc": "文件MIME类型"
+          },
+          "modifiedAt": {
+            "type": "string",
+            "desc": "文件最后修改时间"
+          },
+          "name": {
+            "type": "string",
+            "desc": "文件名，建立索引以便搜索"
+          },
+          "parentDir": {
+            "type": "string",
+            "desc": "父目录"
+          },
+          "partitionLabel": {
+            "type": "string",
+            "desc": "存储空间名称(作为参数时，不用填写)"
+          },
+          "partitionUUID": {
+            "type": "string",
+            "desc": "盘序号"
+          },
+          "path": {
+            "type": "string",
+            "desc": "文件的完整路径，保证唯一性"
+          },
+          "pinyin": {
+            "type": "string",
+            "desc": "名称的拼音版，若是英文则保留原样"
+          },
+          "sha1": {
+            "type": "string",
+            "desc": "文件的SHA1哈希，可以用于检测重复文件"
+          },
+          "size": {
+            "type": "integer",
+            "desc": "文件大小"
+          },
+          "storageType": {
+            "type": "object",
+            "desc": "空间类型, 0-公共空间，1-用户空间,2-加密空间，3-外部空间(包括U盘、外部磁盘)",
+            "fields": {}
+          },
+          "userID": {
+            "type": "string",
+            "desc": "用户名"
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "desc": "响应消息"
+      }
+    }
+  },
+  "bodyParams": {
+    "filePath": "@string",
+    "storageInfo": {
+      "partitionLabel": "@string",
+      "partitionUUID": "@string",
+      "storageType": "@pick([0,1,2,3])",
+      "userID": "@string"
+    }
+  },
+  "bodyParamsDesc": {
+    "type": "object",
+    "desc": "",
+    "fields": {
+      "filePath": {
+        "type": "string",
+        "desc": "要操作的相对文件路径"
+      },
+      "storageInfo": {
+        "type": "object",
+        "desc": "存储空间的详细信息",
+        "fields": {
+          "partitionLabel": {
+            "type": "string",
+            "desc": "存储空间名称(作为参数时，不用填写)"
+          },
+          "partitionUUID": {
+            "type": "string",
+            "desc": "盘序号"
+          },
+          "storageType": {
+            "type": "object",
+            "desc": "空间类型, 0-公共空间，1-用户空间,2-加密空间，3-外部空间(包括U盘、外部磁盘)",
+            "fields": {}
+          },
+          "userID": {
+            "type": "string",
+            "desc": "用户名"
+          }
+        }
+      }
+    }
+  },
+  "group": "",
+  "fileName": "获取加密文件信息_1751040213787.json",
+  "createdAt": "2025-06-27T16:03:33.751Z"
+}

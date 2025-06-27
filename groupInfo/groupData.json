@@ -6,53 +6,10 @@
       {
         "id": -1,
         "name": "未分组",
-        "children": [
-          {
-            "id": 1750864667267,
-            "name": "丰富",
-            "children": [],
-            "files": []
-          },
-          {
-            "id": 1750865499990,
-            "name": "合伙4",
-            "children": [],
-            "files": []
-          }
-        ],
-        "files": []
-      },
-      {
-        "id": 1750865316436,
-        "name": "哥哥",
-        "children": [],
-        "files": []
-      },
-      {
-        "id": 1750865472879,
-        "name": "合伙",
-        "children": [],
-        "files": []
-      },
-      {
-        "id": 1750865807990,
-        "name": "哥哥7",
         "children": [],
         "files": []
       }
     ],
-    "files": []
-  },
-  {
-    "id": 1750865175386,
-    "name": "a/b",
-    "children": [],
-    "files": []
-  },
-  {
-    "id": 1750865184893,
-    "name": "gg",
-    "children": [],
     "files": []
   }
 ]

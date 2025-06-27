@@ -1,0 +1,35 @@
+{
+  "pathName": "【测试】获取缓存的UUID和UserId",
+  "path": "/api/v2/storage/cache",
+  "pathType": "GET",
+  "mockType": "mockjsTemplate",
+  "queryParams": {},
+  "queryParamsDesc": {},
+  "headers": {
+    "nas-token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IjE1MDcwNDU3MDQ2IiwicGFzc3dvcmRWZXJzaW9uIjoiY2YyOWYxNjMtYWU2NS00ZWE0LThkMWEtZjQ1MDM0OGIxZThmIiwicmFuZG9tS2V5IjoiNjkxZTU2YTMtZWNhNy00MmZiLTg3MDYtNzA2YTFjYWEyNjg2IiwiaXNzIjoiTGluY1VzZXJNYW5hZ2VyIn0.n6FSIcnqWu1GJwCi1Q-lJrU3ANlSVi07deI4K3CoXDI"
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "responseHeadersDesc": {
+    "nas-token": {
+      "desc": "",
+      "type": "string"
+    }
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {}
+  },
+  "pathContentDesc": {
+    "type": "object",
+    "desc": "",
+    "fields": {}
+  },
+  "bodyParams": null,
+  "bodyParamsDesc": "",
+  "group": "",
+  "fileName": "测试获取缓存的UUID和UserId_1751040213983.json",
+  "createdAt": "2025-06-27T16:03:33.764Z"
+}

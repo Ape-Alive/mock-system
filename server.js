@@ -38,6 +38,10 @@ app.post('/create-mock', (req, res) => {
       bodyParams,
       responseHeaders,
       group,
+      queryParamsDesc,
+      bodyParamsDesc,
+      responseHeadersDesc,
+      pathContentDesc,
     } = req.body
     // 验证JSON
     JSON.parse(pathContent)
@@ -61,10 +65,14 @@ app.post('/create-mock', (req, res) => {
       pathType,
       mockType,
       queryParams: parsedQueryParams,
+      queryParamsDesc: queryParamsDesc || '',
       headers: parsedHeaders,
       pathContent: JSON.parse(pathContent),
+      pathContentDesc: pathContentDesc || '',
       bodyParams: parsedBodyParams,
+      bodyParamsDesc: bodyParamsDesc || '',
       responseHeaders: parsedResponseHeaders,
+      responseHeadersDesc: responseHeadersDesc || '',
       group: group || '',
       fileName,
       createdAt: new Date().toISOString(),
@@ -97,6 +105,10 @@ app.put('/update-mock/:filename', (req, res) => {
       bodyParams,
       responseHeaders,
       group,
+      queryParamsDesc,
+      bodyParamsDesc,
+      responseHeadersDesc,
+      pathContentDesc,
     } = req.body
     // 验证JSON
     JSON.parse(pathContent)
@@ -122,10 +134,14 @@ app.put('/update-mock/:filename', (req, res) => {
       pathType: newPathType,
       mockType,
       queryParams: parsedQueryParams,
+      queryParamsDesc: queryParamsDesc || '',
       headers: parsedHeaders,
       pathContent: JSON.parse(pathContent),
+      pathContentDesc: pathContentDesc || '',
       bodyParams: parsedBodyParams,
+      bodyParamsDesc: bodyParamsDesc || '',
       responseHeaders: parsedResponseHeaders,
+      responseHeadersDesc: responseHeadersDesc || '',
       group: group || oldData.group || '',
       updatedAt: new Date().toISOString(),
     }
@@ -219,6 +235,62 @@ app.post('/import-openapi', upload.single('file'), async (req, res) => {
     }
     // 解析OpenAPI/Swagger
     apiDoc = await SwaggerParser.dereference(apiDoc)
+    // ====== 新增：字段说明生成辅助函数 ======
+    function schemaToDesc(schema) {
+      if (!schema) return {}
+      // allOf 合并
+      if (schema.allOf && Array.isArray(schema.allOf)) {
+        return schema.allOf.reduce(
+          (acc, sub) => {
+            const subDesc = schemaToDesc(sub)
+            // 合并fields
+            if (subDesc.fields) {
+              acc.fields = { ...(acc.fields || {}), ...subDesc.fields }
+            }
+            // 合并items
+            if (subDesc.items) {
+              acc.items = subDesc.items
+            }
+            // 合并type
+            if (subDesc.type && !acc.type) acc.type = subDesc.type
+            return acc
+          },
+          { type: 'object', desc: schema.description || '', fields: {} }
+        )
+      }
+      // oneOf/anyOf 取第一个
+      if (schema.oneOf && Array.isArray(schema.oneOf)) {
+        return schemaToDesc(schema.oneOf[0])
+      }
+      if (schema.anyOf && Array.isArray(schema.anyOf)) {
+        return schemaToDesc(schema.anyOf[0])
+      }
+      // 对象
+      if (schema.type === 'object' && schema.properties) {
+        const fields = {}
+        for (const [k, v] of Object.entries(schema.properties)) {
+          fields[k] = schemaToDesc(v)
+          if (v.description) fields[k].desc = v.description
+        }
+        return { type: 'object', desc: schema.description || '', fields }
+      }
+      // 数组
+      if (schema.type === 'array' && schema.items) {
+        return { type: 'array', desc: schema.description || '', items: schemaToDesc(schema.items) }
+      }
+      // 基础类型
+      return { type: schema.type || 'string', desc: schema.description || '' }
+    }
+    function paramsToDesc(params) {
+      const desc = {}
+      params.forEach((param) => {
+        desc[param.name] = {
+          desc: param.description || '',
+          type: param.schema ? param.schema.type : 'string',
+        }
+      })
+      return desc
+    }
     // 统一处理paths
     const paths = apiDoc.paths || {}
     let count = 0
@@ -278,6 +350,25 @@ app.post('/import-openapi', upload.single('file'), async (req, res) => {
         } else {
           pathContent.data = {}
         }
+        // ====== 新增：自动生成说明字段 ======
+        const queryParamsDesc = paramsToDesc((op.parameters || []).filter((p) => p.in === 'query'))
+        const responseHeadersDesc = paramsToDesc((op.parameters || []).filter((p) => p.in === 'header'))
+        let bodyParamsDesc = ''
+        if (
+          op.requestBody &&
+          op.requestBody.content &&
+          op.requestBody.content['application/json'] &&
+          op.requestBody.content['application/json'].schema
+        ) {
+          bodyParamsDesc = schemaToDesc(op.requestBody.content['application/json'].schema)
+        } else if (Array.isArray(op.parameters)) {
+          const bodyParam = op.parameters.find((p) => p.in === 'body' && p.schema)
+          if (bodyParam) bodyParamsDesc = schemaToDesc(bodyParam.schema)
+        }
+        let pathContentDesc = ''
+        if (respSchema) {
+          pathContentDesc = schemaToDesc(respSchema)
+        }
         const group = op['x-group'] || ''
         const timestamp = Date.now() + Math.floor(Math.random() * 1000)
         const fileName = `${pathName.replace(/\s+/g, '_').replace(/[^-\uFFFF\w\u4e00-\u9fa5_]/g, '')}_${timestamp}.json`
@@ -288,10 +379,14 @@ app.post('/import-openapi', upload.single('file'), async (req, res) => {
           pathType,
           mockType,
           queryParams,
+          queryParamsDesc,
           headers,
-          pathContent,
-          bodyParams,
           responseHeaders,
+          responseHeadersDesc,
+          pathContent,
+          pathContentDesc,
+          bodyParams,
+          bodyParamsDesc,
           group,
           fileName,
           createdAt: new Date().toISOString(),
@@ -527,6 +622,9 @@ app.get('/api/group-info/:id', (req, res) => {
 app.post('/api/group-info', (req, res) => {
   const { name, parentId } = req.body
   if (!name) return res.status(400).json({ error: '分组名不能为空' })
+  if (parentId === -1 || parentId === '-1') {
+    return res.status(400).json({ error: '未分组下不能创建子分组' })
+  }
   const data = readGroupData()
   const newGroup = {
     id: Date.now() + Math.floor(Math.random() * 1000),
@@ -539,13 +637,6 @@ app.post('/api/group-info', (req, res) => {
     const root = data.find((g) => g.id === 0)
     if (!root) return res.status(500).json({ error: '根分组不存在' })
     root.children.push(newGroup)
-  } else if (parentId === -1 || parentId === '-1') {
-    // 插入到 id 为 -1 的 children
-    const root = data.find((g) => g.id === 0)
-    if (!root) return res.status(500).json({ error: '根分组不存在' })
-    const ungroup = findGroupById(root.children, -1)
-    if (!ungroup) return res.status(500).json({ error: '未分组不存在' })
-    ungroup.children.push(newGroup)
   } else {
     const parent = findGroupById(data, Number(parentId))
     if (!parent) return res.status(404).json({ error: '父分组不存在' })
@@ -560,6 +651,25 @@ app.delete('/api/group-info/:id', (req, res) => {
   if (!id && id !== 0) return res.status(400).json({ error: '分组ID不能为空' })
   if (id === 0 || id === -1) return res.status(400).json({ error: '不能删除全部或未分组' })
   const data = readGroupData()
+  const group = findGroupById(data, id)
+  if (!group) return res.status(404).json({ error: '分组不存在' })
+
+  // 先清空该分组 files 里的 mockJson group 字段
+  if (Array.isArray(group.files) && group.files.length > 0) {
+    const mockDir = require('path').join(__dirname, 'mockJson')
+    const fs = require('fs')
+    group.files.forEach((fileName) => {
+      const filePath = require('path').join(mockDir, fileName)
+      if (fs.existsSync(filePath)) {
+        try {
+          const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
+          data.group = ''
+          fs.writeFileSync(filePath, JSON.stringify(data, null, 2))
+        } catch {}
+      }
+    })
+  }
+
   const deleted = deleteGroupById(data, id)
   if (!deleted) return res.status(404).json({ error: '分组不存在' })
   writeGroupData(data)
@@ -573,7 +683,28 @@ app.post('/api/group-info/:id/files', (req, res) => {
   const data = readGroupData()
   const group = findGroupById(data, id)
   if (!group) return res.status(404).json({ error: '分组不存在' })
-  group.files = files
+
+  // 如果是清空分组
+  if (files.length === 0 && Array.isArray(group.files) && group.files.length > 0) {
+    // 清空 group.files
+    const oldFiles = group.files
+    group.files = []
+    // 同步清空 mockJson 里这些文件的 group 字段
+    const mockDir = require('path').join(__dirname, 'mockJson')
+    const fs = require('fs')
+    oldFiles.forEach((fileName) => {
+      const filePath = require('path').join(mockDir, fileName)
+      if (fs.existsSync(filePath)) {
+        try {
+          const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
+          data.group = ''
+          fs.writeFileSync(filePath, JSON.stringify(data, null, 2))
+        } catch {}
+      }
+    })
+  } else {
+    group.files = files
+  }
   writeGroupData(data)
-  res.json({ success: true, files })
+  res.json({ success: true, files: group.files })
 })

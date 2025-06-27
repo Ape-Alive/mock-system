@@ -1,0 +1,107 @@
+{
+  "pathName": "获取存储空间列表",
+  "path": "/storage/list",
+  "pathType": "GET",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": ""
+  },
+  "queryParamsDesc": {
+    "nas-token": {
+      "desc": "需要鉴权的API请求令牌(放请求头或者请求参数，二选一)",
+      "type": "string"
+    }
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "responseHeadersDesc": {
+    "nas-token": {
+      "desc": "需要鉴权的API请求令牌(放请求头或者请求参数，二选一)",
+      "type": "string"
+    }
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": {
+        "storages": [
+          {
+            "freeSize": "@integer(1,100000)",
+            "name": "@string",
+            "totalSize": "@integer(1,100000)",
+            "type": "@pick([1,2,3])",
+            "usedSize": "@integer(1,100000)",
+            "uuid": "@string"
+          }
+        ]
+      },
+      "message": "@string"
+    }
+  },
+  "pathContentDesc": {
+    "type": "object",
+    "desc": "",
+    "fields": {
+      "code": {
+        "type": "integer",
+        "desc": "状态响应码"
+      },
+      "data": {
+        "type": "object",
+        "desc": "响应数据",
+        "fields": {
+          "storages": {
+            "type": "array",
+            "desc": "存储空间列表",
+            "items": {
+              "type": "object",
+              "desc": "",
+              "fields": {
+                "freeSize": {
+                  "type": "integer",
+                  "desc": "存储空间可用空间大小，单位bytes"
+                },
+                "name": {
+                  "type": "string",
+                  "desc": "存储空间名称(别名)"
+                },
+                "totalSize": {
+                  "type": "integer",
+                  "desc": "存储空间总可用大小，单位bytes"
+                },
+                "type": {
+                  "type": "object",
+                  "desc": "存储空间设备类型： 1-LincOS存储空间，2-其他机内硬盘，3-可移动存储介质(2,3均属于外部空间)",
+                  "fields": {}
+                },
+                "usedSize": {
+                  "type": "integer",
+                  "desc": "存储空间已用大小，单位bytes"
+                },
+                "uuid": {
+                  "type": "string",
+                  "desc": "分区的唯一标识符"
+                }
+              }
+            }
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "desc": "响应消息"
+      }
+    }
+  },
+  "bodyParams": null,
+  "bodyParamsDesc": "",
+  "group": "",
+  "fileName": "获取存储空间列表_1751040214721.json",
+  "createdAt": "2025-06-27T16:03:33.748Z"
+}

@@ -1,0 +1,63 @@
+{
+  "pathName": "销毁加密空间",
+  "path": "/api/v2/encrypted/destroy",
+  "pathType": "POST",
+  "mockType": "mockjsTemplate",
+  "queryParams": {},
+  "queryParamsDesc": {},
+  "headers": {
+    "nas-token": ""
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "responseHeadersDesc": {
+    "nas-token": {
+      "desc": "需要鉴权的API请求令牌",
+      "type": "string"
+    }
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": "@string",
+      "message": "@string"
+    }
+  },
+  "pathContentDesc": {
+    "type": "object",
+    "desc": "",
+    "fields": {
+      "code": {
+        "type": "integer",
+        "desc": "状态响应码"
+      },
+      "data": {
+        "type": "string",
+        "desc": "响应数据"
+      },
+      "message": {
+        "type": "string",
+        "desc": "响应消息"
+      }
+    }
+  },
+  "bodyParams": {
+    "credential": "@string"
+  },
+  "bodyParamsDesc": {
+    "type": "object",
+    "desc": "",
+    "fields": {
+      "credential": {
+        "type": "string",
+        "desc": "校验码（来自用户模块）"
+      }
+    }
+  },
+  "group": "",
+  "fileName": "销毁加密空间_1751040214237.json",
+  "createdAt": "2025-06-27T16:03:33.760Z"
+}

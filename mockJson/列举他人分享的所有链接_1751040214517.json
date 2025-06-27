@@ -1,0 +1,230 @@
+{
+  "pathName": "列举他人分享的所有链接",
+  "path": "/fileShare/link/shared",
+  "pathType": "GET",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": "",
+    "sharerId": ""
+  },
+  "queryParamsDesc": {
+    "nas-token": {
+      "desc": "需要鉴权的API请求令牌(放请求头或者请求参数，二选一)",
+      "type": "string"
+    },
+    "sharerId": {
+      "desc": "分享者的用户ID",
+      "type": "integer"
+    }
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "responseHeadersDesc": {
+    "nas-token": {
+      "desc": "需要鉴权的API请求令牌(放请求头或者请求参数，二选一)",
+      "type": "string"
+    }
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": {
+        "links": [
+          {
+            "fileInfo": {
+              "extension": "@string",
+              "id": "@integer(1,100000)",
+              "isDir": "@boolean",
+              "lookedAt": "@string",
+              "mime": "@string",
+              "modifiedAt": "@string",
+              "name": "@string",
+              "parentDir": "@string",
+              "partitionLabel": "@string",
+              "partitionUUID": "@string",
+              "path": "@string",
+              "pinyin": "@string",
+              "sha1": "@string",
+              "size": "@integer(1,100000)",
+              "storageType": "@pick([0,1,2,3])",
+              "userID": "@string"
+            },
+            "linkInfo": {
+              "createTime": "@string",
+              "fileName": "@string",
+              "id": "@integer(1,100000)",
+              "isDir": "@boolean",
+              "ownerId": "@string",
+              "partitionUUID": "@string",
+              "relPath": "@string",
+              "rwMode": "@pick([1,2,4])",
+              "storageType": "@pick([0,1,2,3])",
+              "updateTime": "@string"
+            }
+          }
+        ]
+      },
+      "message": "@string"
+    }
+  },
+  "pathContentDesc": {
+    "type": "object",
+    "desc": "",
+    "fields": {
+      "code": {
+        "type": "integer",
+        "desc": "状态响应码"
+      },
+      "data": {
+        "type": "object",
+        "desc": "响应数据",
+        "fields": {
+          "links": {
+            "type": "array",
+            "desc": "分享链接的列表",
+            "items": {
+              "type": "object",
+              "desc": "",
+              "fields": {
+                "fileInfo": {
+                  "type": "object",
+                  "desc": "",
+                  "fields": {
+                    "extension": {
+                      "type": "string",
+                      "desc": "文件的后缀名，小写"
+                    },
+                    "id": {
+                      "type": "integer",
+                      "desc": ""
+                    },
+                    "isDir": {
+                      "type": "boolean",
+                      "desc": "是否是目录"
+                    },
+                    "lookedAt": {
+                      "type": "string",
+                      "desc": "文件最后查看时间"
+                    },
+                    "mime": {
+                      "type": "string",
+                      "desc": "文件MIME类型"
+                    },
+                    "modifiedAt": {
+                      "type": "string",
+                      "desc": "文件最后修改时间"
+                    },
+                    "name": {
+                      "type": "string",
+                      "desc": "文件名，建立索引以便搜索"
+                    },
+                    "parentDir": {
+                      "type": "string",
+                      "desc": "父目录"
+                    },
+                    "partitionLabel": {
+                      "type": "string",
+                      "desc": "存储空间名称(作为参数时，不用填写)"
+                    },
+                    "partitionUUID": {
+                      "type": "string",
+                      "desc": "盘序号"
+                    },
+                    "path": {
+                      "type": "string",
+                      "desc": "文件的完整路径，保证唯一性"
+                    },
+                    "pinyin": {
+                      "type": "string",
+                      "desc": "名称的拼音版，若是英文则保留原样"
+                    },
+                    "sha1": {
+                      "type": "string",
+                      "desc": "文件的SHA1哈希，可以用于检测重复文件"
+                    },
+                    "size": {
+                      "type": "integer",
+                      "desc": "文件大小"
+                    },
+                    "storageType": {
+                      "type": "object",
+                      "desc": "空间类型, 0-公共空间，1-用户空间,2-加密空间，3-外部空间(包括U盘、外部磁盘)",
+                      "fields": {}
+                    },
+                    "userID": {
+                      "type": "string",
+                      "desc": "用户名"
+                    }
+                  }
+                },
+                "linkInfo": {
+                  "type": "object",
+                  "desc": "",
+                  "fields": {
+                    "createTime": {
+                      "type": "string",
+                      "desc": "任务创建时间"
+                    },
+                    "fileName": {
+                      "type": "string",
+                      "desc": "链接指向的文件名称"
+                    },
+                    "id": {
+                      "type": "integer",
+                      "desc": "ID"
+                    },
+                    "isDir": {
+                      "type": "boolean",
+                      "desc": "是否为文件夹"
+                    },
+                    "ownerId": {
+                      "type": "string",
+                      "desc": "拥有者ID"
+                    },
+                    "partitionUUID": {
+                      "type": "string",
+                      "desc": "存储空间UUID"
+                    },
+                    "relPath": {
+                      "type": "string",
+                      "desc": "相对于存储空间的路径"
+                    },
+                    "rwMode": {
+                      "type": "object",
+                      "desc": "文件的读写权限 1：仅读，2：仅写，4：可读可写",
+                      "fields": {}
+                    },
+                    "storageType": {
+                      "type": "object",
+                      "desc": "存储空间类型，0-公共空间，1-个人空间，2-外部空间",
+                      "fields": {}
+                    },
+                    "updateTime": {
+                      "type": "string",
+                      "desc": "任务更新时间"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "desc": "响应消息"
+      }
+    }
+  },
+  "bodyParams": null,
+  "bodyParamsDesc": "",
+  "group": "",
+  "fileName": "列举他人分享的所有链接_1751040214517.json",
+  "createdAt": "2025-06-27T16:03:33.755Z"
+}

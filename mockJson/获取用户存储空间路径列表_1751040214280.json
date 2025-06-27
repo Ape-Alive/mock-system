@@ -1,0 +1,91 @@
+{
+  "pathName": "获取用户存储空间路径列表",
+  "path": "/api/v2/storage/userSpace/list",
+  "pathType": "GET",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": "",
+    "userId": ""
+  },
+  "queryParamsDesc": {
+    "nas-token": {
+      "desc": "需要鉴权的API请求令牌(放请求头或者请求参数，二选一)",
+      "type": "string"
+    },
+    "userId": {
+      "desc": "用户ID",
+      "type": "string"
+    }
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "responseHeadersDesc": {
+    "nas-token": {
+      "desc": "需要鉴权的API请求令牌(放请求头或者请求参数，二选一)",
+      "type": "string"
+    }
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": {
+        "storages": [
+          {
+            "absolutePath": "@string",
+            "label": "@string"
+          }
+        ]
+      },
+      "message": "@string"
+    }
+  },
+  "pathContentDesc": {
+    "type": "object",
+    "desc": "",
+    "fields": {
+      "code": {
+        "type": "integer",
+        "desc": "状态响应码"
+      },
+      "data": {
+        "type": "object",
+        "desc": "响应数据",
+        "fields": {
+          "storages": {
+            "type": "array",
+            "desc": "存储空间列表",
+            "items": {
+              "type": "object",
+              "desc": "",
+              "fields": {
+                "absolutePath": {
+                  "type": "string",
+                  "desc": "用户存储空间绝对路径"
+                },
+                "label": {
+                  "type": "string",
+                  "desc": "空间名称"
+                }
+              }
+            }
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "desc": "响应消息"
+      }
+    }
+  },
+  "bodyParams": null,
+  "bodyParamsDesc": "",
+  "group": "",
+  "fileName": "获取用户存储空间路径列表_1751040214280.json",
+  "createdAt": "2025-06-27T16:03:33.763Z"
+}

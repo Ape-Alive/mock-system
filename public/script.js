@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const bodyParamsTextarea = document.getElementById('bodyParams')
   const responseHeadersTextarea = document.getElementById('responseHeaders')
   const groupInput = document.getElementById('group-input')
-  let currentGroup = '全部'
+  let currentGroup = { id: 0, name: '全部', fileNames: null }
   const groupTreeList = document.getElementById('group-tree-list')
   const addGroupBtn = document.getElementById('add-group-btn')
   let selectedFiles = new Set()
@@ -68,13 +68,12 @@ document.addEventListener('DOMContentLoaded', () => {
       mockList.style.display = 'none'
       mockTableContainer.style.display = ''
       toggleTableModeBtn.innerHTML = '<i class="fas fa-th-large"></i>'
-      renderMockTable(mockItems)
     } else {
       mockList.style.display = ''
       mockTableContainer.style.display = 'none'
       toggleTableModeBtn.innerHTML = '<i class="fas fa-table"></i>'
-      renderMockList(mockItems)
     }
+    filterMockList() // 切换模式时始终用当前分组过滤
   })
   updateJsonPreview
   // 打开导入模态框
@@ -120,11 +119,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // 控制body参数输入框显示
   function updateBodyGroup() {
     const method = pathTypeSelect.value
+    const bodyGroupDesc = document.getElementById('body-group-desc')
     if (['POST', 'PUT', 'DELETE'].includes(method)) {
       bodyGroup.style.display = ''
+      if (bodyGroupDesc) bodyGroupDesc.style.display = ''
     } else {
       bodyGroup.style.display = 'none'
       bodyParamsTextarea.value = ''
+      if (bodyGroupDesc) bodyGroupDesc.style.display = 'none'
     }
   }
   pathTypeSelect.addEventListener('change', updateBodyGroup)
@@ -139,9 +141,10 @@ document.addEventListener('DOMContentLoaded', () => {
       document.body.classList.add('dark-theme')
       themeToggle.innerHTML = '<i class="fas fa-sun"></i>'
     }
-
-    // 加载mock列表
+    // 先加载mock列表
     loadMockList()
+    // 再初始化分组树
+    loadGroupTree()
   }
 
   // 主题切换
@@ -160,14 +163,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // 加载mock列表
   async function loadMockList() {
     showLoading()
-
     try {
       const response = await fetch('/mock-list')
       if (!response.ok) throw new Error('无法加载接口列表')
-
       mockItems = await response.json()
-      renderGroupTree(mockItems)
-      renderCurrentGroupList()
+      // 不再调用renderGroupTree、renderCurrentGroupList
     } catch (error) {
       showError('加载失败: ' + error.message)
     } finally {
@@ -386,6 +386,24 @@ document.addEventListener('DOMContentLoaded', () => {
       bodyParamsTextarea.value = data.bodyParams ? JSON.stringify(data.bodyParams, null, 2) : ''
       responseHeadersTextarea.value = data.responseHeaders ? JSON.stringify(data.responseHeaders, null, 2) : ''
       groupInput.value = data.group || ''
+      // 新增：回填说明
+      function toJSONString(val) {
+        if (!val) return ''
+        if (typeof val === 'string') return val
+        try {
+          return JSON.stringify(val, null, 2)
+        } catch {
+          return String(val)
+        }
+      }
+      const queryParamsDescTextarea = document.getElementById('queryParamsDesc')
+      const bodyParamsDescTextarea = document.getElementById('bodyParamsDesc')
+      const responseHeadersDescTextarea = document.getElementById('responseHeadersDesc')
+      const pathContentDescTextarea = document.getElementById('pathContentDesc')
+      if (queryParamsDescTextarea) queryParamsDescTextarea.value = toJSONString(data.queryParamsDesc)
+      if (bodyParamsDescTextarea) bodyParamsDescTextarea.value = toJSONString(data.bodyParamsDesc)
+      if (responseHeadersDescTextarea) responseHeadersDescTextarea.value = toJSONString(data.responseHeadersDesc)
+      if (pathContentDescTextarea) pathContentDescTextarea.value = toJSONString(data.pathContentDesc)
     } catch (error) {
       showError('加载失败: ' + error.message)
     } finally {
@@ -424,16 +442,36 @@ document.addEventListener('DOMContentLoaded', () => {
       return
     }
 
+    // 新增：收集说明字段
+    const queryParamsDescTextarea = document.getElementById('queryParamsDesc')
+    const bodyParamsDescTextarea = document.getElementById('bodyParamsDesc')
+    const responseHeadersDescTextarea = document.getElementById('responseHeadersDesc')
+    const pathContentDescTextarea = document.getElementById('pathContentDesc')
+
+    // 新增：安全解析说明字段
+    function safeParse(str) {
+      if (!str) return ''
+      try {
+        return JSON.parse(str)
+      } catch {
+        return str
+      }
+    }
+
     const mockData = {
       pathName: pathNameInput.value,
       path: pathInput.value,
       pathType: pathTypeSelect.value,
       mockType: mockTypeSelect.value,
       queryParams: queryParamsTextarea.value || null,
+      queryParamsDesc: queryParamsDescTextarea ? safeParse(queryParamsDescTextarea.value) : '',
       headers: headersTextarea.value || null,
       pathContent: pathContentTextarea.value,
       bodyParams: bodyParamsTextarea.value || null,
+      bodyParamsDesc: bodyParamsDescTextarea ? safeParse(bodyParamsDescTextarea.value) : '',
       responseHeaders: responseHeadersTextarea.value,
+      responseHeadersDesc: responseHeadersDescTextarea ? safeParse(responseHeadersDescTextarea.value) : '',
+      pathContentDesc: pathContentDescTextarea ? safeParse(pathContentDescTextarea.value) : '',
       group: groupInput.value.trim(),
     }
 
@@ -526,20 +564,27 @@ document.addEventListener('DOMContentLoaded', () => {
   // 过滤mock列表
   function filterMockList() {
     const searchTerm = searchInput.value.toLowerCase()
-    if (!searchTerm) {
-      if (isTableMode) {
-        renderMockTable(mockItems)
-      } else {
-        renderMockList(mockItems)
-      }
-      return
+    let filtered = mockItems
+    // 只显示当前分组下的接口
+    if (currentGroup.id === 0) {
+      // 全部
+      filtered = mockItems
+    } else if (currentGroup.id === -1) {
+      // 未分组
+      filtered = mockItems.filter((item) => !item.group || !item.group.trim())
+    } else if (Array.isArray(currentGroup.fileNames)) {
+      // 其它分组
+      filtered = mockItems.filter((item) => currentGroup.fileNames.includes(item.fileName))
     }
-    const filtered = mockItems.filter(
-      (item) =>
-        item.pathName.toLowerCase().includes(searchTerm) ||
-        item.path.toLowerCase().includes(searchTerm) ||
-        item.pathType.toLowerCase().includes(searchTerm)
-    )
+    // 再做搜索过滤
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (item) =>
+          item.pathName.toLowerCase().includes(searchTerm) ||
+          item.path.toLowerCase().includes(searchTerm) ||
+          item.pathType.toLowerCase().includes(searchTerm)
+      )
+    }
     if (isTableMode) {
       renderMockTable(filtered)
     } else {
@@ -838,11 +883,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // 全部分组
     const allLi = document.createElement('li')
     allLi.textContent = '全部'
-    allLi.className = currentGroup === '全部' ? 'active' : ''
+    allLi.className = currentGroup.name === '全部' ? 'active' : ''
     allLi.addEventListener('click', () => {
-      currentGroup = '全部'
-      renderGroupTree(mockItems)
-      renderCurrentGroupList()
+      currentGroup = { id: 0, name: '全部', fileNames: null }
+      filterMockList()
     })
     groupTreeList.appendChild(allLi)
     // 构建树
@@ -852,12 +896,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const fullPath = path ? path + '/' + key : key
         const li = document.createElement('li')
         li.textContent = key
-        li.className = currentGroup === fullPath ? 'active' : ''
+        li.className = currentGroup.name === fullPath ? 'active' : ''
         li.addEventListener('click', (e) => {
           e.stopPropagation()
-          currentGroup = fullPath
-          renderGroupTree(mockItems)
-          renderCurrentGroupList()
+          currentGroup = { id: Number(key), name: key, fileNames: null }
+          filterMockList()
         })
         // 子节点
         if (Object.keys(node[key]).length > 0) {
@@ -874,12 +917,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // 渲染当前分组下的接口
   function renderCurrentGroupList() {
     let filtered
-    if (currentGroup === '全部') {
+    if (currentGroup.id === 0) {
       filtered = mockItems
-    } else if (currentGroup === '未分组') {
+    } else if (currentGroup.id === -1) {
       filtered = mockItems.filter((item) => !item.group || !item.group.trim())
-    } else {
-      filtered = mockItems.filter((item) => (item.group || '').trim() === currentGroup)
+    } else if (Array.isArray(currentGroup.fileNames)) {
+      filtered = mockItems.filter((item) => currentGroup.fileNames.includes(item.fileName))
     }
     if (isTableMode) {
       renderMockTable(filtered)
@@ -889,26 +932,51 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 新增分组弹窗逻辑
-  const groupModal = document.getElementById('group-modal')
-  const groupForm = document.getElementById('group-form')
-  const groupNameInput = document.getElementById('group-name')
-  addGroupBtn.addEventListener('click', () => {
-    groupModal.classList.add('active')
-    groupNameInput.value = ''
-  })
-  groupModal
-    .querySelectorAll('.close')
-    .forEach((btn) => btn.addEventListener('click', () => groupModal.classList.remove('active')))
-  groupForm.addEventListener('submit', (e) => {
-    e.preventDefault()
-    const groupName = groupNameInput.value.trim()
-    if (!groupName) return alert('请输入分组名')
-    // 选中分组树
-    currentGroup = groupName
-    groupModal.classList.remove('active')
-    renderGroupTree(mockItems)
-    renderCurrentGroupList()
-  })
+  $('#add-group-btn')
+    .off('click')
+    .on('click', function () {
+      // 获取当前选中分组id作为父分组
+      let parentId = 0
+      // 通过jsTree获取当前选中分组
+      const selected = $('#group-tree-jstree').jstree('get_selected')
+      if (selected && selected.length) {
+        const selId = Number(selected[0])
+        // 禁止未分组下新建子分组
+        if (selId === -1) {
+          showInfoModal('未分组下不能创建子分组')
+          return
+        }
+        if (selId === 0) {
+          parentId = 0
+        } else {
+          parentId = selId
+        }
+      }
+      // 只有不是未分组时才弹出新增分组弹框
+      $('#group-modal').addClass('active')
+      $('#group-name').val('')
+      // 绑定表单提交事件
+      $('#group-form')
+        .off('submit')
+        .on('submit', function (e) {
+          e.preventDefault()
+          const groupName = $('#group-name').val().trim()
+          if (!groupName) return alert('请输入分组名')
+          fetch('/api/group-info', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: groupName, parentId }),
+          }).then(async (res) => {
+            if (res.ok) {
+              $('#group-modal').removeClass('active')
+              await loadGroupTree()
+            } else {
+              const data = await res.json()
+              alert(data.error || '新增分组失败')
+            }
+          })
+        })
+    })
 
   // ====== jsTree分组树相关 ======
   async function loadGroupTree() {
@@ -928,24 +996,23 @@ document.addEventListener('DOMContentLoaded', () => {
         core: { data: jsTreeData, check_callback: true },
       })
       .on('select_node.jstree', async function (e, data) {
-        const groupId = Number(data.node.id)
-        if (groupId === 0) {
-          renderMockList(mockItems)
-          updateGroupActionButtons({ id: 0, name: '全部' })
-        } else if (groupId === -1) {
-          const filtered = mockItems.filter((item) => !item.group || !item.group.trim())
-          renderMockList(filtered)
-          updateGroupActionButtons({ id: -1, name: '未分组' })
-        } else {
-          const res = await fetch(`/api/group-info/${groupId}`)
-          const group = await res.json()
-          renderMockListByFiles(group.files || [])
-          updateGroupActionButtons(group)
+        // 切换分组前清空已勾选的接口
+        selectedFiles.clear()
+        // 统一currentGroup对象
+        currentGroup = {
+          id: Number(data.node.id),
+          name: data.node.text,
+          fileNames: data.node.data && data.node.data.files ? data.node.data.files : null,
         }
+        // 每次切换分组都刷新mockItems
+        await loadMockList()
+        filterMockList()
+        updateGroupActionButtons(data.node.data)
       })
       .on('ready.jstree', function () {
-        // 默认展开所有节点
         $('#group-tree-jstree').jstree(true).open_all()
+        $('#group-tree-jstree').jstree(true).deselect_all()
+        $('#group-tree-jstree').jstree(true).select_node('0')
       })
   }
   function groupToJsTree(groups) {
@@ -956,14 +1023,6 @@ document.addEventListener('DOMContentLoaded', () => {
       icon: 'fas fa-folder',
       data: g,
     }))
-  }
-  function renderMockListByFiles(fileNames) {
-    const filtered = mockItems.filter((item) => fileNames.includes(item.fileName))
-    if (isTableMode) {
-      renderMockTable(filtered)
-    } else {
-      renderMockList(filtered)
-    }
   }
   function updateGroupActionButtons(group) {
     if (group.id === 0 || group.id === -1 || group.name === '全部' || group.name === '未分组') {
@@ -1016,46 +1075,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }).then(() => loadGroupTree())
     }
   }
-  $('#add-group-btn').on('click', function () {
-    // 获取当前选中分组id作为父分组
-    let parentId = 0
-    const selected = $('#group-tree-jstree').jstree('get_selected')
-    if (selected && selected.length) {
-      const selId = Number(selected[0])
-      // 选中"全部"或未选中，parentId=0；选中"未分组"，parentId=-1；其它分组，parentId=selId
-      if (selId === 0) {
-        parentId = 0
-      } else if (selId === -1) {
-        parentId = -1
-      } else {
-        parentId = selId
-      }
-    }
-    // 弹出原有弹框
-    $('#group-modal').addClass('active')
-    $('#group-name').val('')
-    // 绑定表单提交事件
-    $('#group-form')
-      .off('submit')
-      .on('submit', function (e) {
-        e.preventDefault()
-        const groupName = $('#group-name').val().trim()
-        if (!groupName) return alert('请输入分组名')
-        fetch('/api/group-info', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: groupName, parentId }),
-        }).then(async (res) => {
-          if (res.ok) {
-            $('#group-modal').removeClass('active')
-            await loadGroupTree()
-          } else {
-            const data = await res.json()
-            alert(data.error || '新增分组失败')
-          }
-        })
-      })
-  })
   // 关闭新增分组弹框
   $('#group-modal .close').on('click', function () {
     $('#group-modal').removeClass('active')
@@ -1097,15 +1116,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const groupId = $('#batch-move-group').val()
     if (!groupId) return alert('请选择目标分组')
     const fileNames = Array.from(selectedFiles)
+
+    // 获取分组名
+    const res = await fetch(`/api/group-info/${groupId}`)
+    const group = await res.json()
+    const groupName = group.name
+
+    // 先批量更新mockJson里的group字段
+    await fetch('/batch-group', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileNames, group: groupName }),
+    })
+
+    // 再更新分组树的 files 字段
     await fetch(`/api/group-info/${groupId}/files`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ files: fileNames }),
     })
-    $('#batch-move-modal').removeClass('active')
-    clearSelection()
+
+    // 刷新数据
     await loadMockList()
     await loadGroupTree()
+
+    $('#batch-move-modal').removeClass('active')
+    clearSelection()
     alert('批量分组成功')
   })
   // 展平成一维分组列表
@@ -1119,13 +1155,67 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     return arr
   }
-  // 页面加载时初始化分组树，并在jsTree ready后默认选中"全部"分组
-  $(function () {
-    loadGroupTree().then(() => {
-      $('#group-tree-jstree').on('ready.jstree', function () {
-        $('#group-tree-jstree').jstree(true).deselect_all()
-        $('#group-tree-jstree').jstree(true).select_node('0')
-      })
+  // 通用信息提示模态框
+  function showInfoModal(message) {
+    const confirmModal = document.getElementById('confirm-modal')
+    document.getElementById('confirm-message').textContent = message
+    // 只显示"确定"按钮，隐藏"取消"
+    document.getElementById('confirm-cancel').style.display = 'none'
+    document.getElementById('confirm-action').textContent = '确定'
+    // 解绑旧事件，绑定关闭
+    document.getElementById('confirm-action').onclick = function () {
+      confirmModal.classList.remove('active')
+      // 恢复按钮
+      document.getElementById('confirm-cancel').style.display = ''
+      document.getElementById('confirm-action').textContent = '确认'
+      document.getElementById('confirm-action').onclick = handleConfirmAction
+    }
+    confirmModal.classList.add('active')
+  }
+
+  // ====== 自动生成字段说明/类型 ======
+  function inferType(val) {
+    if (val === null) return 'null'
+    if (Array.isArray(val)) return 'array'
+    if (typeof val === 'boolean') return 'boolean'
+    if (typeof val === 'number') return Number.isInteger(val) ? 'integer' : 'number'
+    if (typeof val === 'string') return 'string'
+    if (typeof val === 'object') return 'object'
+    return typeof val
+  }
+  function genDescObj(obj) {
+    if (Array.isArray(obj)) {
+      return { type: 'array', desc: '', items: obj.length ? genDescObj(obj[0]) : {} }
+    }
+    if (typeof obj === 'object' && obj !== null) {
+      const fields = {}
+      for (const key in obj) {
+        fields[key] = genDescObj(obj[key])
+      }
+      return { type: 'object', desc: '', fields }
+    }
+    return { type: inferType(obj), desc: '' }
+  }
+  // 支持Mock.js模板的自动说明生成
+  function autoGenDesc(jsonInputId, descInputId, isMockTemplate = false) {
+    const jsonInput = document.getElementById(jsonInputId)
+    const descInput = document.getElementById(descInputId)
+    if (!jsonInput || !descInput) return
+    jsonInput.addEventListener('input', function () {
+      try {
+        let val = JSON.parse(this.value)
+        if (isMockTemplate && window.Mock) {
+          try {
+            val = Mock.mock(val)
+          } catch {}
+        }
+        const descObj = genDescObj(val)
+        descInput.value = JSON.stringify(descObj, null, 2)
+      } catch {}
     })
-  })
+  }
+  autoGenDesc('queryParams', 'queryParamsDesc', true)
+  autoGenDesc('bodyParams', 'bodyParamsDesc', true)
+  autoGenDesc('responseHeaders', 'responseHeadersDesc', true)
+  autoGenDesc('pathContent', 'pathContentDesc', true)
 })

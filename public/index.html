@@ -159,10 +159,26 @@
               <label for="queryParams">查询参数 (JSON格式)</label>
               <textarea id="queryParams" rows="3" placeholder='{"param1": "value1", "param2": "value2"}'></textarea>
             </div>
+            <div class="form-group">
+              <label for="queryParamsDesc">查询参数说明 (字段说明/类型, JSON格式)</label>
+              <textarea
+                id="queryParamsDesc"
+                rows="3"
+                placeholder='{"param1": {"desc": "参数1说明", "type": "string"}, "param2": {"desc": "参数2说明", "type": "string"}}'
+              ></textarea>
+            </div>
 
             <div class="form-group" id="body-group" style="display: none">
               <label for="bodyParams">Body参数 (JSON格式)</label>
               <textarea id="bodyParams" rows="4" placeholder='{"key": "value"}'></textarea>
+            </div>
+            <div class="form-group" id="body-group-desc" style="display: none">
+              <label for="bodyParamsDesc">Body参数说明 (字段说明/类型, JSON格式)</label>
+              <textarea
+                id="bodyParamsDesc"
+                rows="4"
+                placeholder='{"key": {"desc": "字段说明", "type": "string"}}'
+              ></textarea>
             </div>
 
             <div class="form-group">
@@ -172,6 +188,14 @@
                 rows="3"
                 required
                 placeholder='{"Content-Type": "application/json"}'
+              ></textarea>
+            </div>
+            <div class="form-group">
+              <label for="responseHeadersDesc">响应头说明 (字段说明/类型, JSON格式)</label>
+              <textarea
+                id="responseHeadersDesc"
+                rows="3"
+                placeholder='{"Content-Type": {"desc": "响应类型", "type": "string"}}'
               ></textarea>
             </div>
 
@@ -192,6 +216,14 @@
                   <i class="fas fa-info-circle"></i> 您正在使用Mock.js模板，预览显示实际生成数据
                 </div>
               </div>
+            </div>
+            <div class="form-group">
+              <label for="pathContentDesc">响应内容说明 (字段说明/类型, JSON格式)</label>
+              <textarea
+                id="pathContentDesc"
+                rows="8"
+                placeholder='{"data": {"desc": "数据内容", "type": "string"}, "age": {"desc": "年龄", "type": "number"}}'
+              ></textarea>
             </div>
 
             <div class="form-actions">

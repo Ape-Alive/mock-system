@@ -1,0 +1,84 @@
+{
+  "pathName": "根据包名和空间位置获取应用的缓存数据目录",
+  "path": "/storage/cacheDir",
+  "pathType": "GET",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": "",
+    "packageName": "",
+    "partitionLabel": "",
+    "partitionUUID": "",
+    "storageType": "",
+    "userID": ""
+  },
+  "queryParamsDesc": {
+    "nas-token": {
+      "desc": "需要鉴权的API请求令牌(放请求头或者请求参数，二选一)",
+      "type": "string"
+    },
+    "packageName": {
+      "desc": "应用包名",
+      "type": "string"
+    },
+    "partitionLabel": {
+      "desc": "存储空间名称(作为参数时，不用填写)",
+      "type": "string"
+    },
+    "partitionUUID": {
+      "desc": "盘序号",
+      "type": "string"
+    },
+    "storageType": {
+      "desc": "空间类型, 0-公共空间，1-用户空间,2-加密空间，3-外部空间(包括U盘、外部磁盘)",
+      "type": "integer"
+    },
+    "userID": {
+      "desc": "用户名",
+      "type": "integer"
+    }
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "responseHeadersDesc": {
+    "nas-token": {
+      "desc": "需要鉴权的API请求令牌(放请求头或者请求参数，二选一)",
+      "type": "string"
+    }
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": "@string",
+      "message": "@string"
+    }
+  },
+  "pathContentDesc": {
+    "type": "object",
+    "desc": "",
+    "fields": {
+      "code": {
+        "type": "integer",
+        "desc": "状态响应码"
+      },
+      "data": {
+        "type": "string",
+        "desc": ""
+      },
+      "message": {
+        "type": "string",
+        "desc": "响应消息"
+      }
+    }
+  },
+  "bodyParams": null,
+  "bodyParamsDesc": "",
+  "group": "",
+  "fileName": "根据包名和空间位置获取应用的缓存数据目录_1751040214266.json",
+  "createdAt": "2025-06-27T16:03:33.748Z"
+}

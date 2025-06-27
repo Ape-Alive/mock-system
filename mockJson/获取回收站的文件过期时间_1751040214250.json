@@ -1,0 +1,94 @@
+{
+  "pathName": "获取回收站的文件过期时间",
+  "path": "/api/v2/trash/expiration",
+  "pathType": "POST",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": ""
+  },
+  "queryParamsDesc": {
+    "nas-token": {
+      "desc": "需要鉴权的API请求令牌(放请求头或者请求参数，二选一)",
+      "type": "string"
+    }
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "responseHeadersDesc": {
+    "nas-token": {
+      "desc": "需要鉴权的API请求令牌(放请求头或者请求参数，二选一)",
+      "type": "string"
+    }
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": {
+        "value": "@integer(1,100000)"
+      },
+      "message": "@string"
+    }
+  },
+  "pathContentDesc": {
+    "type": "object",
+    "desc": "",
+    "fields": {
+      "code": {
+        "type": "integer",
+        "desc": "状态响应码"
+      },
+      "data": {
+        "type": "object",
+        "desc": "响应数据",
+        "fields": {
+          "value": {
+            "type": "integer",
+            "desc": "过期时间天数"
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "desc": "响应消息"
+      }
+    }
+  },
+  "bodyParams": {
+    "partitionLabel": "@string",
+    "partitionUUID": "@string",
+    "storageType": "@pick([0,1,2,3])",
+    "userID": "@string"
+  },
+  "bodyParamsDesc": {
+    "type": "object",
+    "desc": "",
+    "fields": {
+      "partitionLabel": {
+        "type": "string",
+        "desc": "存储空间名称(作为参数时，不用填写)"
+      },
+      "partitionUUID": {
+        "type": "string",
+        "desc": "盘序号"
+      },
+      "storageType": {
+        "type": "object",
+        "desc": "空间类型, 0-公共空间，1-用户空间,2-加密空间，3-外部空间(包括U盘、外部磁盘)",
+        "fields": {}
+      },
+      "userID": {
+        "type": "string",
+        "desc": "用户名"
+      }
+    }
+  },
+  "group": "",
+  "fileName": "获取回收站的文件过期时间_1751040214250.json",
+  "createdAt": "2025-06-27T16:03:33.759Z"
+}

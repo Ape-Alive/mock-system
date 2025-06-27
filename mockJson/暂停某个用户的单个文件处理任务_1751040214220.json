@@ -1,0 +1,70 @@
+{
+  "pathName": "暂停某个用户的单个文件处理任务",
+  "path": "/file/task/pauseOne",
+  "pathType": "POST",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": ""
+  },
+  "queryParamsDesc": {
+    "nas-token": {
+      "desc": "需要鉴权的API请求令牌(放请求头或者请求参数，二选一)",
+      "type": "string"
+    }
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "responseHeadersDesc": {
+    "nas-token": {
+      "desc": "需要鉴权的API请求令牌(放请求头或者请求参数，二选一)",
+      "type": "string"
+    }
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": "@string",
+      "message": "@string"
+    }
+  },
+  "pathContentDesc": {
+    "type": "object",
+    "desc": "",
+    "fields": {
+      "code": {
+        "type": "integer",
+        "desc": "状态响应码"
+      },
+      "data": {
+        "type": "string",
+        "desc": ""
+      },
+      "message": {
+        "type": "string",
+        "desc": "响应消息"
+      }
+    }
+  },
+  "bodyParams": {
+    "mainTaskId": "@integer(1,100000)"
+  },
+  "bodyParamsDesc": {
+    "type": "object",
+    "desc": "",
+    "fields": {
+      "mainTaskId": {
+        "type": "integer",
+        "desc": "主任务ID"
+      }
+    }
+  },
+  "group": "",
+  "fileName": "暂停某个用户的单个文件处理任务_1751040214220.json",
+  "createdAt": "2025-06-27T16:03:33.747Z"
+}

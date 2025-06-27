@@ -1,0 +1,457 @@
+{
+  "pathName": "搜索加密文件",
+  "path": "/encrypted/index/search",
+  "pathType": "POST",
+  "mockType": "mockjsTemplate",
+  "queryParams": {},
+  "queryParamsDesc": {},
+  "headers": {
+    "nas-token": "",
+    "Crypto-Token": ""
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "responseHeadersDesc": {
+    "nas-token": {
+      "desc": "需要鉴权的API请求令牌",
+      "type": "string"
+    },
+    "Crypto-Token": {
+      "desc": "加密空间的API请求令牌",
+      "type": "string"
+    }
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": {
+        "indexFiles": [
+          {
+            "extension": "@string",
+            "id": "@integer(1,100000)",
+            "isDir": "@boolean",
+            "lookedAt": "@string",
+            "mime": "@string",
+            "modifiedAt": "@string",
+            "name": "@string",
+            "parentDir": "@string",
+            "partitionLabel": "@string",
+            "partitionUUID": "@string",
+            "path": "@string",
+            "pinyin": "@string",
+            "sha1": "@string",
+            "size": "@integer(1,100000)",
+            "storageType": "@pick([0,1,2,3])",
+            "userID": "@string"
+          }
+        ],
+        "page": {
+          "currentPageSize": "@integer(1,100000)",
+          "pageCount": "@integer(1,100000)",
+          "pageIndex": "@integer(1,100000)",
+          "pageSize": "@integer(1,100000)",
+          "total": "@integer(1,100000)"
+        }
+      },
+      "message": "@string"
+    }
+  },
+  "pathContentDesc": {
+    "type": "object",
+    "desc": "",
+    "fields": {
+      "code": {
+        "type": "integer",
+        "desc": "状态响应码"
+      },
+      "data": {
+        "type": "object",
+        "desc": "响应数据",
+        "fields": {
+          "indexFiles": {
+            "type": "array",
+            "desc": "索引文件列表",
+            "items": {
+              "type": "object",
+              "desc": "",
+              "fields": {
+                "extension": {
+                  "type": "string",
+                  "desc": "文件的后缀名，小写"
+                },
+                "id": {
+                  "type": "integer",
+                  "desc": ""
+                },
+                "isDir": {
+                  "type": "boolean",
+                  "desc": "是否是目录"
+                },
+                "lookedAt": {
+                  "type": "string",
+                  "desc": "文件最后查看时间"
+                },
+                "mime": {
+                  "type": "string",
+                  "desc": "文件MIME类型"
+                },
+                "modifiedAt": {
+                  "type": "string",
+                  "desc": "文件最后修改时间"
+                },
+                "name": {
+                  "type": "string",
+                  "desc": "文件名，建立索引以便搜索"
+                },
+                "parentDir": {
+                  "type": "string",
+                  "desc": "父目录"
+                },
+                "partitionLabel": {
+                  "type": "string",
+                  "desc": "存储空间名称(作为参数时，不用填写)"
+                },
+                "partitionUUID": {
+                  "type": "string",
+                  "desc": "盘序号"
+                },
+                "path": {
+                  "type": "string",
+                  "desc": "文件的完整路径，保证唯一性"
+                },
+                "pinyin": {
+                  "type": "string",
+                  "desc": "名称的拼音版，若是英文则保留原样"
+                },
+                "sha1": {
+                  "type": "string",
+                  "desc": "文件的SHA1哈希，可以用于检测重复文件"
+                },
+                "size": {
+                  "type": "integer",
+                  "desc": "文件大小"
+                },
+                "storageType": {
+                  "type": "object",
+                  "desc": "空间类型, 0-公共空间，1-用户空间,2-加密空间，3-外部空间(包括U盘、外部磁盘)",
+                  "fields": {}
+                },
+                "userID": {
+                  "type": "string",
+                  "desc": "用户名"
+                }
+              }
+            }
+          },
+          "page": {
+            "type": "object",
+            "desc": "分页字段",
+            "fields": {
+              "currentPageSize": {
+                "type": "integer",
+                "desc": "当前页面大小"
+              },
+              "pageCount": {
+                "type": "integer",
+                "desc": "总共页数"
+              },
+              "pageIndex": {
+                "type": "integer",
+                "desc": "当前页码"
+              },
+              "pageSize": {
+                "type": "integer",
+                "desc": "页面大小"
+              },
+              "total": {
+                "type": "integer",
+                "desc": "总数量"
+              }
+            }
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "desc": "响应消息"
+      }
+    }
+  },
+  "bodyParams": {
+    "domain": "@pick([0,1,2,3,4])",
+    "fileType": [
+      "@pick([0,1,2,3,4,5])"
+    ],
+    "queryOptions": {
+      "basePath": {
+        "require": "@boolean",
+        "values": [
+          "@string"
+        ]
+      },
+      "dirFilter": {
+        "isDir": "@boolean",
+        "require": "@boolean"
+      },
+      "extList": {
+        "require": "@boolean",
+        "values": [
+          "@string"
+        ]
+      },
+      "hashList": {
+        "require": "@boolean",
+        "values": [
+          "@string"
+        ]
+      },
+      "idRange": {
+        "endId": "@integer(1,100000)",
+        "startId": "@integer(1,100000)"
+      },
+      "keyWord": {
+        "notIn": "@boolean",
+        "require": "@boolean",
+        "value": "@string"
+      },
+      "page": {
+        "pageIndex": "@integer(1,100000)",
+        "pageSize": "@integer(1,100000)"
+      },
+      "parentPath": {
+        "require": "@boolean",
+        "values": [
+          "@string"
+        ]
+      },
+      "sortOrder": {
+        "ascending": "@boolean",
+        "field": "@string"
+      },
+      "timeRange": {
+        "endTime": "@integer(1,100000)",
+        "startTime": "@integer(1,100000)"
+      }
+    },
+    "storageInfo": {
+      "partitionLabel": "@string",
+      "partitionUUID": "@string",
+      "storageType": "@pick([0,1,2,3])",
+      "userID": "@string"
+    }
+  },
+  "bodyParamsDesc": {
+    "type": "object",
+    "desc": "",
+    "fields": {
+      "domain": {
+        "type": "object",
+        "desc": "搜索范围：0-全局（个人+公共），1-所有个人空间,2-原先的公共空间（现已不支持）,3-指定单个个人空间或加密空间，4-所有加密空间",
+        "fields": {}
+      },
+      "fileType": {
+        "type": "array",
+        "desc": "0-所有文件类型，1-图片文件类型，2-音频文件类型，3-视频文件类型，4-文档文件类型，5-其他文件类型。文件类型列表，可多选，但选中其他文件类型后，不可再选择额外的文件类型，选中全部后，会覆盖其他类型",
+        "items": {
+          "type": "integer",
+          "desc": ""
+        }
+      },
+      "queryOptions": {
+        "type": "object",
+        "desc": "搜索参数",
+        "fields": {
+          "basePath": {
+            "type": "object",
+            "desc": "基地址",
+            "fields": {
+              "require": {
+                "type": "boolean",
+                "desc": ""
+              },
+              "values": {
+                "type": "array",
+                "desc": "",
+                "items": {
+                  "type": "string",
+                  "desc": ""
+                }
+              }
+            }
+          },
+          "dirFilter": {
+            "type": "object",
+            "desc": "目录过滤字段",
+            "fields": {
+              "isDir": {
+                "type": "boolean",
+                "desc": ""
+              },
+              "require": {
+                "type": "boolean",
+                "desc": ""
+              }
+            }
+          },
+          "extList": {
+            "type": "object",
+            "desc": "文件拓展名称列表",
+            "fields": {
+              "require": {
+                "type": "boolean",
+                "desc": ""
+              },
+              "values": {
+                "type": "array",
+                "desc": "",
+                "items": {
+                  "type": "string",
+                  "desc": ""
+                }
+              }
+            }
+          },
+          "hashList": {
+            "type": "object",
+            "desc": "SHA1值列表",
+            "fields": {
+              "require": {
+                "type": "boolean",
+                "desc": ""
+              },
+              "values": {
+                "type": "array",
+                "desc": "",
+                "items": {
+                  "type": "string",
+                  "desc": ""
+                }
+              }
+            }
+          },
+          "idRange": {
+            "type": "object",
+            "desc": "文件ID 范围",
+            "fields": {
+              "endId": {
+                "type": "integer",
+                "desc": ""
+              },
+              "startId": {
+                "type": "integer",
+                "desc": ""
+              }
+            }
+          },
+          "keyWord": {
+            "type": "object",
+            "desc": "关键字",
+            "fields": {
+              "notIn": {
+                "type": "boolean",
+                "desc": ""
+              },
+              "require": {
+                "type": "boolean",
+                "desc": ""
+              },
+              "value": {
+                "type": "string",
+                "desc": ""
+              }
+            }
+          },
+          "page": {
+            "type": "object",
+            "desc": "分页字段",
+            "fields": {
+              "pageIndex": {
+                "type": "integer",
+                "desc": "页码，第一页为1"
+              },
+              "pageSize": {
+                "type": "integer",
+                "desc": "页面大小"
+              }
+            }
+          },
+          "parentPath": {
+            "type": "object",
+            "desc": "FilePath   QueryParamArray    `json:\"filePath\"`                // 文件相对路径",
+            "fields": {
+              "require": {
+                "type": "boolean",
+                "desc": ""
+              },
+              "values": {
+                "type": "array",
+                "desc": "",
+                "items": {
+                  "type": "string",
+                  "desc": ""
+                }
+              }
+            }
+          },
+          "sortOrder": {
+            "type": "object",
+            "desc": "排序字段,可选字段：\"id\": 默认选项，按照ID排序，\"name\":文件名称，\"size\":文件大小，\"mime\": 媒体类型，\"is_dir\": 默认降序，即文件夹排在前面，modified_at： 文件修改时间。",
+            "fields": {
+              "ascending": {
+                "type": "boolean",
+                "desc": "True for ASC, false for DESC"
+              },
+              "field": {
+                "type": "string",
+                "desc": ""
+              }
+            }
+          },
+          "timeRange": {
+            "type": "object",
+            "desc": "时间戳范围",
+            "fields": {
+              "endTime": {
+                "type": "integer",
+                "desc": ""
+              },
+              "startTime": {
+                "type": "integer",
+                "desc": ""
+              }
+            }
+          }
+        }
+      },
+      "storageInfo": {
+        "type": "object",
+        "desc": "存储空间信息",
+        "fields": {
+          "partitionLabel": {
+            "type": "string",
+            "desc": "存储空间名称(作为参数时，不用填写)"
+          },
+          "partitionUUID": {
+            "type": "string",
+            "desc": "盘序号"
+          },
+          "storageType": {
+            "type": "object",
+            "desc": "空间类型, 0-公共空间，1-用户空间,2-加密空间，3-外部空间(包括U盘、外部磁盘)",
+            "fields": {}
+          },
+          "userID": {
+            "type": "string",
+            "desc": "用户名"
+          }
+        }
+      }
+    }
+  },
+  "group": "",
+  "fileName": "搜索加密文件_1751040214560.json",
+  "createdAt": "2025-06-27T16:03:33.752Z"
+}
