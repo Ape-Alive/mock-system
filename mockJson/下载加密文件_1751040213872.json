@@ -57,11 +57,26 @@
   "pathContentDesc": {
     "type": "object",
     "desc": "",
-    "fields": {}
+    "fields": {
+      "code": {
+        "type": "integer",
+        "desc": ""
+      },
+      "message": {
+        "type": "string",
+        "desc": ""
+      },
+      "data": {
+        "type": "object",
+        "desc": "",
+        "fields": {}
+      }
+    }
   },
   "bodyParams": null,
   "bodyParamsDesc": "",
-  "group": "",
+  "group": "刚刚",
   "fileName": "下载加密文件_1751040213872.json",
-  "createdAt": "2025-06-27T16:03:33.761Z"
+  "createdAt": "2025-06-27T16:03:33.761Z",
+  "updatedAt": "2025-06-28T02:09:50.078Z"
 }

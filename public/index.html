@@ -19,6 +19,9 @@
             <i class="fas fa-moon"></i>
           </button>
           <button id="add-mock" class="btn primary"><i class="fas fa-plus"></i> 新建接口</button>
+          <button id="code-generator-btn" class="btn primary" title="代码生成器">
+            <i class="fas fa-code"></i> 代码生成器
+          </button>
         </div>
       </div>
     </header>
@@ -385,10 +388,95 @@
       </div>
     </div>
 
+    <!-- 代码生成模态框 -->
+    <div id="code-generator-modal" class="modal">
+      <div class="modal-content large">
+        <div class="modal-header">
+          <h3>AI代码生成器</h3>
+          <button class="btn-icon close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="code-generator-form">
+            <div class="form-group">
+              <label for="tech-stack">技术类型 *</label>
+              <select id="tech-stack" required>
+                <option value="">请选择技术类型</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="output-type">呈现类型 *</label>
+              <select id="output-type" required>
+                <option value="">请选择呈现类型</option>
+                <option value="component">组件</option>
+                <option value="page">完整网页</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="ui-library">UI库</label>
+              <select id="ui-library">
+                <option value="">无</option>
+              </select>
+            </div>
+            <div class="form-group" id="custom-library-group" style="display: none;">
+              <label for="custom-library">自定义三方库</label>
+              <input type="text" id="custom-library" placeholder="如: axios, lodash, moment" />
+            </div>
+            <div class="form-group">
+              <label>选择接口 *</label>
+              <div id="interface-selector" class="interface-list">
+                <!-- 动态生成接口列表 -->
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="page-structure">页面结构描述</label>
+              <textarea id="page-structure" rows="3" placeholder="描述页面布局和组件结构，如：顶部导航栏，左侧菜单，右侧内容区域等"></textarea>
+            </div>
+            <div class="form-group">
+              <label for="page-logic">页面逻辑描述</label>
+              <textarea id="page-logic" rows="3" placeholder="描述页面交互逻辑，如：点击按钮调用接口，表单验证，数据展示等"></textarea>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn secondary close">取消</button>
+              <button type="submit" class="btn primary">生成代码</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    <!-- 代码预览模态框 -->
+    <div id="code-preview-modal" class="modal">
+      <div class="modal-content extra-large">
+        <div class="modal-header">
+          <h3>生成的代码</h3>
+          <div class="header-actions">
+            <button id="download-code" class="btn secondary">
+              <i class="fas fa-download"></i> 下载
+            </button>
+            <button class="btn-icon close">&times;</button>
+          </div>
+        </div>
+        <div class="modal-body">
+          <div class="tabs">
+            <button class="tab active" data-tab="preview">预览</button>
+            <button class="tab" data-tab="code">代码</button>
+          </div>
+          <div class="tab-content">
+            <div id="preview" class="tab-pane active">
+              <div id="code-preview-frame"></div>
+            </div>
+            <div id="code" class="tab-pane">
+              <pre id="generated-code"></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="script.js"></script>
     <!-- 依赖 jQuery -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <!-- jsTree JS -->
     <script src="https://cdn.jsdelivr.net/npm/jstree@3.3.15/dist/jstree.min.js"></script>
+    <script src="codegen.js"></script>
   </body>
 </html>

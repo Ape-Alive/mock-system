@@ -803,9 +803,8 @@ document.addEventListener('DOMContentLoaded', () => {
     testMethod.className = `test-method method ${results.request.method.toLowerCase()}`
     testUrl.textContent = results.request.url
     testStatus.textContent = `状态码: ${results.status} ${results.statusText} | 耗时: ${results.responseTime}ms`
-    testStatus.className = `test-status ${
-      results.status >= 200 && results.status < 300 ? 'status-success' : 'status-error'
-    }`
+    testStatus.className = `test-status ${results.status >= 200 && results.status < 300 ? 'status-success' : 'status-error'
+      }`
 
     // 设置响应内容
     responseBody.textContent =
@@ -1129,11 +1128,14 @@ document.addEventListener('DOMContentLoaded', () => {
       body: JSON.stringify({ fileNames, group: groupName }),
     })
 
-    // 再更新分组树的 files 字段
+    // 再更新分组树的 files 字段（使用合并模式）
     await fetch(`/api/group-info/${groupId}/files`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ files: fileNames }),
+      body: JSON.stringify({
+        files: fileNames,
+        mergeMode: true  // 启用合并模式
+      }),
     })
 
     // 刷新数据
@@ -1207,11 +1209,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isMockTemplate && window.Mock) {
           try {
             val = Mock.mock(val)
-          } catch {}
+          } catch { }
         }
         const descObj = genDescObj(val)
         descInput.value = JSON.stringify(descObj, null, 2)
-      } catch {}
+      } catch { }
     })
   }
   autoGenDesc('queryParams', 'queryParamsDesc', true)
