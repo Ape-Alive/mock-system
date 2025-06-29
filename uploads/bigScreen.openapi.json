@@ -1,0 +1,467 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "bigScreen",
+    "description": "",
+    "version": "1.0.0"
+  },
+  "tags": [],
+  "paths": {
+    "/bigscreen/countOtaNum": {
+      "get": {
+        "summary": "OTA升级总览",
+        "deprecated": false,
+        "description": "OTA升级总览 ",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "customerId",
+            "in": "query",
+            "description": "客户ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "updateError": {
+                          "type": "integer",
+                          "title": "升级失败"
+                        },
+                        "updating": {
+                          "type": "integer",
+                          "title": "升级中"
+                        },
+                        "totalNum": {
+                          "type": "integer",
+                          "title": "设备总数"
+                        },
+                        "updateSuccess": {
+                          "type": "integer",
+                          "title": "升级成功"
+                        }
+                      },
+                      "required": [
+                        "updateError",
+                        "updating",
+                        "totalNum",
+                        "updateSuccess"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ]
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "updateError": 35,
+                    "updating": 4,
+                    "totalNum": 218,
+                    "updateSuccess": 179
+                  }
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/bigscreen/countDeviceNum": {
+      "get": {
+        "summary": "设备总览",
+        "deprecated": false,
+        "description": "设备总览",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "customerId",
+            "in": "query",
+            "description": "客户ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "成功状态"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "newEquipmentNum": {
+                          "type": "integer",
+                          "title": "新增设备数"
+                        },
+                        "offlineNum": {
+                          "type": "integer",
+                          "title": "掉线数"
+                        },
+                        "totalNum": {
+                          "type": "integer",
+                          "title": "总设备数"
+                        },
+                        "onlineNum": {
+                          "type": "integer",
+                          "title": "在线数"
+                        }
+                      },
+                      "required": [
+                        "newEquipmentNum",
+                        "offlineNum",
+                        "totalNum",
+                        "onlineNum"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ]
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "newEquipmentNum": 3,
+                    "offlineNum": 37,
+                    "totalNum": 698,
+                    "onlineNum": 661
+                  }
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/bigscreen/firmwareVersion": {
+      "get": {
+        "summary": "固件版本分布",
+        "deprecated": false,
+        "description": "固件版本分布",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "customerId",
+            "in": "query",
+            "description": "客户ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                },
+                "example": "{\n    \"success\": true,\n    \"data\": {\n        \"firmwareList\": [//固件列表\n            {\n                \"value\": 30,//固件版本对应设备数量\n                \"name\": \"TVE9511-20241011-V0.4\"//固件版本\n            },\n            {\n                \"value\": 14,\n                \"name\": \"TVE7780-20241011-V0.2\"\n            },\n            {\n                \"value\": 25,\n                \"name\": \"TVE132-20241011-V0.7\"\n            },\n            {\n                \"value\": 23,\n                \"name\": \"TVE4664-20241011-V0.8\"\n            },\n            {\n                \"value\": 30,\n                \"name\": \"TVE4695-20241011-V0.4\"\n            },\n            {\n                \"value\": 2,\n                \"name\": \"TVE2443-20241011-V0.2\"\n            },\n            {\n                \"value\": 12,\n                \"name\": \"TVE1781-20241011-V0.8\"\n            },\n            {\n                \"value\": 7,\n                \"name\": \"TVE5842-20241011-V0.7\"\n            },\n            {\n                \"value\": 14,\n                \"name\": \"TVE5225-20241011-V0.4\"\n            },\n            {\n                \"value\": 23,\n                \"name\": \"TVE3717-20241011-V0.8\"\n            }\n        ]\n    }\n}"
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/bigscreen/appNum": {
+      "get": {
+        "summary": "应用版本分布",
+        "deprecated": false,
+        "description": "应用版本分布",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "customerId",
+            "in": "query",
+            "description": "客户ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                },
+                "example": "{\n    \"success\": true,\n    \"data\": {\n        \"appList\": [//应用列表\n            {\n                \"value\": 1383,//应用安装的数量\n                \"name\": \"备忘录\"//应用名称\n            },\n            {\n                \"value\": 874,\n                \"name\": \"另外一个笔记本\"\n            },\n            {\n                \"value\": 1246,\n                \"name\": \"sketchbook手写应用\"\n            },\n            {\n                \"value\": 1858,\n                \"name\": \"Oneonte\"\n            },\n            {\n                \"value\": 281,\n                \"name\": \"乐课(学生端)\"\n            },\n            {\n                \"value\": 696,\n                \"name\": \"bilibli\"\n            },\n            {\n                \"value\": 331,\n                \"name\": \"美团\\\"\"\n            }\n        ]\n    }\n}"
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/bigscreen/equipmentAlert": {
+      "get": {
+        "summary": "设备预警",
+        "deprecated": false,
+        "description": "设备预警",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "customerId",
+            "in": "query",
+            "description": "客户ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limitNum",
+            "in": "query",
+            "description": "条数",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                },
+                "example": "[\r\n    {\r\n    \"alertDetail\": \"了化分间清处律。\", //报警内容\r\n    \"alertTitle\": \"水浸告警\", //报警标题\r\n    \"alertValue\": \"72.8\", //报警值\r\n    \"createtime\": \"2022-04-19 08:38:33\", //时间\r\n    \"deviceSerialNumber\": \"TVE1060M1234567890\", //设备ID\r\n    \"country\": \"中国\", //国家\r\n    \"province\": \"河北省\", //省份\r\n    \"city\": \"保定市\" //城市\r\n},{\r\n    \"alertDetail\": \"了化分间清处律。\", //报警内容\r\n    \"alertTitle\": \"水浸告警\", //报警标题\r\n    \"alertValue\": \"72.8\", //报警值\r\n    \"createtime\": \"2022-04-19 08:38:33\", //时间\r\n    \"deviceSerialNumber\": \"TVE1060M1234567890\", //设备ID\r\n    \"country\": \"中国\", //国家\r\n    \"province\": \"河北省\", //省份\r\n    \"city\": \"保定市\" //城市\r\n}\r\n]"
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/bigscreen/equipmentUsage": {
+      "get": {
+        "summary": "设备使用情况",
+        "deprecated": false,
+        "description": "设备使用情况",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "customerId",
+            "in": "query",
+            "description": "客户ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                },
+                "example": "{\r\n    \"success\": true,\r\n    \"data\": {\r\n        \"barData\": [//设备活跃数\r\n            66,\r\n            66,\r\n            59,\r\n            31,\r\n            41,\r\n            68\r\n        ],\r\n        \"category\": [//设备记录的时间\r\n            \"2024-10-1\",\r\n            \"2024-10-2\",\r\n            \"2024-10-3\",\r\n            \"2024-10-4\",\r\n            \"2024-10-5\",\r\n            \"2024-10-6\"\r\n        ],\r\n        \"lineData\": [//设备总数\r\n            99,\r\n            156,\r\n            95,\r\n            127,\r\n            56,\r\n            157\r\n        ],\r\n        \"rateData\": [//设备上线率\r\n            \"67\",\r\n            \"42\",\r\n            \"62\",\r\n            \"24\",\r\n            \"73\",\r\n            \"43\"\r\n        ]\r\n    }\r\n}"
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/bigscreen/deviceHardware": {
+      "get": {
+        "summary": "设备硬件使用率",
+        "deprecated": false,
+        "description": "设备硬件使用率",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "customerId",
+            "in": "query",
+            "description": "客户ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                },
+                "example": "{\n    \"success\": true,\n    \"data\": {\n        \"cpuUsage\": [//cpu 使用率\n            10,\n            40,\n            20,\n            10,\n            20\n        ],\n        \"diskUsage\": [//硬盘空间使用率\n            15,\n            35,\n            10,\n            20,\n            20\n        ],\n        \"ramUsage\": [//运行内存使用率\n            18,\n            22,\n            40,\n            5,\n            15\n        ]\n    }\n}"
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/bigscreen/centermap": {
+      "get": {
+        "summary": "设备分布",
+        "deprecated": false,
+        "description": "中间地图",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "customerId",
+            "in": "query",
+            "description": "客户ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "regionCode",
+            "in": "query",
+            "description": "后端无需处理",
+            "required": false,
+            "example": "china或者区域码",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "dataList": [
+                      {
+                        "name": "安徽省",
+                        "value": 683
+                      },
+                      {
+                        "name": "云南省",
+                        "value": 655
+                      },
+                      {
+                        "name": "湖北省",
+                        "value": 213
+                      },
+                      {
+                        "name": "西藏自治区",
+                        "value": 260
+                      },
+                      {
+                        "name": "湖南省",
+                        "value": 847
+                      },
+                      {
+                        "name": "辽宁省",
+                        "value": 294
+                      },
+                      {
+                        "name": "新疆维吾尔自治区",
+                        "value": 738
+                      },
+                      {
+                        "name": "天津",
+                        "value": 244
+                      }
+                    ],
+                    "regionCode": "china"
+                  }
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/bigscreen/getCustomer": {
+      "get": {
+        "summary": "获取客户信息",
+        "deprecated": false,
+        "description": "获取客户信息",
+        "tags": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                },
+                "example": "{\r\n        success: true,\r\n        data: [{\r\n            customerId: 'o13434',\r\n            customerName: '慧为智能科技有限公司'\r\n        },\r\n        {\r\n            customerId: 'o1343467',\r\n            customerName: '联想控股股份有限公司'\r\n        },\r\n        {\r\n            customerId: 'o134346X',\r\n            customerName: '中兴公司'\r\n        },\r\n        ]\r\n    }"
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    }
+  },
+  "components": {
+    "schemas": {},
+    "securitySchemes": {}
+  },
+  "servers": [],
+  "security": []
+}

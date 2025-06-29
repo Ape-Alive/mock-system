@@ -5,10 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mock接口管理平台</title>
     <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="preview-styles.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" />
     <script src="https://cdn.bootcdn.net/ajax/libs/Mock.js/1.0.0/mock-min.js"></script>
     <!-- jsTree CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jstree@3.3.15/dist/themes/default/style.min.css" />
+    <!-- Prism.js for code highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
   </head>
   <body>
     <header>
@@ -417,23 +423,42 @@
                 <option value="">无</option>
               </select>
             </div>
-            <div class="form-group" id="custom-library-group" style="display: none;">
+            <div class="form-group" id="custom-library-group" style="display: none">
               <label for="custom-library">自定义三方库</label>
               <input type="text" id="custom-library" placeholder="如: axios, lodash, moment" />
             </div>
             <div class="form-group">
-              <label>选择接口 *</label>
+              <label>
+                选择接口 *
+                <input
+                  type="text"
+                  id="interface-search"
+                  placeholder="搜索接口..."
+                  style="margin-left: 12px; width: 180px; display: inline-block"
+                />
+              </label>
+              <div class="interface-select-all" style="margin-bottom: 8px">
+                <label> <input type="checkbox" id="interface-select-all-checkbox" /> 全选 </label>
+              </div>
               <div id="interface-selector" class="interface-list">
                 <!-- 动态生成接口列表 -->
               </div>
             </div>
             <div class="form-group">
               <label for="page-structure">页面结构描述</label>
-              <textarea id="page-structure" rows="3" placeholder="描述页面布局和组件结构，如：顶部导航栏，左侧菜单，右侧内容区域等"></textarea>
+              <textarea
+                id="page-structure"
+                rows="3"
+                placeholder="描述页面布局和组件结构，如：顶部导航栏，左侧菜单，右侧内容区域等"
+              ></textarea>
             </div>
             <div class="form-group">
               <label for="page-logic">页面逻辑描述</label>
-              <textarea id="page-logic" rows="3" placeholder="描述页面交互逻辑，如：点击按钮调用接口，表单验证，数据展示等"></textarea>
+              <textarea
+                id="page-logic"
+                rows="3"
+                placeholder="描述页面交互逻辑，如：点击按钮调用接口，表单验证，数据展示等"
+              ></textarea>
             </div>
             <div class="form-actions">
               <button type="button" class="btn secondary close">取消</button>
@@ -448,24 +473,116 @@
       <div class="modal-content extra-large">
         <div class="modal-header">
           <h3>生成的代码</h3>
-          <div class="header-actions">
-            <button id="download-code" class="btn secondary">
-              <i class="fas fa-download"></i> 下载
-            </button>
-            <button class="btn-icon close">&times;</button>
-          </div>
+          <button class="btn-icon close">&times;</button>
         </div>
         <div class="modal-body">
-          <div class="tabs">
-            <button class="tab active" data-tab="preview">预览</button>
-            <button class="tab" data-tab="code">代码</button>
-          </div>
-          <div class="tab-content">
-            <div id="preview" class="tab-pane active">
-              <div id="code-preview-frame"></div>
+          <!-- 预览头部操作栏 -->
+          <div class="preview-header-bar">
+            <div class="left-actions">
+              <div class="preview-status">
+                <div class="status-indicator"></div>
+                <span class="status-text">准备就绪</span>
+              </div>
             </div>
-            <div id="code" class="tab-pane">
-              <pre id="generated-code"></pre>
+            <div class="right-actions">
+              <button id="download-code" class="btn secondary"><i class="fas fa-download"></i> 下载代码</button>
+              <button id="export-zip" class="btn secondary"><i class="fas fa-file-archive"></i> 导出项目</button>
+            </div>
+          </div>
+
+          <!-- 标签页导航 -->
+          <div class="preview-tabs">
+            <button class="preview-tab active" data-tab="code">
+              <i class="fas fa-code tab-icon"></i>
+              代码
+              <span class="tab-badge" id="code-count">0</span>
+            </button>
+            <button class="preview-tab" data-tab="preview">
+              <i class="fas fa-eye tab-icon"></i>
+              预览
+            </button>
+            <button class="preview-tab" data-tab="dependencies">
+              <i class="fas fa-box tab-icon"></i>
+              依赖
+              <span class="tab-badge" id="deps-count">0</span>
+            </button>
+          </div>
+
+          <!-- 标签页内容 -->
+          <div class="preview-tab-content">
+            <!-- 代码标签页 -->
+            <div id="code" class="preview-tab-pane active">
+              <div class="code-display-area">
+                <div class="code-toolbar">
+                  <div class="left-tools">
+                    <button class="tool-btn" id="copy-all-code"><i class="fas fa-copy"></i> 复制全部</button>
+                    <button class="tool-btn" id="format-code"><i class="fas fa-magic"></i> 格式化</button>
+                    <button class="tool-btn" id="toggle-line-numbers"><i class="fas fa-list-ol"></i> 行号</button>
+                  </div>
+                  <div class="right-tools">
+                    <button class="tool-btn" id="search-code"><i class="fas fa-search"></i> 搜索</button>
+                    <button class="tool-btn" id="toggle-theme"><i class="fas fa-moon"></i> 主题</button>
+                  </div>
+                </div>
+                <div class="code-blocks-container" id="generated-code">
+                  <!-- 代码块将在这里动态生成 -->
+                </div>
+              </div>
+            </div>
+
+            <!-- 预览标签页 -->
+            <div id="preview" class="preview-tab-pane">
+              <div class="preview-area">
+                <div class="preview-toolbar">
+                  <div class="preview-controls">
+                    <button class="preview-size-btn active" data-size="desktop">
+                      <i class="fas fa-desktop"></i> 桌面
+                    </button>
+                    <button class="preview-size-btn" data-size="tablet"><i class="fas fa-tablet-alt"></i> 平板</button>
+                    <button class="preview-size-btn" data-size="mobile"><i class="fas fa-mobile-alt"></i> 手机</button>
+                  </div>
+                  <div class="preview-controls">
+                    <button class="tool-btn" id="refresh-preview"><i class="fas fa-sync-alt"></i> 刷新</button>
+                    <button class="tool-btn" id="open-preview-new-tab">
+                      <i class="fas fa-external-link-alt"></i> 新窗口
+                    </button>
+                  </div>
+                </div>
+                <div class="preview-frame-container">
+                  <iframe
+                    id="code-preview-frame"
+                    style="width: 100%; height: 100%; border: none; background: white"
+                  ></iframe>
+                  <div class="preview-loading-overlay" id="preview-loading" style="display: none">
+                    <div class="preview-loading-spinner"></div>
+                  </div>
+                  <div class="preview-error-overlay" id="preview-error" style="display: none">
+                    <div class="preview-error-content">
+                      <i class="fas fa-exclamation-triangle"></i>
+                      <p>预览加载失败</p>
+                      <button class="btn secondary" id="retry-preview">重试</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 依赖标签页 -->
+            <div id="dependencies" class="preview-tab-pane">
+              <div class="dependencies-area">
+                <div class="dependencies-toolbar">
+                  <div class="left-tools">
+                    <h4>项目依赖</h4>
+                  </div>
+                  <div class="right-tools">
+                    <button class="tool-btn" id="copy-dependencies"><i class="fas fa-copy"></i> 复制依赖</button>
+                    <button class="tool-btn" id="install-dependencies"><i class="fas fa-download"></i> 安装指南</button>
+                  </div>
+                </div>
+                <div class="dependencies-content" id="dependencies-content">
+                  <!-- 依赖列表将在这里动态生成 -->
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -477,6 +594,15 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <!-- jsTree JS -->
     <script src="https://cdn.jsdelivr.net/npm/jstree@3.3.15/dist/jstree.min.js"></script>
+    <!-- Prism.js for code highlighting -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-typescript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-jsx.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
     <script src="codegen.js"></script>
   </body>
 </html>

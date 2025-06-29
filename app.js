@@ -9,6 +9,7 @@ const routeMiddleware = require('./middleware/routeMiddleware')
 const mockRoutes = require('./routes/mockRoutes')
 const openApiRoutes = require('./routes/openApiRoutes')
 const groupRoutes = require('./routes/groupRoutes')
+const codegenRoutes = require('./routes/codegenRoutes')
 
 const app = express()
 
@@ -24,25 +25,26 @@ app.use(express.static(config.PUBLIC_DIR))
 app.use('/', mockRoutes)
 app.use('/', openApiRoutes)
 app.use('/', groupRoutes)
+app.use('/', codegenRoutes)
 
 // 设置动态路由中间件
 routeMiddleware.setupDynamicRoutes(app)
 
 // 启动时加载已有mock路由
 function loadExistingMocks() {
-    try {
-        mockService.loadExistingMocks()
-    } catch (err) {
-        console.error('加载现有mock路由失败:', err)
-    }
+  try {
+    mockService.loadExistingMocks()
+  } catch (err) {
+    console.error('加载现有mock路由失败:', err)
+  }
 }
 
 // 启动服务器
 function startServer() {
-    app.listen(config.PORT, () => {
-        console.log(`服务器运行在 http://localhost:${config.PORT}`)
-        loadExistingMocks()
-    })
+  app.listen(config.PORT, () => {
+    console.log(`服务器运行在 http://localhost:${config.PORT}`)
+    loadExistingMocks()
+  })
 }
 
 module.exports = { app, startServer }

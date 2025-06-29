@@ -96,6 +96,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const formData = new FormData()
     formData.append('file', file)
+    // 新增：传递当前分组
+    if (
+      currentGroup &&
+      currentGroup.id !== 0 &&
+      currentGroup.id !== -1 &&
+      currentGroup.name !== '全部' &&
+      currentGroup.name !== '未分组'
+    ) {
+      formData.append('group', currentGroup.name)
+    } else {
+      formData.append('group', '')
+    }
     showLoading()
     try {
       const response = await fetch('/import-openapi', {
@@ -108,6 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       importModal.classList.remove('active')
       await loadMockList()
+      await loadGroupTree()
       alert('导入成功')
     } catch (err) {
       showError('导入失败: ' + err.message)
@@ -342,7 +355,18 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       modalTitle.textContent = '创建新接口'
       filenameInput.value = ''
-      groupInput.value = ''
+      // 新建接口时自动归组
+      if (
+        currentGroup &&
+        currentGroup.id !== 0 &&
+        currentGroup.id !== -1 &&
+        currentGroup.name !== '全部' &&
+        currentGroup.name !== '未分组'
+      ) {
+        groupInput.value = currentGroup.name
+      } else {
+        groupInput.value = ''
+      }
     }
     // 初始化模板提示
     let mockTip = document.getElementById('mockjs-tip')
@@ -489,6 +513,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // 关闭模态框并刷新列表
       closeAllModals()
       await loadMockList()
+      await loadGroupTree()
     } catch (error) {
       showError('保存失败: ' + error.message)
     } finally {
@@ -585,6 +610,8 @@ document.addEventListener('DOMContentLoaded', () => {
           item.pathType.toLowerCase().includes(searchTerm)
       )
     }
+    // 新增：同步给AI代码生成器弹窗
+    window.currentFilteredMockItems = filtered
     if (isTableMode) {
       renderMockTable(filtered)
     } else {
@@ -803,8 +830,9 @@ document.addEventListener('DOMContentLoaded', () => {
     testMethod.className = `test-method method ${results.request.method.toLowerCase()}`
     testUrl.textContent = results.request.url
     testStatus.textContent = `状态码: ${results.status} ${results.statusText} | 耗时: ${results.responseTime}ms`
-    testStatus.className = `test-status ${results.status >= 200 && results.status < 300 ? 'status-success' : 'status-error'
-      }`
+    testStatus.className = `test-status ${
+      results.status >= 200 && results.status < 300 ? 'status-success' : 'status-error'
+    }`
 
     // 设置响应内容
     responseBody.textContent =
@@ -1134,7 +1162,7 @@ document.addEventListener('DOMContentLoaded', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         files: fileNames,
-        mergeMode: true  // 启用合并模式
+        mergeMode: true, // 启用合并模式
       }),
     })
 
@@ -1209,11 +1237,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isMockTemplate && window.Mock) {
           try {
             val = Mock.mock(val)
-          } catch { }
+          } catch {}
         }
         const descObj = genDescObj(val)
         descInput.value = JSON.stringify(descObj, null, 2)
-      } catch { }
+      } catch {}
     })
   }
   autoGenDesc('queryParams', 'queryParamsDesc', true)
