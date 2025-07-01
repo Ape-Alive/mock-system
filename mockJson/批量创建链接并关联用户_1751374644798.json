@@ -1,0 +1,111 @@
+{
+  "pathName": "批量创建链接并关联用户",
+  "path": "/fileShare/link/batchCreate",
+  "pathType": "POST",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": ""
+  },
+  "queryParamsDesc": {
+    "nas-token": {
+      "desc": "需要鉴权的API请求令牌(放请求头或者请求参数，二选一)",
+      "type": "string"
+    }
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "responseHeadersDesc": {
+    "nas-token": {
+      "desc": "需要鉴权的API请求令牌(放请求头或者请求参数，二选一)",
+      "type": "string"
+    }
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": "@string",
+      "message": "@string"
+    }
+  },
+  "pathContentDesc": {
+    "type": "object",
+    "desc": "",
+    "fields": {
+      "code": {
+        "type": "integer",
+        "desc": "状态响应码"
+      },
+      "data": {
+        "type": "string",
+        "desc": ""
+      },
+      "message": {
+        "type": "string",
+        "desc": "响应消息"
+      }
+    }
+  },
+  "bodyParams": {
+    "fileLinkList": [
+      {
+        "partitionUUID": "@string",
+        "relPath": "@string",
+        "storageType": "@pick([1])",
+        "userId": "@string"
+      }
+    ],
+    "sharerIdList": [
+      "@string"
+    ]
+  },
+  "bodyParamsDesc": {
+    "type": "object",
+    "desc": "",
+    "fields": {
+      "fileLinkList": {
+        "type": "array",
+        "desc": "",
+        "items": {
+          "type": "object",
+          "desc": "",
+          "fields": {
+            "partitionUUID": {
+              "type": "string",
+              "desc": "存储空间UUID"
+            },
+            "relPath": {
+              "type": "string",
+              "desc": "相对于存储空间的路径"
+            },
+            "storageType": {
+              "type": "object",
+              "desc": "存储空间类型，1-个人空间",
+              "fields": {}
+            },
+            "userId": {
+              "type": "string",
+              "desc": "文件拥有者ID"
+            }
+          }
+        }
+      },
+      "sharerIdList": {
+        "type": "array",
+        "desc": "",
+        "items": {
+          "type": "string",
+          "desc": ""
+        }
+      }
+    }
+  },
+  "group": "存储空间",
+  "fileName": "批量创建链接并关联用户_1751374644798.json",
+  "createdAt": "2025-07-01T12:57:23.836Z"
+}

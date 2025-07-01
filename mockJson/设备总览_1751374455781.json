@@ -1,0 +1,70 @@
+{
+  "pathName": "设备总览",
+  "path": "/bigscreen/countDeviceNum",
+  "pathType": "GET",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "customerId": ""
+  },
+  "queryParamsDesc": {
+    "customerId": {
+      "desc": "客户ID",
+      "type": "string"
+    }
+  },
+  "headers": {},
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "responseHeadersDesc": {},
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "success": "@boolean",
+      "data": {
+        "newEquipmentNum": "@integer(1,100000)",
+        "offlineNum": "@integer(1,100000)",
+        "totalNum": "@integer(1,100000)",
+        "onlineNum": "@integer(1,100000)"
+      }
+    }
+  },
+  "pathContentDesc": {
+    "type": "object",
+    "desc": "",
+    "fields": {
+      "success": {
+        "type": "boolean",
+        "desc": "成功状态"
+      },
+      "data": {
+        "type": "object",
+        "desc": "",
+        "fields": {
+          "newEquipmentNum": {
+            "type": "integer",
+            "desc": ""
+          },
+          "offlineNum": {
+            "type": "integer",
+            "desc": ""
+          },
+          "totalNum": {
+            "type": "integer",
+            "desc": ""
+          },
+          "onlineNum": {
+            "type": "integer",
+            "desc": ""
+          }
+        }
+      }
+    }
+  },
+  "bodyParams": null,
+  "bodyParamsDesc": "",
+  "group": "订单",
+  "fileName": "设备总览_1751374455781.json",
+  "createdAt": "2025-07-01T12:54:14.851Z"
+}

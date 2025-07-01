@@ -139,6 +139,7 @@
 .preview-tab-pane.active {
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 
 /* 代码显示区域优化 */

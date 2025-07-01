@@ -1,0 +1,94 @@
+{
+  "pathName": "登录加密空间",
+  "path": "/api/v2/encrypted/login",
+  "pathType": "POST",
+  "mockType": "mockjsTemplate",
+  "queryParams": {},
+  "queryParamsDesc": {},
+  "headers": {
+    "nas-token": ""
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "responseHeadersDesc": {
+    "nas-token": {
+      "desc": "需要鉴权的API请求令牌",
+      "type": "string"
+    }
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": {
+        "cryptoToken": "@string"
+      },
+      "message": "@string"
+    }
+  },
+  "pathContentDesc": {
+    "type": "object",
+    "desc": "",
+    "fields": {
+      "code": {
+        "type": "integer",
+        "desc": "状态响应码"
+      },
+      "data": {
+        "type": "object",
+        "desc": "响应数据",
+        "fields": {
+          "cryptoToken": {
+            "type": "string",
+            "desc": "加密空间token"
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "desc": "响应消息"
+      }
+    }
+  },
+  "bodyParams": {
+    "password": {
+      "data": "@string",
+      "key": "@string",
+      "message": "@string",
+      "nonce": "@string"
+    }
+  },
+  "bodyParamsDesc": {
+    "type": "object",
+    "desc": "",
+    "fields": {
+      "password": {
+        "type": "object",
+        "desc": "密码",
+        "fields": {
+          "data": {
+            "type": "string",
+            "desc": "加密后的密码"
+          },
+          "key": {
+            "type": "string",
+            "desc": "对称加密的密钥"
+          },
+          "message": {
+            "type": "string",
+            "desc": "消息"
+          },
+          "nonce": {
+            "type": "string",
+            "desc": "对称加密的随机数"
+          }
+        }
+      }
+    }
+  },
+  "group": "存储空间",
+  "fileName": "登录加密空间_1751374644547.json",
+  "createdAt": "2025-07-01T12:57:23.853Z"
+}

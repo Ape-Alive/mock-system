@@ -49,56 +49,57 @@ document.addEventListener('DOMContentLoaded', () => {
   const batchGroupInput = document.getElementById('batch-group-input')
   const batchGroupBtn = document.getElementById('batch-group-btn')
 
-  const selectDirBtn = document.getElementById('select-directory-btn');
-  const dirPicker = document.getElementById('directory-picker');
-  const dirInput = document.getElementById('local-directory-path');
-  const serverDirListEmbed = document.getElementById('server-dir-list-embed');
-  let serverDirEmbedVisible = false;
+  const selectDirBtn = document.getElementById('select-directory-btn')
+  const dirPicker = document.getElementById('directory-picker')
+  const dirInput = document.getElementById('local-directory-path')
+  const serverDirListEmbed = document.getElementById('server-dir-list-embed')
+  let serverDirEmbedVisible = false
 
   if (selectDirBtn && dirPicker && dirInput && serverDirListEmbed) {
     selectDirBtn.addEventListener('click', async function () {
       if (isElectron() && window.electronAPI && window.electronAPI.selectDirectory) {
-        window.electronAPI.selectDirectory().then(dirPath => {
+        window.electronAPI.selectDirectory().then((dirPath) => {
           if (dirPath) {
-            dirInput.value = dirPath;
+            dirInput.value = dirPath
           }
-        });
+        })
       } else {
         // 切换显示/隐藏嵌入式目录树
-        serverDirEmbedVisible = !serverDirEmbedVisible;
-        serverDirListEmbed.style.display = serverDirEmbedVisible ? '' : 'none';
+        serverDirEmbedVisible = !serverDirEmbedVisible
+        serverDirListEmbed.style.display = serverDirEmbedVisible ? '' : 'none'
         if (serverDirEmbedVisible) {
-          showServerDirectoryEmbed();
+          showServerDirectoryEmbed()
         }
       }
-    });
+    })
     dirPicker.addEventListener('change', function (e) {
       if (e.target.files.length > 0) {
-        const firstFile = e.target.files[0];
-        let fullPath = firstFile.webkitRelativePath || firstFile.path || '';
+        const firstFile = e.target.files[0]
+        let fullPath = firstFile.webkitRelativePath || firstFile.path || ''
         if (fullPath) {
-          const dir = fullPath.split('/')[0];
-          dirInput.value = dir;
+          const dir = fullPath.split('/')[0]
+          dirInput.value = dir
         }
       }
-    });
+    })
   }
 
   // 嵌入式服务器目录树
   function showServerDirectoryEmbed(base = '', level = 0, selectedPath = '') {
-    fetch('/api/file/list-directories' + (base ? ('?base=' + encodeURIComponent(base)) : ''))
-      .then(res => res.json())
-      .then(data => {
+    fetch('/api/file/list-directories' + (base ? '?base=' + encodeURIComponent(base) : ''))
+      .then((res) => res.json())
+      .then((data) => {
         if (data.success) {
           renderDirectoryListEmbed(data.directories, base, level, selectedPath)
         } else {
-          serverDirListEmbed.innerHTML = '<div style="color:red;padding:12px">获取目录失败: ' + (data.error || '未知错误') + '</div>';
+          serverDirListEmbed.innerHTML =
+            '<div style="color:red;padding:12px">获取目录失败: ' + (data.error || '未知错误') + '</div>'
         }
       })
   }
 
   function renderDirectoryListEmbed(dirs, base, level = 0, selectedPath = '') {
-    serverDirListEmbed.innerHTML = '';
+    serverDirListEmbed.innerHTML = ''
     // 始终显示上级目录按钮
     const upBtn = document.createElement('div')
     upBtn.className = 'dir-item up-dir dir-tree-level-' + Math.max(0, level - 1)
@@ -114,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     serverDirListEmbed.appendChild(upBtn)
     // 目录列表
-    dirs.forEach(dir => {
+    dirs.forEach((dir) => {
       const item = document.createElement('div')
       item.className = 'dir-item dir-tree-level-' + level + (dir.path === selectedPath ? ' selected' : '')
       item.innerHTML = `<span class="dir-icon">📁</span>${dir.name} <span style='color:#aaa;font-size:12px;margin-left:8px'>(${dir.path})</span>`
@@ -126,13 +127,13 @@ document.addEventListener('DOMContentLoaded', () => {
       item.oncontextmenu = (e) => {
         e.preventDefault()
         if (dirInput) dirInput.value = dir.path
-        serverDirListEmbed.style.display = 'none';
-        serverDirEmbedVisible = false;
+        serverDirListEmbed.style.display = 'none'
+        serverDirEmbedVisible = false
       }
       // 单击选中并高亮
       item.onmousedown = (e) => {
         if (e.button === 0) {
-          serverDirListEmbed.querySelectorAll('.dir-item').forEach(el => el.classList.remove('selected'))
+          serverDirListEmbed.querySelectorAll('.dir-item').forEach((el) => el.classList.remove('selected'))
           item.classList.add('selected')
         }
       }
@@ -147,7 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 判断是否在 Electron 环境
   function isElectron() {
-    return !!(window && window.process && window.process.type);
+    return !!(window && window.process && window.process.type)
   }
 
   // 初始化
@@ -932,8 +933,9 @@ document.addEventListener('DOMContentLoaded', () => {
     testMethod.className = `test-method method ${results.request.method.toLowerCase()}`
     testUrl.textContent = results.request.url
     testStatus.textContent = `状态码: ${results.status} ${results.statusText} | 耗时: ${results.responseTime}ms`
-    testStatus.className = `test-status ${results.status >= 200 && results.status < 300 ? 'status-success' : 'status-error'
-      }`
+    testStatus.className = `test-status ${
+      results.status >= 200 && results.status < 300 ? 'status-success' : 'status-error'
+    }`
 
     // 设置响应内容
     responseBody.textContent =
@@ -1338,11 +1340,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isMockTemplate && window.Mock) {
           try {
             val = Mock.mock(val)
-          } catch { }
+          } catch {}
         }
         const descObj = genDescObj(val)
         descInput.value = JSON.stringify(descObj, null, 2)
-      } catch { }
+      } catch {}
     })
   }
   autoGenDesc('queryParams', 'queryParamsDesc', true)
@@ -1356,4 +1358,63 @@ document.addEventListener('DOMContentLoaded', () => {
       window.fileManager.showFileOperationModal()
     }
   })
+
+  // ====== 清空本地目录按钮事件绑定 ======
+  const clearLocalDirBtn = document.getElementById('clear-local-directory-btn')
+  if (clearLocalDirBtn) {
+    clearLocalDirBtn.addEventListener('click', async () => {
+      if (!(await customConfirm('确定要清空本地目录吗？此操作不可撤销！'))) return
+      try {
+        const res = await fetch('/api/file/clear-directory', { method: 'POST' })
+        const data = await res.json()
+        if (data.success) {
+          showToast('本地目录已清空！')
+          // 可选：刷新文件树或相关UI
+        } else {
+          showToast('清空失败：' + (data.error || '未知错误'))
+        }
+      } catch (err) {
+        showToast('请求失败：' + err.message)
+      }
+    })
+  }
+
+  // ====== showToast和customConfirm函数补全 ======
+  function showToast(msg, duration = 2000) {
+    const toast = document.getElementById('toast-message')
+    if (!toast) return
+    toast.textContent = msg
+    toast.classList.add('show')
+    setTimeout(() => {
+      toast.classList.remove('show')
+    }, duration)
+  }
+
+  function customConfirm(message) {
+    return new Promise((resolve) => {
+      const modal = document.getElementById('custom-confirm-modal')
+      const msg = document.getElementById('custom-confirm-message')
+      const okBtn = document.getElementById('custom-confirm-ok')
+      const cancelBtn = document.getElementById('custom-confirm-cancel')
+      const closeBtn = document.getElementById('custom-confirm-close')
+      msg.textContent = message
+      modal.classList.add('active')
+      function close(result) {
+        modal.classList.remove('active')
+        okBtn.removeEventListener('click', onOk)
+        cancelBtn.removeEventListener('click', onCancel)
+        closeBtn.removeEventListener('click', onCancel)
+        resolve(result)
+      }
+      function onOk() {
+        close(true)
+      }
+      function onCancel() {
+        close(false)
+      }
+      okBtn.addEventListener('click', onOk)
+      cancelBtn.addEventListener('click', onCancel)
+      closeBtn.addEventListener('click', onCancel)
+    })
+  }
 })

@@ -1,0 +1,119 @@
+{
+  "pathName": "激活加密空间",
+  "path": "/api/v2/encrypted/activate",
+  "pathType": "POST",
+  "mockType": "mockjsTemplate",
+  "queryParams": {},
+  "queryParamsDesc": {},
+  "headers": {
+    "nas-token": ""
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "responseHeadersDesc": {
+    "nas-token": {
+      "desc": "需要鉴权的API请求令牌",
+      "type": "string"
+    }
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": "@string",
+      "message": "@string"
+    }
+  },
+  "pathContentDesc": {
+    "type": "object",
+    "desc": "",
+    "fields": {
+      "code": {
+        "type": "integer",
+        "desc": "状态响应码"
+      },
+      "data": {
+        "type": "string",
+        "desc": "响应数据"
+      },
+      "message": {
+        "type": "string",
+        "desc": "响应消息"
+      }
+    }
+  },
+  "bodyParams": {
+    "confirmPassword": {
+      "data": "@string",
+      "key": "@string",
+      "message": "@string",
+      "nonce": "@string"
+    },
+    "password": {
+      "data": "@string",
+      "key": "@string",
+      "message": "@string",
+      "nonce": "@string"
+    },
+    "tip": "@string"
+  },
+  "bodyParamsDesc": {
+    "type": "object",
+    "desc": "",
+    "fields": {
+      "confirmPassword": {
+        "type": "object",
+        "desc": "二次输入的确认密码",
+        "fields": {
+          "data": {
+            "type": "string",
+            "desc": "加密后的密码"
+          },
+          "key": {
+            "type": "string",
+            "desc": "对称加密的密钥"
+          },
+          "message": {
+            "type": "string",
+            "desc": "消息"
+          },
+          "nonce": {
+            "type": "string",
+            "desc": "对称加密的随机数"
+          }
+        }
+      },
+      "password": {
+        "type": "object",
+        "desc": "密码",
+        "fields": {
+          "data": {
+            "type": "string",
+            "desc": "加密后的密码"
+          },
+          "key": {
+            "type": "string",
+            "desc": "对称加密的密钥"
+          },
+          "message": {
+            "type": "string",
+            "desc": "消息"
+          },
+          "nonce": {
+            "type": "string",
+            "desc": "对称加密的随机数"
+          }
+        }
+      },
+      "tip": {
+        "type": "string",
+        "desc": "密码提示"
+      }
+    }
+  },
+  "group": "存储空间",
+  "fileName": "激活加密空间_1751374644485.json",
+  "createdAt": "2025-07-01T12:57:23.852Z"
+}

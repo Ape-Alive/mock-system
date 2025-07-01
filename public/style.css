@@ -25,7 +25,7 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 body {
@@ -286,18 +286,42 @@ body.dark-theme .mock-footer {
 .modal {
   display: none;
   position: fixed;
-  top: 0;
+  z-index: 10000;
   left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  z-index: 1000;
-  justify-content: center;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.35);
   align-items: center;
+  justify-content: center;
 }
-
 .modal.active {
   display: flex;
+}
+.modal-content.small {
+  min-width: 320px;
+  max-width: 90vw;
+  background: #fff;
+  border-radius: 8px;
+  padding: 24px 20px 16px 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-top: 18px;
+}
+.btn-icon.close {
+  background: none;
+  border: none;
+  font-size: 1.3em;
+  cursor: pointer;
 }
 
 .modal-content {
@@ -735,7 +759,7 @@ body.dark-theme .mock-table tr {
 #import-modal .modal-content {
   max-width: 500px;
 }
-#import-modal input[type="file"] {
+#import-modal input[type='file'] {
   padding: 10px;
   border: 1px solid var(--light-border);
   border-radius: 6px;
@@ -743,7 +767,7 @@ body.dark-theme .mock-table tr {
   color: var(--light-text);
   margin-top: 10px;
 }
-body.dark-theme #import-modal input[type="file"] {
+body.dark-theme #import-modal input[type='file'] {
   background-color: var(--dark-card);
   border-color: var(--dark-border);
   color: var(--dark-text);
@@ -797,7 +821,7 @@ body.dark-theme .group-tree-list li:hover {
   padding: 16px 24px;
   gap: 16px;
 }
-#batch-group-bar input[type="text"] {
+#batch-group-bar input[type='text'] {
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid var(--light-border);
@@ -886,7 +910,7 @@ body.dark-theme .interface-checkbox:hover {
   background-color: rgba(67, 97, 238, 0.1);
 }
 
-.interface-checkbox input[type="checkbox"] {
+.interface-checkbox input[type='checkbox'] {
   margin-right: 10px;
   accent-color: var(--primary-color);
   width: 10px;
@@ -978,7 +1002,7 @@ body.dark-theme .interface-path {
 }
 
 .preview-loading::before {
-  content: "";
+  content: '';
   width: 20px;
   height: 20px;
   border: 2px solid #e0e0e0;
@@ -992,8 +1016,8 @@ body.dark-theme .interface-path {
 #code-preview-modal .modal-content {
   max-width: 95vw;
   max-height: 90vh;
-  width: 1200px;
-  height: 800px;
+  width: 95%;
+  height: 70%;
   display: flex;
   flex-direction: column;
 }
@@ -1118,6 +1142,7 @@ body.dark-theme .interface-path {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  height: calc(100% - 50px);
 }
 
 .preview-tab-pane {
@@ -1192,8 +1217,12 @@ body.dark-theme .interface-path {
 
 /* 代码块容器 */
 .code-blocks-container {
-  flex: 1;
   overflow-y: auto;
+  /* max-height: 480px; */
+  height: 100%;
+  min-height: 120px;
+  /* 让其填满父容器高度可用空间 */
+  height: 100%;
   padding: 16px;
   background: var(--light-bg);
 }
@@ -1295,7 +1324,7 @@ body.dark-theme .interface-path {
   position: relative;
   background: #1e1e1e;
   color: #d4d4d4;
-  font-family: "Consolas", "Monaco", "Courier New", monospace;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 0.9rem;
   line-height: 1.5;
   overflow-x: auto;
@@ -1605,7 +1634,7 @@ body.dark-theme .code-blocks-container::-webkit-scrollbar-thumb:hover {
   cursor: pointer;
   user-select: none;
 }
-.interface-select-all input[type="checkbox"] {
+.interface-select-all input[type='checkbox'] {
   accent-color: var(--primary-color);
   width: 16px;
   height: 16px;
@@ -1748,7 +1777,7 @@ body.dark-theme .interface-select-all {
   border: none;
   outline: none;
   padding: 16px;
-  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: 14px;
   line-height: 1.5;
   background: var(--bg-primary);
@@ -1885,82 +1914,71 @@ body.dark-theme .interface-select-all {
 
 /* 代码生成弹窗内文件树样式 */
 .codegen-filetree-panel {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 240px;
-  background: var(--bg-secondary, #f7f7f7);
-  border-right: 1px solid var(--border-color, #eee);
-  z-index: 2;
-  padding: 0;
+  width: 220px;
+  min-width: 180px;
+  max-width: 260px;
+  background: #f7f7fa;
+  border-right: 1px solid #e0e0e0;
+  padding: 0 0 0 0;
+  height: 520px;
   overflow-y: auto;
+  /* margin-right: 18px; */
+  border-radius: 8px 0 0 8px;
+  box-sizing: border-box;
   height: 100%;
 }
 .filetree-title {
   font-weight: bold;
-  padding: 16px 16px 8px 16px;
+  padding: 14px 16px 8px 16px;
   font-size: 16px;
-  border-bottom: 1px solid var(--border-color, #eee);
-  background: var(--bg-secondary, #f7f7f7);
+  color: #333;
+  border-bottom: 1px solid #e0e0e0;
+  background: #f2f2f7;
 }
 .filetree-list {
-  padding: 8px 0 16px 0;
+  padding: 8px 0 8px 0;
 }
 .filetree-node {
-  padding: 6px 16px 6px 32px;
+  padding: 6px 18px;
   cursor: pointer;
   user-select: none;
-  font-size: 15px;
-  color: var(--text-primary, #222);
-  transition: background 0.2s;
-  position: relative;
+  border-radius: 4px;
+  margin: 2px 0;
+  transition: background 0.15s;
 }
-.filetree-node.dir > .filetree-node-label i {
-  color: #f7b731;
-}
-.filetree-node.file > .filetree-node-label i {
-  color: #888;
-}
-.filetree-node.collapsed + .filetree-node.dir {
-  display: none;
-}
-.filetree-node:hover,
 .filetree-node.selected {
   background: #e6f7ff;
+  color: #1890ff;
 }
-.filetree-loading,
-.filetree-error,
-.filetree-empty {
-  padding: 24px;
+.filetree-node.dir > i {
+  color: #f7b731;
+  margin-right: 6px;
+}
+.filetree-node.file > i {
   color: #888;
-  text-align: center;
+  margin-right: 6px;
 }
-.filetree-list.insert-mode .filetree-node.dir {
-  background: #fffbe6;
-  border-left: 3px solid #f7b731;
-}
-.insert-local-btn {
-  position: absolute;
-  top: 8px;
-  right: 16px;
-  z-index: 10;
-  background: #28a745;
-  color: #fff;
-  border: none;
-  border-radius: 3px;
-  padding: 4px 10px;
+.insert-code-btn {
+  margin-left: 12px;
+  padding: 2px 10px;
   font-size: 13px;
+  border-radius: 4px;
+  border: 1px solid #1890ff;
+  background: #fff;
+  color: #1890ff;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.15s, color 0.15s;
 }
-.insert-local-btn:hover {
-  background: #218838;
+.insert-code-btn:disabled {
+  color: #aaa;
+  border-color: #ccc;
+  background: #f5f5f5;
+  cursor: not-allowed;
 }
 
 /* 代码生成弹窗内容左侧留出空间 */
 #code-generator-modal .modal-content.large {
-  padding-left: 240px;
+  /* padding-left: 240px; */
   position: relative;
 }
 
@@ -2119,8 +2137,7 @@ body.dark-theme .group-tree-node:hover {
 #group-tree {
   background: var(--light-card);
   border-radius: 14px;
-  box-shadow: 0 4px 16px rgba(67, 97, 238, 0.07),
-    0 1.5px 4px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 4px 16px rgba(67, 97, 238, 0.07), 0 1.5px 4px rgba(0, 0, 0, 0.04);
   border: 1px solid var(--light-border);
   padding: 18px 0 18px 0;
   margin-top: 24px;
@@ -2137,8 +2154,7 @@ body.dark-theme .group-tree-node:hover {
 body.dark-theme #group-tree {
   background: var(--dark-card);
   border-color: var(--dark-border);
-  box-shadow: 0 4px 16px rgba(67, 97, 238, 0.13),
-    0 1.5px 4px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 4px 16px rgba(67, 97, 238, 0.13), 0 1.5px 4px rgba(0, 0, 0, 0.18);
 }
 #group-tree > div:first-child {
   padding: 0 18px 0 24px;
@@ -2232,4 +2248,24 @@ body.dark-theme #group-tree-jstree .jstree-clicked {
 }
 body.dark-theme #group-tree-jstree::-webkit-scrollbar-thumb {
   background: #232a3a;
+}
+
+.toast-message {
+  position: fixed;
+  top: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #323232;
+  color: #fff;
+  padding: 12px 32px;
+  border-radius: 6px;
+  font-size: 16px;
+  z-index: 9999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+.toast-message.show {
+  opacity: 1;
+  pointer-events: auto;
 }

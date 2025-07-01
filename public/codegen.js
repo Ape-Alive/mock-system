@@ -13,7 +13,6 @@ class CodeGenerator {
     this.allMockItems = []
     this.filteredMockItems = []
     this.currentGroup = window.currentGroup || { id: 0, name: '全部', fileNames: null }
-    this.initFileTreeInModal()
   }
 
   initElements() {
@@ -642,10 +641,12 @@ class CodeGenerator {
       return // 如果本地目录未设置，fileManager会显示设置弹窗
     }
 
+    await this.renderLocalDirectoryTree()
     await this.loadInterfaceList()
     this.bindInterfaceSearch()
     setTimeout(() => this.syncSelectAllCheckbox(), 0)
     this.modal.classList.add('active')
+    this.addInsertButtonToCodeBlocks()
   }
 
   closeModal() {
@@ -698,15 +699,15 @@ class CodeGenerator {
       const div = document.createElement('div')
       div.className = 'interface-item'
       div.innerHTML = `
-        <label class="interface-checkbox">
-          <input type="checkbox" value="${item.fileName}">
-          <span class="interface-info">
-            <span class="interface-name">${item.pathName}</span>
-            <span class="interface-path">${item.path}</span>
-            <span class="interface-method ${item.pathType.toLowerCase()}">${item.pathType}</span>
-          </span>
-        </label>
-      `
+                    <label class="interface-checkbox">
+                        <input type="checkbox" value="${item.fileName}">
+                        <span class="interface-info">
+                            <span class="interface-name">${item.pathName}</span>
+                            <span class="interface-path">${item.path}</span>
+                            <span class="interface-method ${item.pathType.toLowerCase()}">${item.pathType}</span>
+                        </span>
+                    </label>
+                `
       this.interfaceSelector.appendChild(div)
     })
     // 渲染后自动同步全选状态
@@ -798,8 +799,8 @@ class CodeGenerator {
   }
 
   bindCodeBlockEvents(container) {
-    // 绑定复制按钮事件
     container.addEventListener('click', (e) => {
+      // 复制按钮
       if (e.target.closest('.copy-btn')) {
         const button = e.target.closest('.copy-btn')
         const codeId = button.getAttribute('data-code-id')
@@ -808,42 +809,43 @@ class CodeGenerator {
           this.copyCode(button, codeElement.textContent)
         }
       }
-
-      // 绑定预览按钮事件
+      // 预览按钮
       if (e.target.closest('.preview-btn')) {
         const button = e.target.closest('.preview-btn')
+        const codeId = button.getAttribute('data-code-id')
         const codeBlock = button.closest('.code-block')
-        const codeElement = codeBlock.querySelector('code')
-
+        const codeElement = container.querySelector(`code[data-code-id="${codeId}"]`)
         if (codeElement) {
           const codeContent = codeElement.textContent
           const language = codeElement.getAttribute('data-language') || 'html'
           const fileName = codeElement.getAttribute('data-filename') || 'file.html'
-
-          console.log('预览代码块:', fileName, language)
-          console.log('代码内容长度:', codeContent.length)
-
-          // 根据语言类型决定预览方式
+          // ... existing code ...
           if (language === 'html' || language === 'vue-html') {
-            // HTML代码直接预览
             this.previewHtmlCode(codeContent, fileName)
           } else if (language === 'vue') {
-            // Vue组件预览
             this.previewVueCode(codeContent, fileName)
           } else if (language === 'jsx' || language === 'react') {
-            // React组件预览
             this.previewReactCode(codeContent, fileName)
           } else if (language === 'css' || language === 'scss' || language === 'less') {
-            // CSS代码预览
             this.previewCssCode(codeContent, fileName)
           } else {
-            // 其他代码显示代码结构
             this.previewGenericCode(codeContent, fileName, language)
           }
-
-          // 切换到预览标签页
           this.switchToPreviewTab()
         }
+      }
+      // 插入代码按钮
+      if (e.target.closest('.insert-code-btn')) {
+        const button = e.target.closest('.insert-code-btn')
+        const codeId = button.getAttribute('data-code-id')
+        const codeElement = container.querySelector(`code[data-code-id="${codeId}"]`)
+        const fileName = codeElement?.getAttribute('data-filename') || 'newfile.txt'
+        const code = codeElement?.textContent || ''
+        if (!window.selectedInsertDir) {
+          this.showToast('请先选中目录进行代码插入', 'error')
+          return
+        }
+        this.insertCodeToLocal(window.selectedInsertDir, fileName, code)
       }
     })
   }
@@ -895,8 +897,11 @@ class CodeGenerator {
                 <button class="code-block-action copy-btn" data-code-id="${codeId}">
                   <i class="fas fa-copy"></i> 复制
                 </button>
-                <button class="code-block-action preview-btn">
+                <button class="code-block-action preview-btn" data-code-id="${codeId}">
                   <i class="fas fa-eye"></i> 预览
+                </button>
+                <button class="code-block-action insert-code-btn" data-code-id="${codeId}">
+                  <i class="fas fa-download"></i> 插入代码
                 </button>
               </div>
             </div>
@@ -1007,13 +1012,13 @@ class CodeGenerator {
       const response = await fetch('/api/codegen/write-to-local', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           code: content,
           techStack: formData.techStack,
-          outputType: formData.outputType
-        })
+          outputType: formData.outputType,
+        }),
       })
 
       const data = await response.json()
@@ -1295,12 +1300,12 @@ class CodeGenerator {
   generateVuePreview(htmlContent, version) {
     const vueVersion = version === 'vue2' ? '2.7.16' : '3.3.0'
     const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Vue ${version === 'vue2' ? '2' : '3'} Preview</title>
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Vue ${version === 'vue2' ? '2' : '3'} Preview</title>
         <script src="https://unpkg.com/vue@${vueVersion}/dist/vue${version === 'vue2' ? '' : '.global'}.js"></script>
         <style>
           body {
@@ -1327,32 +1332,32 @@ class CodeGenerator {
             color: #42b883;
           }
         </style>
-      </head>
-      <body>
+            </head>
+            <body>
         <div class="preview-container">
           <h3>Vue ${version === 'vue2' ? '2' : '3'} 组件预览</h3>
           <p>以下是组件的模板部分预览：</p>
           <div class="vue-template">
             ${this.escapeHtml(htmlContent)}
-          </div>
+                </div>
           <p style="margin-top: 20px; color: #666; font-size: 0.9rem;">
             <strong>注意：</strong> 这是组件的模板部分，实际运行需要完整的 Vue 项目环境。
           </p>
         </div>
-      </body>
-      </html>
-    `
+            </body>
+            </html>
+        `
     this.updateIframeContent(html)
   }
 
   generateReactPreview(htmlContent) {
     const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>React Preview</title>
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>React Preview</title>
         <style>
           body {
             margin: 0;
@@ -1381,8 +1386,8 @@ class CodeGenerator {
             color: #61dafb;
           }
         </style>
-      </head>
-      <body>
+            </head>
+            <body>
         <div class="preview-container">
           <h3>React 组件预览</h3>
           <p>以下是组件的JSX部分预览：</p>
@@ -1392,10 +1397,10 @@ class CodeGenerator {
           <p style="margin-top: 20px; color: #666; font-size: 0.9rem;">
             <strong>注意：</strong> 这是组件的JSX部分，实际运行需要完整的 React 项目环境。
           </p>
-        </div>
-      </body>
-      </html>
-    `
+                </div>
+            </body>
+            </html>
+        `
     this.updateIframeContent(html)
   }
 
@@ -1444,7 +1449,7 @@ class CodeGenerator {
           <p>以下是生成的 Flutter 代码结构：</p>
           <div class="flutter-code">
             ${this.escapeHtml(htmlContent)}
-          </div>
+            </div>
           <p style="margin-top: 20px; color: #666; font-size: 0.9rem;">
             <strong>注意：</strong> Flutter 代码需要在 Flutter 环境中运行，请将代码复制到 Flutter 项目中使用。
           </p>
@@ -2085,146 +2090,113 @@ class CodeGenerator {
     }
   }
 
-  initFileTreeInModal() {
-    this.fileTreeContainer = this.modal.querySelector('#codegen-file-tree')
-    if (!this.fileTreeContainer) {
-      // 动态插入左侧文件树容器
-      const leftPanel = document.createElement('div')
-      leftPanel.className = 'codegen-filetree-panel'
-      leftPanel.innerHTML = `
-        <div class="filetree-title">本地目录</div>
-        <div id="codegen-file-tree" class="filetree-list"></div>
-      `
-      this.modal.querySelector('.modal-content').prepend(leftPanel)
-      this.fileTreeContainer = this.modal.querySelector('#codegen-file-tree')
+  showSelectDirectoryModal() {
+    if (window.fileManager && typeof window.fileManager.showLocalDirectoryModal === 'function') {
+      window.fileManager.showLocalDirectoryModal()
+    } else {
+      if (typeof this.showToast === 'function') {
+        this.showToast('请先设置本地目录！', 'error')
+      } else if (window.showToast) {
+        window.showToast('请先设置本地目录！', 2000)
+      }
     }
-    this.loadFileTree()
   }
 
-  async loadFileTree() {
-    if (!this.fileTreeContainer) return
-    this.fileTreeContainer.innerHTML = '<div class="filetree-loading">加载中...</div>'
+  // ====== 本地目录树相关 ======
+  // 在代码生成弹窗打开时渲染本地目录树
+  async renderLocalDirectoryTree() {
+    const treeContainer = document.getElementById('codegen-filetree')
+    if (!treeContainer) return
+    treeContainer.innerHTML = '<div class="filetree-loading">加载中...</div>'
     try {
       const res = await fetch('/api/file/tree')
       const data = await res.json()
       if (data.success) {
-        this.renderFileTree(data.data)
+        treeContainer.innerHTML = ''
+        this.renderFileTreeNodes(data.data, treeContainer)
       } else {
-        this.fileTreeContainer.innerHTML = `<div class="filetree-error">${data.error}</div>`
+        treeContainer.innerHTML = `<div class="filetree-error">${data.error}</div>`
       }
     } catch (e) {
-      this.fileTreeContainer.innerHTML = `<div class="filetree-error">加载失败</div>`
+      treeContainer.innerHTML = '<div class="filetree-error">加载失败</div>'
     }
+    // 选中目录状态
+    window.selectedInsertDir = null
   }
 
-  renderFileTree(tree) {
-    this.fileTreeContainer.innerHTML = ''
+  renderFileTreeNodes(tree, container, level = 0) {
     if (!tree || tree.length === 0) {
-      this.fileTreeContainer.innerHTML = '<div class="filetree-empty">目录为空</div>'
+      container.innerHTML = '<div class="filetree-empty">目录为空</div>'
       return
     }
-    tree.forEach(item => this.renderFileTreeNode(item, 0))
-  }
-
-  renderFileTreeNode(node, level) {
-    const isDir = node.type === 'directory'
-    const nodeEl = document.createElement('div')
-    nodeEl.className = `filetree-node level-${level} ${isDir ? 'dir' : 'file'} collapsed`
-    nodeEl.innerHTML = `
-      <span class="filetree-node-label">${isDir ? '<i class=\'fas fa-folder\'></i>' : '<i class=\'fas fa-file\'></i>'} ${node.name}</span>
-    `
-    nodeEl.dataset.path = node.path
-    if (isDir) {
-      nodeEl.addEventListener('click', (e) => {
-        e.stopPropagation()
-        // 展开/收缩
-        nodeEl.classList.toggle('collapsed')
-        // 插入模式下允许选择目录节点
-        if (this.insertModeActive) {
-          this.handleInsertDirSelect(node)
-        }
-      })
-    }
-    this.fileTreeContainer.appendChild(nodeEl)
-    if (isDir && node.children && node.children.length > 0) {
-      node.children.forEach(child => this.renderFileTreeNode(child, level + 1))
-    }
-  }
-
-  // 代码块插入按钮和插入流程
-  addInsertButtonToCodeBlocks() {
-    // 假设代码块有class .code-block
-    const codeBlocks = this.modal.querySelectorAll('.code-block')
-    codeBlocks.forEach(block => {
-      if (!block.querySelector('.insert-local-btn')) {
-        const btn = document.createElement('button')
-        btn.className = 'insert-local-btn'
-        btn.innerHTML = '<i class="fas fa-download"></i> 插入本地目录'
-        btn.addEventListener('click', (e) => {
+    tree.forEach((node) => {
+      const isDir = node.type === 'directory'
+      const nodeEl = document.createElement('div')
+      nodeEl.className = `filetree-node${isDir ? ' dir' : ' file'}`
+      nodeEl.innerHTML = `<i class="fas fa-${isDir ? 'folder' : 'file'}"></i> <span>${node.name}</span>`
+      nodeEl.style.paddingLeft = 18 + level * 16 + 'px'
+      nodeEl.dataset.path = node.path
+      if (isDir) {
+        nodeEl.addEventListener('click', (e) => {
           e.stopPropagation()
-          this.startInsertMode(block)
+          // 取消所有选中
+          container.querySelectorAll('.filetree-node.selected').forEach((el) => el.classList.remove('selected'))
+          nodeEl.classList.add('selected')
+          window.selectedInsertDir = node.path
         })
-        block.appendChild(btn)
+      }
+      container.appendChild(nodeEl)
+      if (isDir && node.children && node.children.length > 0) {
+        this.renderFileTreeNodes(node.children, container, level + 1)
       }
     })
   }
 
-  startInsertMode(codeBlock) {
-    this.insertModeActive = true
-    this.currentInsertBlock = codeBlock
-    this.showToast('请选择左侧目录节点作为插入位置', 'info')
-    // 高亮左侧文件树
-    this.fileTreeContainer.classList.add('insert-mode')
+  // 在代码tab渲染后为每个代码块的 .code-block-actions 添加插入按钮
+  addInsertButtonToCodeBlocks() {
+    setTimeout(() => {
+      document.querySelectorAll('.code-block-header').forEach((header) => {
+        const actions = header.querySelector('.code-block-actions')
+        if (!actions) return // 没有操作区则跳过
+        if (!actions.querySelector('.insert-code-btn')) {
+          const btn = document.createElement('button')
+          btn.className = 'code-block-action insert-code-btn'
+          btn.innerHTML = '<i class="fas fa-download"></i> 插入代码'
+          btn.onclick = async () => {
+            if (!window.selectedInsertDir) {
+              this.showToast('请先选中目录进行代码插入', 'error')
+              return
+            }
+            // 获取代码内容和文件名
+            const codeBlock = header.nextElementSibling
+            const code = codeBlock?.querySelector('code')?.textContent || ''
+            const fileName = header.querySelector('.file-name')?.textContent?.trim() || 'newfile.txt'
+            await this.insertCodeToLocal(window.selectedInsertDir, fileName, code)
+          }
+          actions.appendChild(btn)
+        }
+      })
+    }, 0)
   }
 
-  handleInsertDirSelect(dirNode) {
-    if (!this.insertModeActive || !this.currentInsertBlock) return
-    // 获取代码块名和内容
-    const fileName = this.getCodeBlockFileName(this.currentInsertBlock)
-    const content = this.getCodeBlockContent(this.currentInsertBlock)
-    const targetPath = dirNode.path ? (dirNode.path + '/' + fileName) : fileName
-    // 二次确认
-    if (confirm(`确定要将 ${fileName} 插入到 ${dirNode.path || '/'} 目录下吗？`)) {
-      this.insertCodeToLocal(targetPath, content)
-    }
-    this.insertModeActive = false
-    this.currentInsertBlock = null
-    this.fileTreeContainer.classList.remove('insert-mode')
-  }
-
-  getCodeBlockFileName(block) {
-    // 假设代码块有data-filename属性或标题
-    return block.dataset.filename || block.querySelector('.code-block-title')?.textContent?.trim() || 'newfile.txt'
-  }
-
-  getCodeBlockContent(block) {
-    // 假设代码内容在pre/code标签
-    return block.querySelector('code')?.textContent || ''
-  }
-
-  async insertCodeToLocal(filePath, content) {
+  async insertCodeToLocal(dir, fileName, code) {
+    const filePath = dir.endsWith('/') ? dir + fileName : dir + '/' + fileName
     try {
       const res = await fetch('/api/file/write', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filePath, content })
+        body: JSON.stringify({ filePath, content: code }),
       })
       const data = await res.json()
       if (data.success) {
         this.showToast('插入成功', 'success')
-        this.loadFileTree()
+        this.renderLocalDirectoryTree()
       } else {
         this.showToast('插入失败: ' + data.error, 'error')
       }
     } catch (e) {
       this.showToast('插入失败', 'error')
     }
-  }
-
-  // 新增方法：弹出选择目录弹窗
-  showSelectDirectoryModal() {
-    // 假设index.html里有id为local-directory-modal的弹窗
-    document.getElementById('local-directory-modal').classList.add('active')
   }
 }
 

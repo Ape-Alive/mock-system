@@ -1,0 +1,52 @@
+{
+  "pathName": "获取分享链接的文件二进制流数据",
+  "path": "/fileShare/link/access",
+  "pathType": "GET",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": "",
+    "linkId": ""
+  },
+  "queryParamsDesc": {
+    "nas-token": {
+      "desc": "需要鉴权的API请求令牌(放请求头或者请求参数，二选一)",
+      "type": "string"
+    },
+    "linkId": {
+      "desc": "链接ID",
+      "type": "integer"
+    }
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "responseHeadersDesc": {
+    "nas-token": {
+      "desc": "需要鉴权的API请求令牌(放请求头或者请求参数，二选一)",
+      "type": "string"
+    }
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": [
+      "@integer(1,100000)"
+    ]
+  },
+  "pathContentDesc": {
+    "type": "array",
+    "desc": "",
+    "items": {
+      "type": "integer",
+      "desc": ""
+    }
+  },
+  "bodyParams": null,
+  "bodyParamsDesc": "",
+  "group": "存储空间",
+  "fileName": "获取分享链接的文件二进制流数据_1751374644780.json",
+  "createdAt": "2025-07-01T12:57:23.839Z"
+}

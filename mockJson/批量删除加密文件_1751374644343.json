@@ -1,0 +1,122 @@
+{
+  "pathName": "批量删除加密文件",
+  "path": "/encrypted/file/delete",
+  "pathType": "POST",
+  "mockType": "mockjsTemplate",
+  "queryParams": {},
+  "queryParamsDesc": {},
+  "headers": {
+    "nas-token": "",
+    "Crypto-Token": ""
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "responseHeadersDesc": {
+    "nas-token": {
+      "desc": "需要鉴权的API请求令牌",
+      "type": "string"
+    },
+    "Crypto-Token": {
+      "desc": "加密空间的API请求令牌",
+      "type": "string"
+    }
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": "@string",
+      "message": "@string"
+    }
+  },
+  "pathContentDesc": {
+    "type": "object",
+    "desc": "",
+    "fields": {
+      "code": {
+        "type": "integer",
+        "desc": "状态响应码"
+      },
+      "data": {
+        "type": "string",
+        "desc": ""
+      },
+      "message": {
+        "type": "string",
+        "desc": "响应消息"
+      }
+    }
+  },
+  "bodyParams": {
+    "action": "@pick([0,1,2])",
+    "srcPath": [
+      {
+        "filePath": "@string",
+        "isDir": "@boolean",
+        "storageInfo": {
+          "partitionLabel": "@string",
+          "partitionUUID": "@string",
+          "storageType": "@pick([0,1,2,3])",
+          "userID": "@string"
+        }
+      }
+    ]
+  },
+  "bodyParamsDesc": {
+    "type": "object",
+    "desc": "",
+    "fields": {
+      "action": {
+        "type": "object",
+        "desc": "冲突解决策略：0-保留，1-替换，2-跳过",
+        "fields": {}
+      },
+      "srcPath": {
+        "type": "array",
+        "desc": "文件的源地址",
+        "items": {
+          "type": "object",
+          "desc": "",
+          "fields": {
+            "filePath": {
+              "type": "string",
+              "desc": "文件路径（相对于存储空间）"
+            },
+            "isDir": {
+              "type": "boolean",
+              "desc": "是否为文件夹，true-文件夹；false-文件"
+            },
+            "storageInfo": {
+              "type": "object",
+              "desc": "存储空间位置信息",
+              "fields": {
+                "partitionLabel": {
+                  "type": "string",
+                  "desc": "存储空间名称(作为参数时，不用填写)"
+                },
+                "partitionUUID": {
+                  "type": "string",
+                  "desc": "盘序号"
+                },
+                "storageType": {
+                  "type": "object",
+                  "desc": "空间类型, 0-公共空间，1-用户空间,2-加密空间，3-外部空间(包括U盘、外部磁盘)",
+                  "fields": {}
+                },
+                "userID": {
+                  "type": "string",
+                  "desc": "用户名"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "group": "存储空间",
+  "fileName": "批量删除加密文件_1751374644343.json",
+  "createdAt": "2025-07-01T12:57:23.831Z"
+}

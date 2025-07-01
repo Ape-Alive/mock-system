@@ -1,0 +1,129 @@
+{
+  "pathName": "获取链接信息",
+  "path": "/fileShare/link",
+  "pathType": "GET",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IjEzOTAyOTg1NDE5IiwicGFzc3dvcmRWZXJzaW9uIjoiNWQ2OGU1OTQtZDA5MS00NDhlLTg0ZWMtYjE4YjJlNWNkZGEyIiwibGludXhVaWQiOiIxMDAxIiwibGludXhHaWQiOiIxMDAxIiwiZXhwIjoxNzI2NzExNzgzLCJpc3MiOiJOQVMifQ.MJuNU-h5vN1OhRFYZwLuAzRRQ_YdIjtO2JaAtlALwdE",
+    "isDir": "true",
+    "partitionUUID": "cdad35b6-3d2d-4311-b2dd-86de793e2db6",
+    "relPath": "/666"
+  },
+  "queryParamsDesc": {
+    "nas-token": {
+      "desc": "需要鉴权的API请求令牌(放请求头或者请求参数，二选一)",
+      "type": "string"
+    },
+    "isDir": {
+      "desc": "是否为文件夹",
+      "type": "boolean"
+    },
+    "partitionUUID": {
+      "desc": "存储空间UUID",
+      "type": "string"
+    },
+    "relPath": {
+      "desc": "相对于存储空间的路径",
+      "type": "string"
+    }
+  },
+  "headers": {
+    "nas-token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IjEzOTAyOTg1NDE5IiwicGFzc3dvcmRWZXJzaW9uIjoiNWQ2OGU1OTQtZDA5MS00NDhlLTg0ZWMtYjE4YjJlNWNkZGEyIiwibGludXhVaWQiOiIxMDAxIiwibGludXhHaWQiOiIxMDAxIiwiZXhwIjoxNzI2NzExNzgzLCJpc3MiOiJOQVMifQ.MJuNU-h5vN1OhRFYZwLuAzRRQ_YdIjtO2JaAtlALwdE"
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "responseHeadersDesc": {
+    "nas-token": {
+      "desc": "需要鉴权的API请求令牌(放请求头或者请求参数，二选一)",
+      "type": "string"
+    }
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": {
+        "createTime": "@string",
+        "fileName": "@string",
+        "id": "@integer(1,100000)",
+        "isDir": "@boolean",
+        "ownerId": "@string",
+        "partitionUUID": "@string",
+        "relPath": "@string",
+        "status": "@pick([0,1])",
+        "storageType": "@pick([0,1,2,3])",
+        "updateTime": "@string"
+      },
+      "message": "@string"
+    }
+  },
+  "pathContentDesc": {
+    "type": "object",
+    "desc": "",
+    "fields": {
+      "code": {
+        "type": "integer",
+        "desc": "状态响应码"
+      },
+      "data": {
+        "type": "object",
+        "desc": "响应数据",
+        "fields": {
+          "createTime": {
+            "type": "string",
+            "desc": "任务创建时间"
+          },
+          "fileName": {
+            "type": "string",
+            "desc": "链接指向的文件名称"
+          },
+          "id": {
+            "type": "integer",
+            "desc": "ID"
+          },
+          "isDir": {
+            "type": "boolean",
+            "desc": "是否为文件夹"
+          },
+          "ownerId": {
+            "type": "string",
+            "desc": "拥有者ID"
+          },
+          "partitionUUID": {
+            "type": "string",
+            "desc": "存储空间UUID"
+          },
+          "relPath": {
+            "type": "string",
+            "desc": "相对于存储空间的路径"
+          },
+          "status": {
+            "type": "object",
+            "desc": "分享的状态：0-禁用，1-可用",
+            "fields": {}
+          },
+          "storageType": {
+            "type": "object",
+            "desc": "存储空间类型，0-公共空间，1-个人空间，2-外部空间",
+            "fields": {}
+          },
+          "updateTime": {
+            "type": "string",
+            "desc": "任务更新时间"
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "desc": "响应消息"
+      }
+    }
+  },
+  "bodyParams": null,
+  "bodyParamsDesc": "",
+  "group": "存储空间",
+  "fileName": "获取链接信息_1751374644735.json",
+  "createdAt": "2025-07-01T12:57:23.836Z"
+}

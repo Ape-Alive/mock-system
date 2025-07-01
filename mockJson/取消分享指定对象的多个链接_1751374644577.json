@@ -1,0 +1,81 @@
+{
+  "pathName": "取消分享指定对象的多个链接",
+  "path": "/api/v2/fileShare/sharer/batchRemove",
+  "pathType": "POST",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "nas-token": ""
+  },
+  "queryParamsDesc": {
+    "nas-token": {
+      "desc": "需要鉴权的API请求令牌(放请求头或者请求参数，二选一)",
+      "type": "string"
+    }
+  },
+  "headers": {
+    "nas-token": ""
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "responseHeadersDesc": {
+    "nas-token": {
+      "desc": "需要鉴权的API请求令牌(放请求头或者请求参数，二选一)",
+      "type": "string"
+    }
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": "@string",
+      "message": "@string"
+    }
+  },
+  "pathContentDesc": {
+    "type": "object",
+    "desc": "",
+    "fields": {
+      "code": {
+        "type": "integer",
+        "desc": "状态响应码"
+      },
+      "data": {
+        "type": "string",
+        "desc": ""
+      },
+      "message": {
+        "type": "string",
+        "desc": "响应消息"
+      }
+    }
+  },
+  "bodyParams": {
+    "linkIdList": [
+      "@integer(1,100000)"
+    ],
+    "sharerId": "@string"
+  },
+  "bodyParamsDesc": {
+    "type": "object",
+    "desc": "",
+    "fields": {
+      "linkIdList": {
+        "type": "array",
+        "desc": "链接ID列表",
+        "items": {
+          "type": "integer",
+          "desc": ""
+        }
+      },
+      "sharerId": {
+        "type": "string",
+        "desc": "被分享链接的用户ID"
+      }
+    }
+  },
+  "group": "存储空间",
+  "fileName": "取消分享指定对象的多个链接_1751374644577.json",
+  "createdAt": "2025-07-01T12:57:23.859Z"
+}

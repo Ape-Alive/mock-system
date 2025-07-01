@@ -11,10 +11,8 @@
     <script src="https://cdn.bootcdn.net/ajax/libs/Mock.js/1.0.0/mock-min.js"></script>
     <!-- jsTree CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jstree@3.3.15/dist/themes/default/style.min.css" />
-    <!-- Prism.js for code highlighting -->
+    <!-- Prism.js 主题，只需引入一次 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
   </head>
   <body>
     <header>
@@ -411,15 +409,20 @@
           <form id="local-directory-form">
             <div class="form-group">
               <button type="button" id="select-directory-btn" class="btn secondary">选择项目目录</button>
-              <input type="file" id="directory-picker" style="display:none" webkitdirectory directory />
+              <input type="file" id="directory-picker" style="display: none" webkitdirectory directory />
             </div>
             <div class="form-group">
               <label>服务器目录选择</label>
-              <div id="server-dir-list-embed" style="display:none;"></div>
+              <div id="server-dir-list-embed" style="display: none"></div>
             </div>
             <div class="form-group">
               <label for="local-directory-path">本地项目目录路径 *</label>
-              <input type="text" id="local-directory-path" placeholder="请输入本地项目目录的绝对路径，如: /Users/username/project" required />
+              <input
+                type="text"
+                id="local-directory-path"
+                placeholder="请输入本地项目目录的绝对路径，如: /Users/username/project"
+                required
+              />
               <small class="form-help">请确保目录存在且有写入权限</small>
             </div>
             <div class="form-group">
@@ -530,98 +533,124 @@
               <button id="export-zip" class="btn secondary"><i class="fas fa-file-archive"></i> 导出项目</button>
             </div>
           </div>
-
-          <!-- 标签页导航 -->
-          <div class="preview-tabs">
-            <button class="preview-tab active" data-tab="code">
-              <i class="fas fa-code tab-icon"></i>
-              代码
-              <span class="tab-badge" id="code-count">0</span>
-            </button>
-            <button class="preview-tab" data-tab="preview">
-              <i class="fas fa-eye tab-icon"></i>
-              预览
-            </button>
-            <button class="preview-tab" data-tab="dependencies">
-              <i class="fas fa-box tab-icon"></i>
-              依赖
-              <span class="tab-badge" id="deps-count">0</span>
-            </button>
-          </div>
-
-          <!-- 标签页内容 -->
-          <div class="preview-tab-content">
-            <!-- 代码标签页 -->
-            <div id="code" class="preview-tab-pane active">
-              <div class="code-display-area">
-                <div class="code-toolbar">
-                  <div class="left-tools">
-                    <button class="tool-btn" id="copy-all-code"><i class="fas fa-copy"></i> 复制全部</button>
-                    <button class="tool-btn" id="format-code"><i class="fas fa-magic"></i> 格式化</button>
-                    <button class="tool-btn" id="toggle-line-numbers"><i class="fas fa-list-ol"></i> 行号</button>
-                  </div>
-                  <div class="right-tools">
-                    <button class="tool-btn" id="search-code"><i class="fas fa-search"></i> 搜索</button>
-                    <button class="tool-btn" id="toggle-theme"><i class="fas fa-moon"></i> 主题</button>
-                  </div>
-                </div>
-                <div class="code-blocks-container" id="generated-code">
-                  <!-- 代码块将在这里动态生成 -->
-                </div>
+          <!-- 预览外包容器 -->
+          <div class="preview-container" style="display: flex; align-items: flex-start; height: calc(100% - 72px)">
+            <!-- 预览左侧代码区-->
+            <div class="preview-left-code-area" style="height: 100%">
+              <!-- 本地目录树面板 -->
+              <div id="codegen-filetree-panel" class="codegen-filetree-panel">
+                <div class="filetree-title">本地目录</div>
+                <div id="codegen-filetree" class="filetree-list"></div>
               </div>
             </div>
+            <!--  预览右侧代码区-->
+            <div class="preview-right-code-area" style="flex: 1; min-width: 0; height: 100%">
+              <!-- 标签页导航 -->
+              <div class="preview-tabs">
+                <button class="preview-tab active" data-tab="code">
+                  <i class="fas fa-code tab-icon"></i>
+                  代码
+                  <span class="tab-badge" id="code-count">0</span>
+                </button>
+                <button class="preview-tab" data-tab="preview">
+                  <i class="fas fa-eye tab-icon"></i>
+                  预览
+                </button>
+                <button class="preview-tab" data-tab="dependencies">
+                  <i class="fas fa-box tab-icon"></i>
+                  依赖
+                  <span class="tab-badge" id="deps-count">0</span>
+                </button>
+              </div>
 
-            <!-- 预览标签页 -->
-            <div id="preview" class="preview-tab-pane">
-              <div class="preview-area">
-                <div class="preview-toolbar">
-                  <div class="preview-controls">
-                    <button class="preview-size-btn active" data-size="desktop">
-                      <i class="fas fa-desktop"></i> 桌面
-                    </button>
-                    <button class="preview-size-btn" data-size="tablet"><i class="fas fa-tablet-alt"></i> 平板</button>
-                    <button class="preview-size-btn" data-size="mobile"><i class="fas fa-mobile-alt"></i> 手机</button>
-                  </div>
-                  <div class="preview-controls">
-                    <button class="tool-btn" id="refresh-preview"><i class="fas fa-sync-alt"></i> 刷新</button>
-                    <button class="tool-btn" id="open-preview-new-tab">
-                      <i class="fas fa-external-link-alt"></i> 新窗口
-                    </button>
-                  </div>
-                </div>
-                <div class="preview-frame-container">
-                  <iframe
-                    id="code-preview-frame"
-                    style="width: 100%; height: 100%; border: none; background: white"
-                  ></iframe>
-                  <div class="preview-loading-overlay" id="preview-loading" style="display: none">
-                    <div class="preview-loading-spinner"></div>
-                  </div>
-                  <div class="preview-error-overlay" id="preview-error" style="display: none">
-                    <div class="preview-error-content">
-                      <i class="fas fa-exclamation-triangle"></i>
-                      <p>预览加载失败</p>
-                      <button class="btn secondary" id="retry-preview">重试</button>
+              <!-- 标签页内容 -->
+              <div class="preview-tab-content">
+                <div style="display: flex; align-items: flex-start; height: 100%">
+                  <!-- 代码tab内容 -->
+                  <div style="flex: 1; min-width: 0; height: 100%">
+                    <!-- 代码标签页 -->
+                    <div id="code" class="preview-tab-pane active">
+                      <div class="code-display-area">
+                        <div class="code-toolbar">
+                          <div class="left-tools">
+                            <button class="tool-btn" id="copy-all-code"><i class="fas fa-copy"></i> 复制全部</button>
+                            <button class="tool-btn" id="format-code"><i class="fas fa-magic"></i> 格式化</button>
+                            <button class="tool-btn" id="toggle-line-numbers">
+                              <i class="fas fa-list-ol"></i> 行号
+                            </button>
+                          </div>
+                          <div class="right-tools">
+                            <button class="tool-btn" id="search-code"><i class="fas fa-search"></i> 搜索</button>
+                            <button class="tool-btn" id="toggle-theme"><i class="fas fa-moon"></i> 主题</button>
+                          </div>
+                        </div>
+                        <div class="code-blocks-container" id="generated-code">
+                          <!-- 代码块将在这里动态生成 -->
+                        </div>
+                      </div>
+                    </div>
+                    <!-- 预览标签页 -->
+                    <div id="preview" class="preview-tab-pane">
+                      <div class="preview-area">
+                        <div class="preview-toolbar">
+                          <div class="preview-controls">
+                            <button class="preview-size-btn active" data-size="desktop">
+                              <i class="fas fa-desktop"></i> 桌面
+                            </button>
+                            <button class="preview-size-btn" data-size="tablet">
+                              <i class="fas fa-tablet-alt"></i> 平板
+                            </button>
+                            <button class="preview-size-btn" data-size="mobile">
+                              <i class="fas fa-mobile-alt"></i> 手机
+                            </button>
+                          </div>
+                          <div class="preview-controls">
+                            <button class="tool-btn" id="refresh-preview"><i class="fas fa-sync-alt"></i> 刷新</button>
+                            <button class="tool-btn" id="open-preview-new-tab">
+                              <i class="fas fa-external-link-alt"></i> 新窗口
+                            </button>
+                          </div>
+                        </div>
+                        <div class="preview-frame-container">
+                          <iframe
+                            id="code-preview-frame"
+                            style="width: 100%; height: 100%; border: none; background: white"
+                          ></iframe>
+                          <div class="preview-loading-overlay" id="preview-loading" style="display: none">
+                            <div class="preview-loading-spinner"></div>
+                          </div>
+                          <div class="preview-error-overlay" id="preview-error" style="display: none">
+                            <div class="preview-error-content">
+                              <i class="fas fa-exclamation-triangle"></i>
+                              <p>预览加载失败</p>
+                              <button class="btn secondary" id="retry-preview">重试</button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- 依赖标签页 -->
+                    <div id="dependencies" class="preview-tab-pane">
+                      <div class="dependencies-area">
+                        <div class="dependencies-toolbar">
+                          <div class="left-tools">
+                            <h4>项目依赖</h4>
+                          </div>
+                          <div class="right-tools">
+                            <button class="tool-btn" id="copy-dependencies">
+                              <i class="fas fa-copy"></i> 复制依赖
+                            </button>
+                            <button class="tool-btn" id="install-dependencies">
+                              <i class="fas fa-download"></i> 安装指南
+                            </button>
+                          </div>
+                        </div>
+                        <div class="dependencies-content" id="dependencies-content">
+                          <!-- 依赖列表将在这里动态生成 -->
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 依赖标签页 -->
-            <div id="dependencies" class="preview-tab-pane">
-              <div class="dependencies-area">
-                <div class="dependencies-toolbar">
-                  <div class="left-tools">
-                    <h4>项目依赖</h4>
-                  </div>
-                  <div class="right-tools">
-                    <button class="tool-btn" id="copy-dependencies"><i class="fas fa-copy"></i> 复制依赖</button>
-                    <button class="tool-btn" id="install-dependencies"><i class="fas fa-download"></i> 安装指南</button>
-                  </div>
-                </div>
-                <div class="dependencies-content" id="dependencies-content">
-                  <!-- 依赖列表将在这里动态生成 -->
                 </div>
               </div>
             </div>
@@ -641,7 +670,9 @@
           <div class="file-operation-toolbar">
             <div class="left-tools">
               <button id="create-file-btn" class="btn primary"><i class="fas fa-file-plus"></i> 新建文件</button>
-              <button id="create-folder-btn" class="btn secondary"><i class="fas fa-folder-plus"></i> 新建文件夹</button>
+              <button id="create-folder-btn" class="btn secondary">
+                <i class="fas fa-folder-plus"></i> 新建文件夹
+              </button>
               <button id="upload-file-btn" class="btn secondary"><i class="fas fa-upload"></i> 上传文件</button>
             </div>
             <div class="right-tools">
@@ -707,13 +738,29 @@
       </div>
     </div>
 
+    <div id="custom-confirm-modal" class="modal">
+      <div class="modal-content small">
+        <div class="modal-header">
+          <h3>操作确认</h3>
+          <button class="btn-icon close" id="custom-confirm-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p id="custom-confirm-message">确定要执行此操作吗？</p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn secondary" id="custom-confirm-cancel">取消</button>
+          <button class="btn danger" id="custom-confirm-ok">确定</button>
+        </div>
+      </div>
+    </div>
+
     <script src="fileManager.js"></script>
     <script src="script.js"></script>
     <!-- 依赖 jQuery -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <!-- jsTree JS -->
     <script src="https://cdn.jsdelivr.net/npm/jstree@3.3.15/dist/jstree.min.js"></script>
-    <!-- Prism.js for code highlighting -->
+    <!-- Prism.js for code highlighting，顺序很重要，只引入一次 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-css.min.js"></script>

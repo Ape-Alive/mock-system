@@ -1,0 +1,180 @@
+{
+  "pathName": "创建上传任务",
+  "path": "/api/v2/encrypted/upload/create",
+  "pathType": "POST",
+  "mockType": "mockjsTemplate",
+  "queryParams": {},
+  "queryParamsDesc": {},
+  "headers": {
+    "nas-token": "",
+    "Crypto-Token": ""
+  },
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "responseHeadersDesc": {
+    "nas-token": {
+      "desc": "需要鉴权的API请求令牌",
+      "type": "string"
+    },
+    "Crypto-Token": {
+      "desc": "加密空间的API请求令牌",
+      "type": "string"
+    }
+  },
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "code": "@integer(1,100000)",
+      "data": {
+        "taskList": [
+          {
+            "skip": "@boolean",
+            "taskID": "@string",
+            "totalSize": "@integer(1,100000)",
+            "uploadedSize": "@integer(1,100000)"
+          }
+        ]
+      },
+      "message": "@string"
+    }
+  },
+  "pathContentDesc": {
+    "type": "object",
+    "desc": "",
+    "fields": {
+      "code": {
+        "type": "integer",
+        "desc": "状态响应码"
+      },
+      "data": {
+        "type": "object",
+        "desc": "响应数据",
+        "fields": {
+          "taskList": {
+            "type": "array",
+            "desc": "",
+            "items": {
+              "type": "object",
+              "desc": "",
+              "fields": {
+                "skip": {
+                  "type": "boolean",
+                  "desc": "是否跳过上传，true-跳过上传，false-不跳过"
+                },
+                "taskID": {
+                  "type": "string",
+                  "desc": "任务ID"
+                },
+                "totalSize": {
+                  "type": "integer",
+                  "desc": "文件总大小"
+                },
+                "uploadedSize": {
+                  "type": "integer",
+                  "desc": "已上传大小"
+                }
+              }
+            }
+          }
+        }
+      },
+      "message": {
+        "type": "string",
+        "desc": "响应消息"
+      }
+    }
+  },
+  "bodyParams": {
+    "taskList": [
+      {
+        "conflictOption": {
+          "action": "@pick([0,1,2])"
+        },
+        "fileWithStorage": {
+          "filePath": "@string",
+          "storageInfo": {
+            "partitionLabel": "@string",
+            "partitionUUID": "@string",
+            "storageType": "@pick([0,1,2,3])",
+            "userID": "@string"
+          }
+        },
+        "isDir": "@boolean",
+        "size": "@integer(1,100000)"
+      }
+    ]
+  },
+  "bodyParamsDesc": {
+    "type": "object",
+    "desc": "",
+    "fields": {
+      "taskList": {
+        "type": "array",
+        "desc": "",
+        "items": {
+          "type": "object",
+          "desc": "",
+          "fields": {
+            "conflictOption": {
+              "type": "object",
+              "desc": "冲突解决选项, 0-保留两者，1-覆盖，2-跳过",
+              "fields": {
+                "action": {
+                  "type": "object",
+                  "desc": "指定冲突时的动作",
+                  "fields": {}
+                }
+              }
+            },
+            "fileWithStorage": {
+              "type": "object",
+              "desc": "包含文件路径和存储信息的结构体",
+              "fields": {
+                "filePath": {
+                  "type": "string",
+                  "desc": "要操作的相对文件路径"
+                },
+                "storageInfo": {
+                  "type": "object",
+                  "desc": "存储空间的详细信息",
+                  "fields": {
+                    "partitionLabel": {
+                      "type": "string",
+                      "desc": "存储空间名称(作为参数时，不用填写)"
+                    },
+                    "partitionUUID": {
+                      "type": "string",
+                      "desc": "盘序号"
+                    },
+                    "storageType": {
+                      "type": "object",
+                      "desc": "空间类型, 0-公共空间，1-用户空间,2-加密空间，3-外部空间(包括U盘、外部磁盘)",
+                      "fields": {}
+                    },
+                    "userID": {
+                      "type": "string",
+                      "desc": "用户名"
+                    }
+                  }
+                }
+              }
+            },
+            "isDir": {
+              "type": "boolean",
+              "desc": "是否为文件夹"
+            },
+            "size": {
+              "type": "integer",
+              "desc": "文件大小，要求大于等于0"
+            }
+          }
+        }
+      }
+    }
+  },
+  "group": "存储空间",
+  "fileName": "创建上传任务_1751374644427.json",
+  "createdAt": "2025-07-01T12:57:23.854Z"
+}
