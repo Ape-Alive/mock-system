@@ -1,0 +1,28 @@
+{
+  "pathName": "获取客户信息",
+  "path": "/bigscreen/getCustomer",
+  "pathType": "GET",
+  "mockType": "mockjsTemplate",
+  "queryParams": {},
+  "queryParamsDesc": {},
+  "headers": {},
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "responseHeadersDesc": {},
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {}
+  },
+  "pathContentDesc": {
+    "type": "object",
+    "desc": "",
+    "fields": {}
+  },
+  "bodyParams": null,
+  "bodyParamsDesc": "",
+  "group": "订单",
+  "fileName": "获取客户信息_1751269614629.json",
+  "createdAt": "2025-06-30T07:46:54.073Z"
+}

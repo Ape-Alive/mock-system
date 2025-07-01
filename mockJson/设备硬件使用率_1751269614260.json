@@ -1,0 +1,35 @@
+{
+  "pathName": "设备硬件使用率",
+  "path": "/bigscreen/deviceHardware",
+  "pathType": "GET",
+  "mockType": "mockjsTemplate",
+  "queryParams": {
+    "customerId": ""
+  },
+  "queryParamsDesc": {
+    "customerId": {
+      "desc": "客户ID",
+      "type": "string"
+    }
+  },
+  "headers": {},
+  "responseHeaders": {
+    "Content-Type": "application/json"
+  },
+  "responseHeadersDesc": {},
+  "pathContent": {
+    "code": 200,
+    "message": "success",
+    "data": {}
+  },
+  "pathContentDesc": {
+    "type": "object",
+    "desc": "",
+    "fields": {}
+  },
+  "bodyParams": null,
+  "bodyParamsDesc": "",
+  "group": "订单",
+  "fileName": "设备硬件使用率_1751269614260.json",
+  "createdAt": "2025-06-30T07:46:54.072Z"
+}

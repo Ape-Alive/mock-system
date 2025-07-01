@@ -28,13 +28,19 @@
           <button id="code-generator-btn" class="btn primary" title="代码生成器">
             <i class="fas fa-code"></i> 代码生成器
           </button>
+          <button id="file-manager-btn" class="btn secondary" title="文件操作">
+            <i class="fas fa-folder-open"></i> 文件操作
+          </button>
+          <button id="clear-local-directory-btn" class="btn danger" title="清空本地目录">
+            <i class="fas fa-eraser"></i> 清空本地目录
+          </button>
         </div>
       </div>
     </header>
 
     <main class="container" style="display: flex; gap: 24px; align-items: flex-start">
       <!-- 分组树形导航 -->
-      <aside id="group-tree" style="min-width: 220px; max-width: 260px">
+      <aside id="group-tree" style="min-width: 300px; max-width: 350px">
         <div
           style="
             display: flex;
@@ -394,6 +400,41 @@
       </div>
     </div>
 
+    <!-- 本地目录设置模态框 -->
+    <div id="local-directory-modal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>设置本地初始目录</h3>
+          <button class="btn-icon close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="local-directory-form">
+            <div class="form-group">
+              <button type="button" id="select-directory-btn" class="btn secondary">选择项目目录</button>
+              <input type="file" id="directory-picker" style="display:none" webkitdirectory directory />
+            </div>
+            <div class="form-group">
+              <label>服务器目录选择</label>
+              <div id="server-dir-list-embed" style="display:none;"></div>
+            </div>
+            <div class="form-group">
+              <label for="local-directory-path">本地项目目录路径 *</label>
+              <input type="text" id="local-directory-path" placeholder="请输入本地项目目录的绝对路径，如: /Users/username/project" required />
+              <small class="form-help">请确保目录存在且有写入权限</small>
+            </div>
+            <div class="form-group">
+              <label for="project-name">项目名称</label>
+              <input type="text" id="project-name" placeholder="项目名称（可选）" />
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn secondary close">取消</button>
+              <button type="submit" class="btn primary">确定</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
     <!-- 代码生成模态框 -->
     <div id="code-generator-modal" class="modal">
       <div class="modal-content large">
@@ -589,6 +630,84 @@
       </div>
     </div>
 
+    <!-- 文件操作模态框 -->
+    <div id="file-operation-modal" class="modal">
+      <div class="modal-content large">
+        <div class="modal-header">
+          <h3>文件操作</h3>
+          <button class="btn-icon close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="file-operation-toolbar">
+            <div class="left-tools">
+              <button id="create-file-btn" class="btn primary"><i class="fas fa-file-plus"></i> 新建文件</button>
+              <button id="create-folder-btn" class="btn secondary"><i class="fas fa-folder-plus"></i> 新建文件夹</button>
+              <button id="upload-file-btn" class="btn secondary"><i class="fas fa-upload"></i> 上传文件</button>
+            </div>
+            <div class="right-tools">
+              <button id="refresh-files-btn" class="btn secondary"><i class="fas fa-sync-alt"></i> 刷新</button>
+              <input type="file" id="file-upload-input" style="display: none" multiple />
+            </div>
+          </div>
+          <div class="file-explorer">
+            <div class="file-tree" id="file-tree">
+              <!-- 文件树将在这里动态生成 -->
+            </div>
+            <div class="file-content" id="file-content">
+              <div class="file-content-placeholder">
+                <i class="fas fa-file-alt"></i>
+                <p>选择一个文件来查看或编辑内容</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 新建文件/文件夹模态框 -->
+    <div id="create-item-modal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="create-item-title">新建文件</h3>
+          <button class="btn-icon close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="create-item-form">
+            <div class="form-group">
+              <label for="item-name">名称 *</label>
+              <input type="text" id="item-name" required />
+            </div>
+            <div class="form-group" id="file-content-group" style="display: none">
+              <label for="file-content-input">文件内容</label>
+              <textarea id="file-content-input" rows="10" placeholder="输入文件内容..."></textarea>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn secondary close">取消</button>
+              <button type="submit" class="btn primary">确定</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- 确认删除模态框 -->
+    <div id="delete-confirm-modal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>确认删除</h3>
+          <button class="btn-icon close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p id="delete-confirm-message">确定要删除这个项目吗？此操作不可撤销。</p>
+          <div class="form-actions">
+            <button type="button" class="btn secondary close">取消</button>
+            <button type="button" class="btn danger" id="confirm-delete-btn">删除</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="fileManager.js"></script>
     <script src="script.js"></script>
     <!-- 依赖 jQuery -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>

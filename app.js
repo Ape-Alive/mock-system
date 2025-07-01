@@ -10,6 +10,7 @@ const mockRoutes = require('./routes/mockRoutes')
 const openApiRoutes = require('./routes/openApiRoutes')
 const groupRoutes = require('./routes/groupRoutes')
 const codegenRoutes = require('./routes/codegenRoutes')
+const fileRoutes = require('./routes/fileRoutes')
 
 const app = express()
 
@@ -26,6 +27,7 @@ app.use('/', mockRoutes)
 app.use('/', openApiRoutes)
 app.use('/', groupRoutes)
 app.use('/', codegenRoutes)
+app.use('/', fileRoutes)
 
 // 设置动态路由中间件
 routeMiddleware.setupDynamicRoutes(app)

@@ -112,4 +112,25 @@ router.post('/api/codegen/stream', async (req, res) => {
   }
 })
 
+// 将生成的代码写入本地目录
+router.post('/api/codegen/write-to-local', async (req, res) => {
+  try {
+    const { code, techStack, outputType } = req.body
+
+    if (!code || !techStack || !outputType) {
+      return res.status(400).json({ success: false, error: '缺少必要参数' })
+    }
+
+    const result = await codegenService.writeCodeToLocalDirectory(code, techStack, outputType)
+
+    if (result.success) {
+      res.json({ success: true, data: result.data })
+    } else {
+      res.status(500).json({ success: false, error: result.error })
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
 module.exports = router

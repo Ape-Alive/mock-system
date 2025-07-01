@@ -49,6 +49,107 @@ document.addEventListener('DOMContentLoaded', () => {
   const batchGroupInput = document.getElementById('batch-group-input')
   const batchGroupBtn = document.getElementById('batch-group-btn')
 
+  const selectDirBtn = document.getElementById('select-directory-btn');
+  const dirPicker = document.getElementById('directory-picker');
+  const dirInput = document.getElementById('local-directory-path');
+  const serverDirListEmbed = document.getElementById('server-dir-list-embed');
+  let serverDirEmbedVisible = false;
+
+  if (selectDirBtn && dirPicker && dirInput && serverDirListEmbed) {
+    selectDirBtn.addEventListener('click', async function () {
+      if (isElectron() && window.electronAPI && window.electronAPI.selectDirectory) {
+        window.electronAPI.selectDirectory().then(dirPath => {
+          if (dirPath) {
+            dirInput.value = dirPath;
+          }
+        });
+      } else {
+        // 切换显示/隐藏嵌入式目录树
+        serverDirEmbedVisible = !serverDirEmbedVisible;
+        serverDirListEmbed.style.display = serverDirEmbedVisible ? '' : 'none';
+        if (serverDirEmbedVisible) {
+          showServerDirectoryEmbed();
+        }
+      }
+    });
+    dirPicker.addEventListener('change', function (e) {
+      if (e.target.files.length > 0) {
+        const firstFile = e.target.files[0];
+        let fullPath = firstFile.webkitRelativePath || firstFile.path || '';
+        if (fullPath) {
+          const dir = fullPath.split('/')[0];
+          dirInput.value = dir;
+        }
+      }
+    });
+  }
+
+  // 嵌入式服务器目录树
+  function showServerDirectoryEmbed(base = '', level = 0, selectedPath = '') {
+    fetch('/api/file/list-directories' + (base ? ('?base=' + encodeURIComponent(base)) : ''))
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          renderDirectoryListEmbed(data.directories, base, level, selectedPath)
+        } else {
+          serverDirListEmbed.innerHTML = '<div style="color:red;padding:12px">获取目录失败: ' + (data.error || '未知错误') + '</div>';
+        }
+      })
+  }
+
+  function renderDirectoryListEmbed(dirs, base, level = 0, selectedPath = '') {
+    serverDirListEmbed.innerHTML = '';
+    // 始终显示上级目录按钮
+    const upBtn = document.createElement('div')
+    upBtn.className = 'dir-item up-dir dir-tree-level-' + Math.max(0, level - 1)
+    upBtn.innerHTML = `<span class="dir-icon">⬆️</span>.. (上级目录)`
+    upBtn.onclick = () => {
+      if (!base) {
+        // 已在根目录，再次点击回到服务器根目录（process.cwd()）
+        showServerDirectoryEmbed('', 0, selectedPath)
+      } else {
+        const up = base.replace(/\/?[^/]+$/, '')
+        showServerDirectoryEmbed(up, Math.max(0, level - 1), selectedPath)
+      }
+    }
+    serverDirListEmbed.appendChild(upBtn)
+    // 目录列表
+    dirs.forEach(dir => {
+      const item = document.createElement('div')
+      item.className = 'dir-item dir-tree-level-' + level + (dir.path === selectedPath ? ' selected' : '')
+      item.innerHTML = `<span class="dir-icon">📁</span>${dir.name} <span style='color:#aaa;font-size:12px;margin-left:8px'>(${dir.path})</span>`
+      item.onclick = () => {
+        // 进入下一级目录
+        showServerDirectoryEmbed(dir.path, level + 1, selectedPath)
+      }
+      // 支持选中当前目录
+      item.oncontextmenu = (e) => {
+        e.preventDefault()
+        if (dirInput) dirInput.value = dir.path
+        serverDirListEmbed.style.display = 'none';
+        serverDirEmbedVisible = false;
+      }
+      // 单击选中并高亮
+      item.onmousedown = (e) => {
+        if (e.button === 0) {
+          serverDirListEmbed.querySelectorAll('.dir-item').forEach(el => el.classList.remove('selected'))
+          item.classList.add('selected')
+        }
+      }
+      serverDirListEmbed.appendChild(item)
+    })
+    // 底部说明
+    const tip = document.createElement('div')
+    tip.style = 'color:#888;font-size:13px;margin-top:8px;'
+    tip.innerHTML = `📁 单击浏览下级，<b>右键选择</b>当前目录`
+    serverDirListEmbed.appendChild(tip)
+  }
+
+  // 判断是否在 Electron 环境
+  function isElectron() {
+    return !!(window && window.process && window.process.type);
+  }
+
   // 初始化
   init()
 
@@ -158,6 +259,8 @@ document.addEventListener('DOMContentLoaded', () => {
     loadMockList()
     // 再初始化分组树
     loadGroupTree()
+    // 初始化文件管理器
+    window.fileManager = new FileManager()
   }
 
   // 主题切换
@@ -180,7 +283,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const response = await fetch('/mock-list')
       if (!response.ok) throw new Error('无法加载接口列表')
       mockItems = await response.json()
-      // 不再调用renderGroupTree、renderCurrentGroupList
     } catch (error) {
       showError('加载失败: ' + error.message)
     } finally {
@@ -830,9 +932,8 @@ document.addEventListener('DOMContentLoaded', () => {
     testMethod.className = `test-method method ${results.request.method.toLowerCase()}`
     testUrl.textContent = results.request.url
     testStatus.textContent = `状态码: ${results.status} ${results.statusText} | 耗时: ${results.responseTime}ms`
-    testStatus.className = `test-status ${
-      results.status >= 200 && results.status < 300 ? 'status-success' : 'status-error'
-    }`
+    testStatus.className = `test-status ${results.status >= 200 && results.status < 300 ? 'status-success' : 'status-error'
+      }`
 
     // 设置响应内容
     responseBody.textContent =
@@ -1237,15 +1338,22 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isMockTemplate && window.Mock) {
           try {
             val = Mock.mock(val)
-          } catch {}
+          } catch { }
         }
         const descObj = genDescObj(val)
         descInput.value = JSON.stringify(descObj, null, 2)
-      } catch {}
+      } catch { }
     })
   }
   autoGenDesc('queryParams', 'queryParamsDesc', true)
   autoGenDesc('bodyParams', 'bodyParamsDesc', true)
   autoGenDesc('responseHeaders', 'responseHeadersDesc', true)
   autoGenDesc('pathContent', 'pathContentDesc', true)
+
+  // 文件操作按钮
+  document.getElementById('file-manager-btn').addEventListener('click', () => {
+    if (window.fileManager) {
+      window.fileManager.showFileOperationModal()
+    }
+  })
 })

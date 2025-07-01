@@ -13,6 +13,7 @@ class CodeGenerator {
     this.allMockItems = []
     this.filteredMockItems = []
     this.currentGroup = window.currentGroup || { id: 0, name: '全部', fileNames: null }
+    this.initFileTreeInModal()
   }
 
   initElements() {
@@ -475,7 +476,16 @@ class CodeGenerator {
   }
 
   bindEvents() {
-    document.getElementById('code-generator-btn').addEventListener('click', () => {
+    document.getElementById('code-generator-btn').addEventListener('click', async () => {
+      // 1. 检查是否有初始工作目录
+      const res = await fetch('/api/file/directory')
+      const data = await res.json()
+      if (!data.success || !data.data.directory) {
+        // 没有设置目录，弹出选择目录弹窗
+        this.showSelectDirectoryModal()
+        return
+      }
+      // 有目录，正常打开生成器弹窗
       this.openModal()
     })
 
@@ -626,6 +636,12 @@ class CodeGenerator {
   }
 
   async openModal() {
+    // 检查本地目录是否已设置
+    const fileManager = window.fileManager
+    if (!fileManager || !fileManager.checkLocalDirectory()) {
+      return // 如果本地目录未设置，fileManager会显示设置弹窗
+    }
+
     await this.loadInterfaceList()
     this.bindInterfaceSearch()
     setTimeout(() => this.syncSelectAllCheckbox(), 0)
@@ -980,6 +996,37 @@ class CodeGenerator {
     this.updateStatus('代码生成完成', 'ready')
     console.log('代码生成完成，原始内容长度:', content.length)
     console.log('表单数据:', formData)
+
+    // 将代码写入本地目录
+    this.writeCodeToLocalDirectory(content, formData)
+  }
+
+  // 将代码写入本地目录
+  async writeCodeToLocalDirectory(content, formData) {
+    try {
+      const response = await fetch('/api/codegen/write-to-local', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          code: content,
+          techStack: formData.techStack,
+          outputType: formData.outputType
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        this.showToast('代码已成功写入本地目录', 'success')
+        console.log('代码写入结果:', data.data)
+      } else {
+        this.showToast('代码写入失败: ' + data.error, 'error')
+      }
+    } catch (error) {
+      this.showToast('代码写入失败: ' + error.message, 'error')
+    }
   }
 
   getDependencies(techStack, uiLibrary, customLibrary) {
@@ -1228,10 +1275,10 @@ class CodeGenerator {
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>生成的页面</title>
           <style>
-            body { 
-              margin: 0; 
-              padding: 0; 
-              font-family: Arial, sans-serif; 
+            body {
+              margin: 0;
+              padding: 0;
+              font-family: Arial, sans-serif;
             }
           </style>
         </head>
@@ -1256,12 +1303,12 @@ class CodeGenerator {
         <title>Vue ${version === 'vue2' ? '2' : '3'} Preview</title>
         <script src="https://unpkg.com/vue@${vueVersion}/dist/vue${version === 'vue2' ? '' : '.global'}.js"></script>
         <style>
-          body { 
-            margin: 0; 
-            padding: 20px; 
-            font-family: Arial, sans-serif; 
+          body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
             background: #f5f5f5;
-          } 
+          }
           .preview-container {
             background: white;
             border-radius: 8px;
@@ -1307,12 +1354,12 @@ class CodeGenerator {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>React Preview</title>
         <style>
-          body { 
-            margin: 0; 
-            padding: 20px; 
-            font-family: Arial, sans-serif; 
+          body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
             background: #f5f5f5;
-          } 
+          }
           .preview-container {
             background: white;
             border-radius: 8px;
@@ -1361,12 +1408,12 @@ class CodeGenerator {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Flutter Preview</title>
         <style>
-          body { 
-            margin: 0; 
-            padding: 20px; 
-            font-family: Arial, sans-serif; 
+          body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
             background: #f5f5f5;
-          } 
+          }
           .preview-container {
             background: white;
             border-radius: 8px;
@@ -1425,12 +1472,12 @@ class CodeGenerator {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${techName} Preview</title>
         <style>
-          body { 
-            margin: 0; 
-            padding: 20px; 
-            font-family: Arial, sans-serif; 
+          body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
             background: #f5f5f5;
-          } 
+          }
           .preview-container {
             background: white;
             border-radius: 8px;
@@ -1679,10 +1726,10 @@ class CodeGenerator {
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>${fileName} - 预览</title>
           <style>
-            body { 
-              margin: 0; 
-              padding: 20px; 
-              font-family: Arial, sans-serif; 
+            body {
+              margin: 0;
+              padding: 20px;
+              font-family: Arial, sans-serif;
               background: #f5f5f5;
             }
             .preview-header {
@@ -1748,10 +1795,10 @@ class CodeGenerator {
         <title>${fileName} - Vue预览</title>
         <script src="https://unpkg.com/vue@3.3.0/dist/vue.global.js"></script>
         <style>
-          body { 
-            margin: 0; 
-            padding: 20px; 
-            font-family: Arial, sans-serif; 
+          body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
             background: #f5f5f5;
           }
           .preview-container {
@@ -1819,10 +1866,10 @@ class CodeGenerator {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${fileName} - React预览</title>
         <style>
-          body { 
-            margin: 0; 
-            padding: 20px; 
-            font-family: Arial, sans-serif; 
+          body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
             background: #f5f5f5;
           }
           .preview-container {
@@ -1876,10 +1923,10 @@ class CodeGenerator {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${fileName} - CSS预览</title>
         <style>
-          body { 
-            margin: 0; 
-            padding: 20px; 
-            font-family: Arial, sans-serif; 
+          body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
             background: #f5f5f5;
           }
           .preview-container {
@@ -1934,10 +1981,10 @@ class CodeGenerator {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${fileName} - ${language.toUpperCase()}预览</title>
         <style>
-          body { 
-            margin: 0; 
-            padding: 20px; 
-            font-family: Arial, sans-serif; 
+          body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
             background: #f5f5f5;
           }
           .preview-container {
@@ -2036,6 +2083,148 @@ class CodeGenerator {
       selectAllCheckbox.checked = false
       selectAllCheckbox.indeterminate = true
     }
+  }
+
+  initFileTreeInModal() {
+    this.fileTreeContainer = this.modal.querySelector('#codegen-file-tree')
+    if (!this.fileTreeContainer) {
+      // 动态插入左侧文件树容器
+      const leftPanel = document.createElement('div')
+      leftPanel.className = 'codegen-filetree-panel'
+      leftPanel.innerHTML = `
+        <div class="filetree-title">本地目录</div>
+        <div id="codegen-file-tree" class="filetree-list"></div>
+      `
+      this.modal.querySelector('.modal-content').prepend(leftPanel)
+      this.fileTreeContainer = this.modal.querySelector('#codegen-file-tree')
+    }
+    this.loadFileTree()
+  }
+
+  async loadFileTree() {
+    if (!this.fileTreeContainer) return
+    this.fileTreeContainer.innerHTML = '<div class="filetree-loading">加载中...</div>'
+    try {
+      const res = await fetch('/api/file/tree')
+      const data = await res.json()
+      if (data.success) {
+        this.renderFileTree(data.data)
+      } else {
+        this.fileTreeContainer.innerHTML = `<div class="filetree-error">${data.error}</div>`
+      }
+    } catch (e) {
+      this.fileTreeContainer.innerHTML = `<div class="filetree-error">加载失败</div>`
+    }
+  }
+
+  renderFileTree(tree) {
+    this.fileTreeContainer.innerHTML = ''
+    if (!tree || tree.length === 0) {
+      this.fileTreeContainer.innerHTML = '<div class="filetree-empty">目录为空</div>'
+      return
+    }
+    tree.forEach(item => this.renderFileTreeNode(item, 0))
+  }
+
+  renderFileTreeNode(node, level) {
+    const isDir = node.type === 'directory'
+    const nodeEl = document.createElement('div')
+    nodeEl.className = `filetree-node level-${level} ${isDir ? 'dir' : 'file'} collapsed`
+    nodeEl.innerHTML = `
+      <span class="filetree-node-label">${isDir ? '<i class=\'fas fa-folder\'></i>' : '<i class=\'fas fa-file\'></i>'} ${node.name}</span>
+    `
+    nodeEl.dataset.path = node.path
+    if (isDir) {
+      nodeEl.addEventListener('click', (e) => {
+        e.stopPropagation()
+        // 展开/收缩
+        nodeEl.classList.toggle('collapsed')
+        // 插入模式下允许选择目录节点
+        if (this.insertModeActive) {
+          this.handleInsertDirSelect(node)
+        }
+      })
+    }
+    this.fileTreeContainer.appendChild(nodeEl)
+    if (isDir && node.children && node.children.length > 0) {
+      node.children.forEach(child => this.renderFileTreeNode(child, level + 1))
+    }
+  }
+
+  // 代码块插入按钮和插入流程
+  addInsertButtonToCodeBlocks() {
+    // 假设代码块有class .code-block
+    const codeBlocks = this.modal.querySelectorAll('.code-block')
+    codeBlocks.forEach(block => {
+      if (!block.querySelector('.insert-local-btn')) {
+        const btn = document.createElement('button')
+        btn.className = 'insert-local-btn'
+        btn.innerHTML = '<i class="fas fa-download"></i> 插入本地目录'
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation()
+          this.startInsertMode(block)
+        })
+        block.appendChild(btn)
+      }
+    })
+  }
+
+  startInsertMode(codeBlock) {
+    this.insertModeActive = true
+    this.currentInsertBlock = codeBlock
+    this.showToast('请选择左侧目录节点作为插入位置', 'info')
+    // 高亮左侧文件树
+    this.fileTreeContainer.classList.add('insert-mode')
+  }
+
+  handleInsertDirSelect(dirNode) {
+    if (!this.insertModeActive || !this.currentInsertBlock) return
+    // 获取代码块名和内容
+    const fileName = this.getCodeBlockFileName(this.currentInsertBlock)
+    const content = this.getCodeBlockContent(this.currentInsertBlock)
+    const targetPath = dirNode.path ? (dirNode.path + '/' + fileName) : fileName
+    // 二次确认
+    if (confirm(`确定要将 ${fileName} 插入到 ${dirNode.path || '/'} 目录下吗？`)) {
+      this.insertCodeToLocal(targetPath, content)
+    }
+    this.insertModeActive = false
+    this.currentInsertBlock = null
+    this.fileTreeContainer.classList.remove('insert-mode')
+  }
+
+  getCodeBlockFileName(block) {
+    // 假设代码块有data-filename属性或标题
+    return block.dataset.filename || block.querySelector('.code-block-title')?.textContent?.trim() || 'newfile.txt'
+  }
+
+  getCodeBlockContent(block) {
+    // 假设代码内容在pre/code标签
+    return block.querySelector('code')?.textContent || ''
+  }
+
+  async insertCodeToLocal(filePath, content) {
+    try {
+      const res = await fetch('/api/file/write', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filePath, content })
+      })
+      const data = await res.json()
+      if (data.success) {
+        this.showToast('插入成功', 'success')
+        this.loadFileTree()
+      } else {
+        this.showToast('插入失败: ' + data.error, 'error')
+      }
+    } catch (e) {
+      this.showToast('插入失败', 'error')
+    }
+  }
+
+  // 新增方法：弹出选择目录弹窗
+  showSelectDirectoryModal() {
+    // 假设index.html里有id为local-directory-modal的弹窗
+    document.getElementById('local-directory-modal').classList.add('active')
   }
 }
 
