@@ -13,6 +13,13 @@ class CodeGenerator {
     this.allMockItems = []
     this.filteredMockItems = []
     this.currentGroup = window.currentGroup || { id: 0, name: '全部', fileNames: null }
+    // 绑定代码预览模态框关闭按钮事件
+    setTimeout(() => {
+      const previewCloseButtons = document.querySelectorAll('#code-preview-modal .close')
+      previewCloseButtons.forEach(btn => {
+        btn.onclick = () => this.closePreviewModal()
+      })
+    }, 0)
   }
 
   initElements() {
@@ -42,6 +49,7 @@ class CodeGenerator {
     this.dependenciesContent = document.getElementById('dependencies-content')
     this.codeCount = document.getElementById('code-count')
     this.depsCount = document.getElementById('deps-count')
+    this.fullscreenToggleBtn = document.querySelector('#code-preview-modal .fullscreen-toggle')
   }
 
   initPreviewFeatures() {
@@ -657,10 +665,33 @@ class CodeGenerator {
 
   closePreviewModal() {
     this.previewModal.classList.remove('active')
+    this.previewModal.classList.remove('fullscreen') // 修复：关闭时移除全屏状态
+    // 还原全屏按钮图标
+    if (this.fullscreenToggleBtn) {
+      const icon = this.fullscreenToggleBtn.querySelector('i')
+      icon.classList.remove('fa-compress')
+      icon.classList.add('fa-expand')
+      this.fullscreenToggleBtn.title = '全屏预览'
+    }
   }
 
   openPreviewModal() {
     this.previewModal.classList.add('active')
+    // 默认最大化（全屏）
+    if (!this.previewModal.classList.contains('fullscreen')) {
+      this.previewModal.classList.add('fullscreen')
+      if (this.fullscreenToggleBtn) {
+        const icon = this.fullscreenToggleBtn.querySelector('i')
+        icon.classList.remove('fa-expand')
+        icon.classList.add('fa-compress')
+        this.fullscreenToggleBtn.title = '还原窗口'
+      }
+    }
+    // 绑定全屏按钮事件（只绑定一次）
+    if (this.fullscreenToggleBtn && !this.fullscreenToggleBtn._bound) {
+      this.fullscreenToggleBtn.addEventListener('click', () => this.togglePreviewFullscreen())
+      this.fullscreenToggleBtn._bound = true
+    }
     // 默认显示代码标签页
     this.switchToCodeTab()
     // 重新绑定标签页切换事件
@@ -736,43 +767,53 @@ class CodeGenerator {
     if (!this.validateFormData(formData)) {
       return
     }
-
-    // 立即关闭代码生成弹窗
     this.closeModal()
-
-    // 初始化代码显示区域
-    this.generatedCode.innerHTML = '<div class="streaming-content"></div>'
+    this.generatedCode.innerHTML = ''
     this.openPreviewModal()
+    this.isStreamingPaused = false
+    this.pausedContent = ''
+    this.currentFormData = formData
+    // 显示流式生成提示
+    const floatingBar = document.getElementById('streaming-floating-bar')
+    if (floatingBar) floatingBar.style.display = 'flex'
+    const streamingIndicator = document.getElementById('streaming-indicator')
+    if (streamingIndicator) streamingIndicator.style.display = ''
+    // 初始化流式代码区
+    this.streamingPre = document.createElement('pre')
+    this.streamingPre.className = 'streaming-plain-code'
+    this.generatedCode.appendChild(this.streamingPre)
+    await this.startStreaming(formData)
+  }
 
+  async startStreaming(formData) {
+    this.streamingController = new AbortController()
+    const floatingBar = document.getElementById('streaming-floating-bar')
+    const streamingIndicator = document.getElementById('streaming-indicator')
     try {
       const response = await fetch('/api/codegen/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
+        signal: this.streamingController.signal
       })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
-      let fullContent = ''
-
+      let fullContent = formData.previousContent || ''
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
-
         buffer += decoder.decode(value, { stream: true })
         const lines = buffer.split('\n')
-        buffer = lines.pop() // 保留不完整的行
-
+        buffer = lines.pop()
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             const data = line.slice(6)
             if (data === '[DONE]') {
-              this.finalizeCodeGeneration(fullContent, formData)
+              this.finalizeCodeGeneration(fullContent, this.currentFormData)
+              if (floatingBar) floatingBar.style.display = 'none'
+              if (streamingIndicator) streamingIndicator.style.display = 'none'
               return
             }
             try {
@@ -781,21 +822,26 @@ class CodeGenerator {
                 fullContent += parsed.content
                 this.updateStreamingContent(fullContent)
               }
-            } catch (e) {
-              // 忽略解析错误
-            }
+            } catch (e) { }
           }
         }
       }
+      this.pausedContent = fullContent
     } catch (error) {
       this.showError('生成代码失败: ' + error.message)
+    } finally {
+      if (floatingBar) floatingBar.style.display = 'none'
+      if (streamingIndicator) streamingIndicator.style.display = 'none'
+      this.streamingController = null
+      this.streamingReader = null
     }
   }
 
   updateStreamingContent(content) {
-    // 只更新代码区，不做预览
-    this.generatedCode.innerHTML = this.formatCodeContent(content)
-    // 不调用 tryPreview 或 updateIframeContent
+    // 只用textContent渲染，彻底避免样式污染
+    if (this.streamingPre) {
+      this.streamingPre.textContent = content
+    }
   }
 
   bindCodeBlockEvents(container) {
@@ -971,39 +1017,21 @@ class CodeGenerator {
   }
 
   finalizeCodeGeneration(content, formData) {
-    // 保存当前表单数据
     this.currentFormData = formData
-    // 保存原始代码内容用于预览
     this.originalCodeContent = content
-    // 获取依赖列表
     this.currentDependencies = this.getDependencies(formData.techStack, formData.uiLibrary, formData.customLibrary)
-    // 设置代码内容
+    // 生成完成后再高亮渲染
     this.generatedCode.innerHTML = this.formatCodeContent(content)
-    // 只在此处做预览
+    this.streamingPre = null
     this.tryPreview(content, formData)
-    // 移除流式传输指示器
-    const indicator = this.generatedCode.querySelector('.streaming-indicator')
-    if (indicator) {
-      indicator.remove()
-    }
-    // 绑定代码块按钮事件
+    // 重新绑定代码块按钮事件
     this.bindCodeBlockEvents(this.generatedCode)
-    // 更新计数 - 修复计数逻辑
+    // 更新代码块数量和依赖项
     this.updateCounts()
-    // 渲染依赖列表
     this.renderDependencies()
-    // 确保预览模态框打开并激活代码标签页
-    if (!this.previewModal.classList.contains('active')) {
-      this.previewModal.classList.add('active')
-    }
-    this.switchToCodeTab()
-    // 更新状态
-    this.updateStatus('代码生成完成', 'ready')
-    console.log('代码生成完成，原始内容长度:', content.length)
-    console.log('表单数据:', formData)
-
-    // 将代码写入本地目录
-    this.writeCodeToLocalDirectory(content, formData)
+    // 隐藏悬浮条
+    const floatingBar = document.getElementById('streaming-floating-bar')
+    if (floatingBar) floatingBar.style.display = 'none'
   }
 
   // 将代码写入本地目录
@@ -2180,7 +2208,8 @@ class CodeGenerator {
   }
 
   async insertCodeToLocal(dir, fileName, code) {
-    const filePath = dir.endsWith('/') ? dir + fileName : dir + '/' + fileName
+    // 修复：根目录时不要多加斜杠
+    const filePath = (!dir || dir === '') ? fileName : (dir.endsWith('/') ? dir + fileName : dir + '/' + fileName)
     try {
       const res = await fetch('/api/file/write', {
         method: 'POST',
@@ -2196,6 +2225,22 @@ class CodeGenerator {
       }
     } catch (e) {
       this.showToast('插入失败', 'error')
+    }
+  }
+
+  togglePreviewFullscreen() {
+    const modal = this.previewModal
+    const icon = this.fullscreenToggleBtn.querySelector('i')
+    if (!modal.classList.contains('fullscreen')) {
+      modal.classList.add('fullscreen')
+      icon.classList.remove('fa-expand')
+      icon.classList.add('fa-compress')
+      this.fullscreenToggleBtn.title = '还原窗口'
+    } else {
+      modal.classList.remove('fullscreen')
+      icon.classList.remove('fa-compress')
+      icon.classList.add('fa-expand')
+      this.fullscreenToggleBtn.title = '全屏预览'
     }
   }
 }

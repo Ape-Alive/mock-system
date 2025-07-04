@@ -9,10 +9,21 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" />
     <script src="https://cdn.bootcdn.net/ajax/libs/Mock.js/1.0.0/mock-min.js"></script>
-    <!-- jsTree CSS -->
+    <!-- jQuery 必须最先引入，并全局暴露 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script>window.$ = window.jQuery = $;</script>
+    <!-- jsTree 依赖 jQuery，紧随其后引入 -->
+    <script src="https://cdn.jsdelivr.net/npm/jstree@3.3.15/dist/jstree.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jstree@3.3.15/dist/themes/default/style.min.css" />
+    <!-- 其他依赖 -->
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="preview-styles.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" />
+    <script src="https://cdn.bootcdn.net/ajax/libs/Mock.js/1.0.0/mock-min.js"></script>
     <!-- Prism.js 主题，只需引入一次 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" />
+
   </head>
   <body>
     <header>
@@ -517,9 +528,16 @@
       <div class="modal-content extra-large">
         <div class="modal-header">
           <h3>生成的代码</h3>
-          <button class="btn-icon close">&times;</button>
+          <button class="btn-icon fullscreen-toggle" title="全屏预览">
+            <i class="fas fa-expand"></i>
+          </button>
+          <button class="btn-icon close" style="color: #333;font-size: 30px;">&times;</button>
         </div>
-        <div class="modal-body">
+        <div class="modal-body" style="position:relative;">
+          <!-- 悬浮流式生成提示 -->
+          <div id="streaming-floating-bar" style="display:none;">
+            <span id="streaming-indicator"><i class="fas fa-spinner fa-spin"></i> 正在流式生成...</span>
+          </div>
           <!-- 预览头部操作栏 -->
           <div class="preview-header-bar">
             <div class="left-actions">
@@ -754,21 +772,11 @@
       </div>
     </div>
 
+    <!-- 业务脚本最后引入 -->
     <script src="fileManager.js"></script>
     <script src="script.js"></script>
-    <!-- 依赖 jQuery -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-    <!-- jsTree JS -->
-    <script src="https://cdn.jsdelivr.net/npm/jstree@3.3.15/dist/jstree.min.js"></script>
-    <!-- Prism.js for code highlighting，顺序很重要，只引入一次 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-css.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-typescript.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-jsx.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
     <script src="codegen.js"></script>
+    <!-- 最后引入 Monaco Editor loader.js，只能有一处 -->
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
   </body>
 </html>

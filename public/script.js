@@ -933,9 +933,8 @@ document.addEventListener('DOMContentLoaded', () => {
     testMethod.className = `test-method method ${results.request.method.toLowerCase()}`
     testUrl.textContent = results.request.url
     testStatus.textContent = `状态码: ${results.status} ${results.statusText} | 耗时: ${results.responseTime}ms`
-    testStatus.className = `test-status ${
-      results.status >= 200 && results.status < 300 ? 'status-success' : 'status-error'
-    }`
+    testStatus.className = `test-status ${results.status >= 200 && results.status < 300 ? 'status-success' : 'status-error'
+      }`
 
     // 设置响应内容
     responseBody.textContent =
@@ -1340,11 +1339,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isMockTemplate && window.Mock) {
           try {
             val = Mock.mock(val)
-          } catch {}
+          } catch { }
         }
         const descObj = genDescObj(val)
         descInput.value = JSON.stringify(descObj, null, 2)
-      } catch {}
+      } catch { }
     })
   }
   autoGenDesc('queryParams', 'queryParamsDesc', true)

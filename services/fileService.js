@@ -58,15 +58,44 @@ class FileService {
         }
     }
 
+    // 路径归一化与安全校验
+    normalizeFilePath(filePath) {
+        if (!this.localDirectory) throw new Error('本地目录未设置')
+        // 绝对路径转相对
+        if (path.isAbsolute(filePath)) {
+            if (filePath.startsWith(this.localDirectory)) {
+                return path.relative(this.localDirectory, filePath)
+            } else {
+                throw new Error('禁止跨目录操作')
+            }
+        }
+        // 防止 ../ 越权
+        const resolved = path.resolve(this.localDirectory, filePath)
+        if (!resolved.startsWith(this.localDirectory)) {
+            throw new Error('禁止越权操作')
+        }
+        return filePath
+    }
+
     // 获取目录树结构
     async getDirectoryTree(directoryPath = null) {
-        const targetPath = directoryPath || this.localDirectory
+        // 每次都从数据库查，保证拿到最新的
+        const record = await dbService.getLocalDirectory()
+        const targetPath = directoryPath || (record && record.directory) || this.localDirectory
         if (!targetPath) {
             throw new Error('本地目录未设置')
         }
 
         try {
-            return await this.scanDirectory(targetPath)
+            // 获取根目录名
+            const rootName = path.basename(targetPath)
+            const children = await this.scanDirectory(targetPath)
+            return [{
+                name: rootName,
+                path: record && record.directory ? record.directory : targetPath,
+                type: 'directory',
+                children: children
+            }]
         } catch (error) {
             throw new Error(`获取目录树失败: ${error.message}`)
         }
@@ -121,9 +150,8 @@ class FileService {
         if (!this.localDirectory) {
             throw new Error('本地目录未设置')
         }
-
-        const fullPath = path.join(this.localDirectory, filePath)
-
+        const safePath = this.normalizeFilePath(filePath)
+        const fullPath = path.join(this.localDirectory, safePath)
         try {
             const content = await fs.readFile(fullPath, 'utf8')
             return {
@@ -141,14 +169,12 @@ class FileService {
         if (!this.localDirectory) {
             throw new Error('本地目录未设置')
         }
-
-        const fullPath = path.join(this.localDirectory, filePath)
-
+        const safePath = this.normalizeFilePath(filePath)
+        const fullPath = path.join(this.localDirectory, safePath)
         try {
             // 确保目录存在
             const dir = path.dirname(fullPath)
             await fs.mkdir(dir, { recursive: true })
-
             await fs.writeFile(fullPath, content, 'utf8')
             return {
                 success: true,
@@ -161,7 +187,8 @@ class FileService {
 
     // 创建文件
     async createFile(filePath, content = '') {
-        return await this.writeFile(filePath, content)
+        const safePath = this.normalizeFilePath(filePath)
+        return await this.writeFile(safePath, content)
     }
 
     // 创建目录
@@ -169,9 +196,8 @@ class FileService {
         if (!this.localDirectory) {
             throw new Error('本地目录未设置')
         }
-
-        const fullPath = path.join(this.localDirectory, dirPath)
-
+        const safePath = this.normalizeFilePath(dirPath)
+        const fullPath = path.join(this.localDirectory, safePath)
         try {
             await fs.mkdir(fullPath, { recursive: true })
             return {
@@ -188,18 +214,15 @@ class FileService {
         if (!this.localDirectory) {
             throw new Error('本地目录未设置')
         }
-
-        const fullPath = path.join(this.localDirectory, itemPath)
-
+        const safePath = this.normalizeFilePath(itemPath)
+        const fullPath = path.join(this.localDirectory, safePath)
         try {
             const stats = await fs.stat(fullPath)
-
             if (stats.isDirectory()) {
                 await fs.rmdir(fullPath, { recursive: true })
             } else {
                 await fs.unlink(fullPath)
             }
-
             return {
                 success: true,
                 path: itemPath
@@ -214,14 +237,16 @@ class FileService {
         if (!this.localDirectory) {
             throw new Error('本地目录未设置')
         }
-
-        const oldFullPath = path.join(this.localDirectory, oldPath)
-        const newFullPath = path.join(this.localDirectory, path.dirname(oldPath), newName)
-
+        const safeOldPath = this.normalizeFilePath(oldPath)
+        const oldFullPath = path.join(this.localDirectory, safeOldPath)
+        const newFullPath = path.join(this.localDirectory, path.dirname(safeOldPath), newName)
+        // 新路径也要校验
+        if (!newFullPath.startsWith(this.localDirectory)) {
+            throw new Error('禁止越权重命名')
+        }
         try {
             await fs.rename(oldFullPath, newFullPath)
-            const newPath = path.join(path.dirname(oldPath), newName)
-
+            const newPath = path.join(path.dirname(safeOldPath), newName)
             return {
                 success: true,
                 oldPath: oldPath,
@@ -237,14 +262,12 @@ class FileService {
         if (!this.localDirectory) {
             throw new Error('本地目录未设置')
         }
-
-        const fullPath = path.join(this.localDirectory, uploadPath)
-
+        const safePath = this.normalizeFilePath(uploadPath)
+        const fullPath = path.join(this.localDirectory, safePath)
         try {
             // 确保目录存在
             const dir = path.dirname(fullPath)
             await fs.mkdir(dir, { recursive: true })
-
             await fs.writeFile(fullPath, fileBuffer)
             return {
                 success: true,

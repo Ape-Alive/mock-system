@@ -11,6 +11,7 @@ const openApiRoutes = require('./routes/openApiRoutes')
 const groupRoutes = require('./routes/groupRoutes')
 const codegenRoutes = require('./routes/codegenRoutes')
 const fileRoutes = require('./routes/fileRoutes')
+const aiAgentRoutes = require('./routes/aiAgentRoutes')
 
 const app = express()
 
@@ -28,6 +29,7 @@ app.use('/', openApiRoutes)
 app.use('/', groupRoutes)
 app.use('/', codegenRoutes)
 app.use('/', fileRoutes)
+app.use('/api/ai-agent', aiAgentRoutes)
 
 // 设置动态路由中间件
 routeMiddleware.setupDynamicRoutes(app)

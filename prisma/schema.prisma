@@ -21,3 +21,11 @@ model LocalDirectory {
 }
 
 // LocalDirectory表已删除
+
+model FileVectorIndex {
+  id        Int    @id @default(autoincrement())
+  filePath  String @unique
+  fileHash  String
+  vectorId  Int
+  mtime     BigInt
+}
