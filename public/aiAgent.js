@@ -4,6 +4,8 @@ class AIAgentManager {
     this.currentFile = null
     this.openTabs = new Map()
     this.fileTreeData = []
+    this.selectedNode = null
+    this.selectedNodePath = null
 
     this.init()
   }
@@ -11,7 +13,11 @@ class AIAgentManager {
   async init() {
     await this.initMonacoEditor()
     this.initFileTree()
-    this.bindEvents()
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => this.bindEvents())
+    } else {
+      this.bindEvents()
+    }
     this.loadWelcomeContent()
   }
 
@@ -61,9 +67,8 @@ class AIAgentManager {
     })
 
     // 侧边栏事件
-    document.getElementById('refresh-tree').addEventListener('click', () => this.loadFileTree())
-    document.getElementById('expand-all').addEventListener('click', () => this.expandAll())
-    document.getElementById('collapse-all').addEventListener('click', () => this.collapseAll())
+    const refreshBtn = document.getElementById('refresh-tree')
+    if (refreshBtn) refreshBtn.addEventListener('click', () => this.loadFileTree())
 
     // 编辑器事件
     document.getElementById('save-file').addEventListener('click', () => this.saveCurrentFile())
@@ -97,6 +102,11 @@ class AIAgentManager {
 
     // 全局右键菜单事件
     document.addEventListener('click', () => this.hideContextMenu())
+
+    const newFileBtn = document.getElementById('new-file-btn')
+    if (newFileBtn) newFileBtn.addEventListener('click', () => this.handleCreateFile())
+    const newFolderBtn = document.getElementById('new-folder-btn')
+    if (newFolderBtn) newFolderBtn.addEventListener('click', () => this.handleCreateFolder())
   }
 
   // 加载欢迎内容
@@ -281,6 +291,8 @@ class AIAgentManager {
     } else if (node.type === 'directory') {
       this.toggleDirectory(element, node)
     }
+
+    this.selectedNode = node
   }
 
   // 切换目录展开/折叠
@@ -347,8 +359,8 @@ class AIAgentManager {
 
     if (isFolder) {
       menuItems.push(
-        { label: '新建文件', icon: 'fas fa-file', action: () => this.createNewFile(node) },
-        { label: '新建文件夹', icon: 'fas fa-folder', action: () => this.createNewFolder(node) },
+        { label: '新建文件', icon: 'fas fa-file', action: () => this.handleCreateFile() },
+        { label: '新建文件夹', icon: 'fas fa-folder', action: () => this.handleCreateFolder() },
         { separator: true }
       )
     }
@@ -451,8 +463,12 @@ class AIAgentManager {
     document.querySelectorAll('.tab').forEach((tab) => {
       tab.classList.remove('active')
     })
-    document.querySelector(`[data-path="${filePath}"]`).classList.add('active')
-
+    const currentTab = document.querySelector(`[data-path="${filePath}"]`)
+    if (currentTab) {
+      currentTab.classList.add('active')
+      // 自动滚动到当前tab
+      currentTab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+    }
     // 更新编辑器内容
     const tabData = this.openTabs.get(filePath)
     if (tabData) {
@@ -476,6 +492,10 @@ class AIAgentManager {
           const nextTab = remainingTabs[0]
           const nextPath = nextTab.getAttribute('data-path')
           this.switchTab(nextPath)
+          // 自动滚动到新激活tab
+          if (nextTab) {
+            nextTab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+          }
         } else {
           this.currentFile = null
           this.loadWelcomeContent()
@@ -1070,97 +1090,178 @@ class AIAgentManager {
     this.switchPanel('history')
   }
 
-  // 创建新文件
-  createNewFile(parentNode) {
-    const fileName = prompt('请输入文件名:')
-    if (!fileName) return
-
-    const filePath = parentNode ? `${parentNode.path}/${fileName}` : fileName
-
-    fetch('/api/file/create', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        filePath: filePath,
-        content: '',
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) {
-          this.showSuccess('文件创建成功')
-          this.loadFileTree()
-        } else {
-          this.showError(data.error)
-        }
-      })
-      .catch((error) => {
-        this.showError('创建文件失败: ' + error.message)
-      })
+  // 新建文件/文件夹弹窗复用
+  showInputModal(title, placeholder, onConfirm) {
+    const modal = document.getElementById('modal-overlay')
+    const modalTitle = document.getElementById('modal-title')
+    const modalBody = document.getElementById('modal-body')
+    const modalFooter = document.querySelector('.modal-footer')
+    modalTitle.textContent = title
+    modalBody.innerHTML = `<input id="modal-input" type="text" placeholder="${placeholder}" style="width:100%;padding:8px;font-size:14px;">`
+    modal.style.display = 'flex'
+    // 绑定确认事件
+    const confirmBtn = document.getElementById('modal-confirm')
+    const cancelBtn = document.getElementById('modal-cancel')
+    const closeBtn = document.querySelector('.close-modal')
+    const cleanup = () => {
+      modal.style.display = 'none'
+      confirmBtn.onclick = null
+      cancelBtn.onclick = null
+      closeBtn.onclick = null
+    }
+    confirmBtn.onclick = () => {
+      const value = document.getElementById('modal-input').value.trim()
+      if (!value) {
+        this.showError('请输入名称')
+        return
+      }
+      onConfirm(value, cleanup)
+    }
+    cancelBtn.onclick = cleanup
+    closeBtn.onclick = cleanup
+    setTimeout(() => {
+      document.getElementById('modal-input').focus()
+    }, 100)
   }
 
-  // 创建新文件夹
-  createNewFolder(parentNode) {
-    const folderName = prompt('请输入文件夹名:')
-    if (!folderName) return
-
-    const folderPath = parentNode ? `${parentNode.path}/${folderName}` : folderName
-
-    fetch('/api/file/mkdir', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        dirPath: folderPath,
-      }),
+  // 新建文件时校验同名
+  createNewFile(parentNode) {
+    this.showInputModal('新建文件', '请输入文件名', (fileName, cleanup) => {
+      const inputName = fileName.trim().toLowerCase()
+      if (!inputName) {
+        this.showError('请输入有效名称')
+        return
+      }
+      let siblings = []
+      if (parentNode && parentNode.path) {
+        const parent = this.findNodeByPath(this.fileTreeData, parentNode.path)
+        siblings = parent && Array.isArray(parent.children) ? parent.children : []
+      } else {
+        siblings =
+          this.fileTreeData && this.fileTreeData.length > 0 && Array.isArray(this.fileTreeData[0].children)
+            ? this.fileTreeData[0].children
+            : []
+      }
+      console.log('同级children:', siblings, '新建名:', fileName)
+      if (siblings.some((item) => item.name.trim().toLowerCase() === inputName)) {
+        this.showError('同级目录下已存在同名文件或文件夹')
+        return
+      }
+      const filePath =
+        parentNode && parentNode.path ? `${parentNode.path.replace(/\/$/, '')}/${fileName.trim()}` : fileName.trim()
+      fetch('/api/file/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filePath, content: '' }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            this.selectedNodePath = filePath
+            this.showSuccess('文件创建成功')
+            this.loadFileTree()
+            cleanup()
+            setTimeout(() => this.highlightAndExpandTo(filePath), 500)
+          } else {
+            this.showError(data.error)
+          }
+        })
+        .catch((error) => {
+          this.showError('创建文件失败: ' + error.message)
+        })
     })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) {
-          this.showSuccess('文件夹创建成功')
-          this.loadFileTree()
-        } else {
-          this.showError(data.error)
-        }
+  }
+
+  // 新建文件夹时校验同名
+  createNewFolder(parentNode) {
+    this.showInputModal('新建文件夹', '请输入文件夹名', (folderName, cleanup) => {
+      const inputName = folderName.trim().toLowerCase()
+      if (!inputName) {
+        this.showError('请输入有效名称')
+        return
+      }
+      let siblings = []
+      if (parentNode && parentNode.path) {
+        const parent = this.findNodeByPath(this.fileTreeData, parentNode.path)
+        siblings = parent && Array.isArray(parent.children) ? parent.children : []
+      } else {
+        siblings =
+          this.fileTreeData && this.fileTreeData.length > 0 && Array.isArray(this.fileTreeData[0].children)
+            ? this.fileTreeData[0].children
+            : []
+      }
+      console.log('同级children:', siblings, '新建名:', folderName)
+      if (siblings.some((item) => item.name.trim().toLowerCase() === inputName)) {
+        this.showError('同级目录下已存在同名文件或文件夹')
+        return
+      }
+      const folderPath =
+        parentNode && parentNode.path ? `${parentNode.path.replace(/\/$/, '')}/${folderName.trim()}` : folderName.trim()
+      fetch('/api/file/mkdir', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dirPath: folderPath }),
       })
-      .catch((error) => {
-        this.showError('创建文件夹失败: ' + error.message)
-      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            this.selectedNodePath = folderPath
+            this.showSuccess('文件夹创建成功')
+            this.loadFileTree()
+            cleanup()
+            setTimeout(() => this.highlightAndExpandTo(folderPath), 500)
+          } else {
+            this.showError(data.error)
+          }
+        })
+        .catch((error) => {
+          this.showError('创建文件夹失败: ' + error.message)
+        })
+    })
   }
 
   // 重命名项目
   renameItem(node) {
-    const newName = prompt('请输入新名称:', node.name)
-    if (!newName || newName === node.name) return
-
-    const oldPath = node.path
-    const newPath = node.path.replace(node.name, newName)
-
-    fetch('/api/file/rename', {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        oldPath: oldPath,
-        newName: newName,
-      }),
+    this.showInputModal('重命名', '请输入新名称', (newName, cleanup) => {
+      if (!newName || newName === node.name) return
+      // 校验同级同名
+      let siblings = []
+      const parentPath = node.path.substring(0, node.path.lastIndexOf('/'))
+      if (parentPath) {
+        const parent = this.findNodeByPath(this.fileTreeData, parentPath)
+        siblings = parent && parent.children ? parent.children : []
+      } else {
+        siblings = this.fileTreeData
+      }
+      if (siblings.some((item) => item.name === newName)) {
+        this.showError('同级目录下已存在同名文件或文件夹')
+        return
+      }
+      const oldPath = node.path
+      fetch('/api/file/rename', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          oldPath: oldPath,
+          newName: newName,
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            this.showSuccess('重命名成功')
+            this.loadFileTree()
+            cleanup()
+          } else {
+            this.showError(data.error)
+          }
+        })
+        .catch((error) => {
+          this.showError('重命名失败: ' + error.message)
+        })
     })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) {
-          this.showSuccess('重命名成功')
-          this.loadFileTree()
-        } else {
-          this.showError(data.error)
-        }
-      })
-      .catch((error) => {
-        this.showError('重命名失败: ' + error.message)
-      })
   }
 
   // 删除项目
@@ -1204,20 +1305,18 @@ class AIAgentManager {
 
   // 显示模态框
   showModal(title, content, onConfirm) {
-    const modal = document.getElementById('modal')
+    const modal = document.getElementById('modal-overlay')
     const modalTitle = document.getElementById('modal-title')
     const modalBody = document.getElementById('modal-body')
-
     modalTitle.textContent = title
     modalBody.innerHTML = content
-    modal.style.display = 'block'
-
+    modal.style.display = 'flex'
     this.modalCallback = onConfirm
   }
 
   // 关闭模态框
   closeModal() {
-    document.getElementById('modal').style.display = 'none'
+    document.getElementById('modal-overlay').style.display = 'none'
     this.modalCallback = null
   }
 
@@ -1262,7 +1361,75 @@ class AIAgentManager {
       if (toast.parentNode) {
         toast.parentNode.removeChild(toast)
       }
-    }, 3000)
+    }, 1000)
+  }
+
+  handleCreateFile() {
+    let parent = null
+    if (this.selectedNode) {
+      if (this.selectedNode.type === 'directory') {
+        parent = this.selectedNode
+      } else if (this.selectedNode.type === 'file') {
+        const parentPath = this.selectedNode.path.substring(0, this.selectedNode.path.lastIndexOf('/'))
+        parent = { ...this.selectedNode, path: parentPath, type: 'directory' }
+      }
+    }
+    this.createNewFile(parent)
+  }
+
+  handleCreateFolder() {
+    let parent = null
+    if (this.selectedNode) {
+      if (this.selectedNode.type === 'directory') {
+        parent = this.selectedNode
+      } else if (this.selectedNode.type === 'file') {
+        const parentPath = this.selectedNode.path.substring(0, this.selectedNode.path.lastIndexOf('/'))
+        parent = { ...this.selectedNode, path: parentPath, type: 'directory' }
+      }
+    }
+    this.createNewFolder(parent)
+  }
+
+  // 递归查找节点
+  findNodeByPath(tree, path) {
+    for (const node of tree) {
+      if (node.path === path) return node
+      if (node.type === 'directory' && node.children) {
+        const found = this.findNodeByPath(node.children, path)
+        if (found) return found
+      }
+    }
+    return null
+  }
+
+  // 新建/重命名后高亮并展开到指定路径
+  highlightAndExpandTo(path) {
+    // 展开所有父目录并高亮目标节点
+    const segments = path.split('/')
+    let currentPath = ''
+    for (let i = 0; i < segments.length; i++) {
+      currentPath = i === 0 ? segments[0] : currentPath + '/' + segments[i]
+      const node = document.querySelector(`.file-tree-node[data-path="${currentPath}"]`)
+      if (node) {
+        // 展开父目录
+        if (node.classList.contains('directory')) {
+          const childrenContainer = node.nextElementSibling
+          const expandIcon = node.querySelector('.expand-icon')
+          if (childrenContainer && childrenContainer.classList.contains('node-children')) {
+            childrenContainer.style.display = 'block'
+            if (expandIcon) {
+              expandIcon.classList.remove('fa-chevron-right')
+              expandIcon.classList.add('fa-chevron-down')
+            }
+          }
+        }
+        // 最后一个节点高亮
+        if (i === segments.length - 1) {
+          document.querySelectorAll('.file-tree-node').forEach((el) => el.classList.remove('selected'))
+          node.classList.add('selected')
+        }
+      }
+    }
   }
 }
 

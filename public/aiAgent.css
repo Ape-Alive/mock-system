@@ -179,8 +179,9 @@ body {
 /* 主内容区域 */
 .main-content {
   display: flex;
-  flex: 1;
-  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  min-width: 0; /* 关键：防止被子项撑开 */
 }
 
 /* 侧边栏 */
@@ -424,9 +425,10 @@ body {
 
 /* 编辑器容器 */
 .editor-container {
-  flex: 1;
   display: flex;
   flex-direction: column;
+  flex: 1 1 0%;
+  min-width: 0; /* 关键：防止被tab撑开 */
   background: #1e1e1e;
 }
 
@@ -1057,4 +1059,70 @@ body {
 .highlight-modify {
   background: rgba(255, 193, 7, 0.2);
   border-left: 3px solid #ffc107;
+}
+.toast {
+  position: fixed;
+  right: 24px;
+  top: 60px;
+  min-width: 160px;
+  max-width: 320px;
+  padding: 12px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  z-index: 9999;
+  background: #333;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  opacity: 0.95;
+  margin-top: 8px;
+  pointer-events: none;
+  transition: all 0.3s;
+}
+.toast.error {
+  background: #dc3545;
+  color: #fff;
+}
+.toast.success {
+  background: #28a745;
+  color: #fff;
+}
+.editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: #2d2d30;
+  border-bottom: 1px solid #3e3e42;
+  min-height: 40px;
+}
+
+.editor-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  overflow-x: auto;
+  white-space: nowrap;
+  max-width: 100%;
+  flex: 1 1 0%;
+  min-width: 0; /* 关键：防止撑开父容器 */
+  scrollbar-width: none;
+}
+.editor-tabs::-webkit-scrollbar {
+  height: 0px;
+  background: transparent;
+}
+.editor-tabs::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 3px;
+  opacity: 0; /* 默认隐藏 */
+  transition: opacity 0.2s;
+}
+.editor-tabs:hover {
+  scrollbar-width: 0 px; /* Firefox 悬停时显示细滚动条 */
+}
+.editor-tabs:hover::-webkit-scrollbar-thumb {
+  opacity: 0; /* 悬停时显示 */
+}
+.tab {
+  flex-shrink: 0;
 }
