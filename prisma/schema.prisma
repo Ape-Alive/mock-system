@@ -29,3 +29,13 @@ model FileVectorIndex {
   vectorId  Int
   mtime     BigInt
 }
+
+model FileHistory {
+  id        Int      @id @default(autoincrement())
+  filePath  String
+  content   String
+  action    String   // 'create' | 'edit' | 'delete' | 'rename' | 'rollback'
+  operator  String?  // 可选，记录操作人
+  newPath   String?  // 重命名时的新路径
+  createdAt DateTime @default(now())
+}
