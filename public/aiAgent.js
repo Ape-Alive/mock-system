@@ -8,6 +8,7 @@ class AIAgentManager {
     this.selectedNodePath = null
 
     this.init()
+    this.initSearchDropdown()
   }
 
   async init() {
@@ -626,7 +627,7 @@ class AIAgentManager {
     }
 
     try {
-      const response = await fetch('/api/ai/search', {
+      const response = await fetch('/api/ai-agent/search', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -634,7 +635,7 @@ class AIAgentManager {
         body: JSON.stringify({
           query,
           type: 'code',
-          top_k: 10,
+          top_k: 2,
         }),
       })
 
@@ -739,7 +740,7 @@ class AIAgentManager {
     }
 
     try {
-      const response = await fetch('/api/ai/batch-complete', {
+      const response = await fetch('/api/ai-agent/batch-complete', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -782,7 +783,7 @@ class AIAgentManager {
     this.addChatMessage('ai', '正在思考...')
 
     try {
-      const response = await fetch('/api/ai/chat', {
+      const response = await fetch('/api/ai-agent/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1428,6 +1429,127 @@ class AIAgentManager {
           document.querySelectorAll('.file-tree-node').forEach((el) => el.classList.remove('selected'))
           node.classList.add('selected')
         }
+      }
+    }
+  }
+
+  initSearchDropdown() {
+    const searchInput = document.getElementById('code-search')
+    const searchBtn = document.getElementById('search-btn')
+    let searchDropdown = null
+    let searchResults = []
+    let searchActiveIndex = -1
+
+    searchInput.addEventListener('input', onSearchInput)
+    searchBtn.addEventListener('click', doSemanticSearch)
+    searchInput.addEventListener('keydown', onSearchKeyDown)
+
+    function onSearchInput(e) {
+      const value = e.target.value.trim()
+      if (value.length === 0) {
+        removeSearchDropdown()
+        return
+      }
+      doSemanticSearch()
+    }
+
+    function doSemanticSearch() {
+      const query = searchInput.value.trim()
+      if (!query) return
+      fetch('/api/ai-agent/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, type: 'code', top_k: 10 }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.results && data.results.length > 0) {
+            searchResults = data.results
+            showSearchDropdown(data.results)
+          } else {
+            removeSearchDropdown()
+          }
+        })
+    }
+
+    function showSearchDropdown(results) {
+      removeSearchDropdown()
+      searchDropdown = document.createElement('div')
+      searchDropdown.className = 'search-dropdown'
+      results.forEach((item, idx) => {
+        const div = document.createElement('div')
+        div.className = 'search-dropdown-item'
+        // 文件类型高亮
+        const typeDiv = document.createElement('span')
+        typeDiv.className = 'search-dropdown-filetype'
+        typeDiv.textContent = item.meta.fileType || ''
+        // 主体内容
+        const mainDiv = document.createElement('div')
+        mainDiv.className = 'search-dropdown-main'
+        // 路径
+        const pathDiv = document.createElement('div')
+        pathDiv.className = 'search-dropdown-path'
+        pathDiv.textContent = item.meta.filePath
+        // 摘要
+        const summaryDiv = document.createElement('div')
+        summaryDiv.className = 'search-dropdown-summary'
+        summaryDiv.textContent = item.meta.summary || ''
+        mainDiv.appendChild(pathDiv)
+        mainDiv.appendChild(summaryDiv)
+        div.appendChild(typeDiv)
+        div.appendChild(mainDiv)
+        div.title = item.meta.filePath
+        div.addEventListener('click', () => {
+          openSearchResult(idx)
+          removeSearchDropdown()
+        })
+        searchDropdown.appendChild(div)
+      })
+      searchInput.parentNode.appendChild(searchDropdown)
+      searchActiveIndex = -1
+    }
+
+    function removeSearchDropdown() {
+      if (searchDropdown) {
+        searchDropdown.remove()
+        searchDropdown = null
+      }
+    }
+
+    function openSearchResult(idx) {
+      const item = searchResults[idx]
+      if (item && item.meta) {
+        const filePath = item.meta.filePath
+        const fileName = filePath.split('/').pop()
+        const content = item.meta.content || ''
+        window.aiAgent.openTab(filePath, fileName, content)
+      }
+    }
+
+    function onSearchKeyDown(e) {
+      if (!searchDropdown) return
+      const items = searchDropdown.querySelectorAll('.search-dropdown-item')
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        searchActiveIndex = (searchActiveIndex + 1) % items.length
+        updateActiveDropdownItem(items)
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        searchActiveIndex = (searchActiveIndex - 1 + items.length) % items.length
+        updateActiveDropdownItem(items)
+      } else if (e.key === 'Enter') {
+        if (searchActiveIndex >= 0 && searchActiveIndex < items.length) {
+          openSearchResult(searchActiveIndex)
+          removeSearchDropdown()
+        }
+      }
+    }
+    function updateActiveDropdownItem(items) {
+      items.forEach((item, idx) => {
+        item.classList.toggle('active', idx === searchActiveIndex)
+      })
+      if (searchActiveIndex >= 0 && searchActiveIndex < items.length) {
+        items[searchActiveIndex].scrollIntoView({ block: 'nearest' })
       }
     }
   }

@@ -13,7 +13,32 @@ router.post('/search', async (req, res) => {
     } else {
       vector = await aiAgent.vectorizeText(query)
     }
-    const results = await aiAgent.faissSearch(vector, top_k)
+    let results = await aiAgent.faissSearch(vector, top_k)
+    // 自动补全content字段，便于前端预览
+    for (const item of results) {
+      if (item.meta && item.meta.filePath) {
+        // 自动补全content字段
+        if (!item.meta.content) {
+          try {
+            const fileService = require('../services/fileService')
+            const file = await fileService.readFile(item.meta.filePath)
+            item.meta.content = file.content
+          } catch (e) {
+            item.meta.content = '// 读取文件失败: ' + e.message
+          }
+        }
+        // 代码摘要（前20行或200字）
+        if (item.meta.content) {
+          const lines = item.meta.content.split('\n').slice(0, 20).join('\n')
+          item.meta.summary = lines.length > 200 ? lines.slice(0, 200) + '...' : lines
+        } else {
+          item.meta.summary = ''
+        }
+        // 文件类型高亮（后缀）
+        const ext = item.meta.filePath.split('.').pop().toLowerCase()
+        item.meta.fileType = ext
+      }
+    }
     res.json({ results })
   } catch (e) {
     res.status(500).json({ error: e.message })

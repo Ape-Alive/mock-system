@@ -48,6 +48,9 @@ class UpdateReq(BaseModel):
     meta: dict = None
 
 # ----------- API 实现 -----------
+@app.get("/faiss/meta")
+def faiss_meta():
+    return {"meta_data": meta_data}
 
 @app.post("/vectorize/text")
 def vectorize_text(req: TextReq):
@@ -62,9 +65,18 @@ def vectorize_code(req: CodeReq):
     vec = output.last_hidden_state.mean(dim=1).squeeze().numpy()
     return {"vector": vec.tolist()}
 
+@app.post("/faiss/clear")
+def faiss_clear():
+    global faiss_index, meta_data, next_id
+    faiss_index = faiss.IndexIDMap2(faiss.IndexFlatL2(dim))
+    meta_data = {}
+    next_id = [1]
+    return {"success": True}
+    
 @app.post("/faiss/add")
 def faiss_add(req: AddReq):
     with lock:
+        print(f"add: id={req.id}, meta={req.meta}")
         id_ = req.id if req.id is not None else next_id[0]
         if req.id is None:
             next_id[0] += 1
@@ -77,6 +89,7 @@ def faiss_add(req: AddReq):
 def faiss_search(req: SearchReq):
     vec = np.array([req.vector], dtype=np.float32)
     D, I = faiss_index.search(vec, req.top_k)
+    print('search D:', D, 'I:', I)
     results = []
     for idx in I[0]:
         if idx in meta_data:

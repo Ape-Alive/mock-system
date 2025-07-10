@@ -1,9 +1,12 @@
 const axios = require('axios')
-const fs = require('fs').promises
+const fs = require('fs')
 const path = require('path')
 const { diff_match_patch } = require('diff-match-patch')
+const { getLocalDirectory } = require('./dbService')
 
 const VECTOR_SERVER = 'http://localhost:8300'
+// 获取 DeepSeek API Key，优先用环境变量
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk-'
 
 // 文本向量化
 async function vectorizeText(text) {
@@ -14,12 +17,19 @@ async function vectorizeText(text) {
 // 代码向量化
 async function vectorizeCode(code) {
   const res = await axios.post(`${VECTOR_SERVER}/vectorize/code`, { code })
+  console.log('vectorizeCode', code, res.data.vector.slice(0, 10))
   return res.data.vector
 }
 
 // Faiss 新增向量
-async function faissAdd(vector, meta, id = null) {
-  const res = await axios.post(`${VECTOR_SERVER}/faiss/add`, { vector, meta, id })
+async function faissAdd(vector, meta, id) {
+  const body = { vector, meta }
+  console.log('faissadd', vector, meta, id)
+
+  if (id !== undefined && id !== null) {
+    body.id = id
+  }
+  const res = await axios.post(`${VECTOR_SERVER}/faiss/add`, body)
   return res.data.id
 }
 
@@ -105,37 +115,166 @@ function applyDiff(oldText, patch) {
   return newText
 }
 
-// AI多轮对话
-async function chatWithAI(messages) {
-  try {
-    const lastMessage = messages[messages.length - 1]
-    let reply = ''
+// 忽略列表
+const ignoreList = [
+  'node_modules',
+  'dist',
+  'build',
+  'coverage',
+  '.vite',
+  '.next',
+  '.turbo',
+  'android',
+  'ios',
+  'macos',
+  'Pods',
+  'bin',
+  'pkg',
+  'target',
+  'CMakeFiles',
+  'Makefile',
+  '.git',
+  '.DS_Store',
+  '.idea',
+  '.vscode',
+  '.env',
+  '.gradle',
+  '*.apk',
+  '*.jar',
+  '*.war',
+  '*.class',
+  '*.o',
+  '*.obj',
+  '*.exe',
+  '*.out',
+  '*.xcodeproj',
+  '*.xcworkspace',
+  'go.mod',
+  'go.sum',
+]
 
-    if (lastMessage.content.includes('搜索') || lastMessage.content.includes('查找')) {
-      // 调用语义搜索
-      const searchResults = await semanticSearch(lastMessage.content)
-      reply = `找到以下相关代码：\n${searchResults.map((r) => `- ${r.meta.filePath}`).join('\n')}`
-    } else if (lastMessage.content.includes('补全') || lastMessage.content.includes('完成')) {
-      // 调用代码补全
-      reply = await codeCompletion(lastMessage.content, messages)
-    } else if (lastMessage.content.includes('重构') || lastMessage.content.includes('优化')) {
-      // 调用代码重构
-      reply = await codeRefactor(lastMessage.content, messages)
-    } else {
-      // 通用回复
-      reply = `我理解您的需求："${lastMessage.content}"。我可以帮您：
-1. 搜索相关代码片段
-2. 提供代码补全建议
-3. 重构和优化代码
-4. 解释代码逻辑
-
-请告诉我您具体需要什么帮助？`
+// 递归获取文件树，排除 ignore
+function getProjectFileTree(rootDir, ignoreList) {
+  function walk(dir) {
+    let results = []
+    const list = fs.readdirSync(dir)
+    for (const file of list) {
+      if (file.startsWith('.')) continue // 隐藏文件夹
+      const filePath = path.join(dir, file)
+      const relPath = path.relative(rootDir, filePath)
+      if (ignoreList.some((ig) => relPath.startsWith(ig) || file === ig || filePath.endsWith(ig))) continue
+      const stat = fs.statSync(filePath)
+      if (stat.isDirectory()) {
+        results.push({
+          type: 'directory',
+          name: file,
+          path: filePath, // 绝对路径
+          children: walk(filePath),
+        })
+      } else {
+        results.push({
+          type: 'file',
+          name: file,
+          path: filePath, // 绝对路径
+        })
+      }
     }
-
-    return { success: true, reply }
-  } catch (error) {
-    return { success: false, error: error.message }
+    return results
   }
+  // 第一层就是 rootDir
+  return [
+    {
+      type: 'directory',
+      name: path.basename(rootDir),
+      path: rootDir,
+      children: walk(rootDir),
+    },
+  ]
+}
+
+// DeepSeek LLM 意图解析
+async function parseIntentWithDeepSeek(userInput, fileTree) {
+  const systemPrompt = `You are a multilingual intent parser. Analyze user input in ANY language and output strictly in JSON format with no additional text. Intent names MUST be in English.
+
+### Output Format
+{
+  "intent": "english_intent_name",
+  "parameters": { /* key-value pairs */ }
+}
+
+### Intent-Parameter Mapping (English Only)
+| Intent                  | Parameters                                       | Path Handling               |
+|-------------------------|--------------------------------------------------|----------------------------|
+| project_creation        | directory (str , absolute path), tech_stack, project_type        | N/A                        |
+| feature_modification    | feature, modify_path (array)                     | ✅ Path as array           |
+| feature_addition        | feature, add_path (array)                        | ✅ Path as array           |
+| bug_fixing              | error_message, fix_path (array)                  | ✅ Path as array           |
+| code_refactoring        | scope, refactor_path (array)                     | ✅ Path as array           |
+| test_addition           | test_target, test_path (array)                   | ✅ Path as array           |
+| code_review             | review_path (array)                              | ✅ Path as array           |
+| dependency_management   | operation, package, version, dep_path (array)    | ✅ Path as array           |
+| configuration_change    | config_file, setting, value, config_path (array) | ✅ Path as array           |
+| database_operation      | operation, object, db_path (array)               | ✅ Path as array           |
+| api_development         | method, endpoint, api_path (array)               | ✅ Path as array           |
+| deployment_configuration| environment, deploy_path (array)                 | ✅ Path as array           |
+| documentation_generation| target, doc_path (array)                         | ✅ Path as array           |
+| code_explanation        | code_snippet, code_path (array)                  | ✅ Path as array           |
+| code_conversion         | source_lang, target_lang, convert_path (array)   | ✅ Path as array           |
+| performance_optimization| target, optimize_path (array)                    | ✅ Path as array           |
+| security_hardening      | vulnerability, secure_path (array)               | ✅ Path as array           |
+| internationalization    | language, i18n_path (array)                      | ✅ Path as array           |
+| debugging_assistance    | error_log, debug_path (array)                    | ✅ Path as array           |
+
+### Core Rules
+1. **English Intent Names**: Always use specified English names
+2. **Path/Directory Parameters**: Always return absolute paths as shown in the file tree above (never relative or partial)
+3. **Path Parameters**: Return as arrays (even for single paths)
+4. **Parameter Extraction**: Preserve original input values
+5. **Missing Values**:
+   - Path parameters → Empty array []
+   - Non-path parameters → Empty string ""
+6. **Unknown Intent**: {"intent":"unknown","parameters":{}}
+7. **Output Format**: Single-line compact JSON only (no comments/formatting)
+
+### Project File Tree (for context)
+${JSON.stringify(fileTree)}
+
+### User Input
+`
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: userInput },
+  ]
+  const res = await axios.post(
+    'https://api.deepseek.com/v1/chat/completions',
+    {
+      model: 'deepseek-chat',
+      messages,
+      response_format: { type: 'json_object' },
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  )
+  // 返回 JSON 字符串，需 parse
+  return JSON.parse(res.data.choices[0].message.content)
+}
+
+// chatWithAI 集成意图解析
+async function chatWithAI(messages) {
+  const lastMessage = messages[messages.length - 1]
+  const localDirResult = await getLocalDirectory()
+  // 兼容返回对象或字符串
+  const rootDir =
+    typeof localDirResult === 'string' ? localDirResult : localDirResult.directory || localDirResult.path || ''
+  if (!rootDir) throw new Error('未获取到有效的本地目录')
+  const fileTree = getProjectFileTree(rootDir, ignoreList)
+  const intentResult = await parseIntentWithDeepSeek(lastMessage.content, fileTree)
+  // 这里只返回意图解析结果，后续可根据 intentResult.intent 做自动化处理
+  return { success: true, reply: intentResult, fileTree }
 }
 
 // 语义搜索
