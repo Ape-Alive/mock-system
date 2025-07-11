@@ -228,13 +228,14 @@ async function parseIntentWithDeepSeek(userInput, fileTree) {
 ### Core Rules
 1. **English Intent Names**: Always use specified English names
 2. **Path/Directory Parameters**: Always return absolute paths as shown in the file tree above (never relative or partial)
-3. **Path Parameters**: Return as arrays (even for single paths)
-4. **Parameter Extraction**: Preserve original input values
-5. **Missing Values**:
+3. **project_creation intent**: The 'directory' parameter MUST be a valid absolute path from the file tree (never empty or missing)
+4. **Path Parameters**: Return as arrays (even for single paths)
+5. **Parameter Extraction**: Preserve original input values
+6. **Missing Values**:
    - Path parameters → Empty array []
    - Non-path parameters → Empty string ""
-6. **Unknown Intent**: {"intent":"unknown","parameters":{}}
-7. **Output Format**: Single-line compact JSON only (no comments/formatting)
+7. **Unknown Intent**: {"intent":"unknown","parameters":{}}
+8. **Output Format**: Single-line compact JSON only (no comments/formatting)
 
 ### Project File Tree (for context)
 ${JSON.stringify(fileTree)}
@@ -273,6 +274,7 @@ async function chatWithAI(messages) {
   if (!rootDir) throw new Error('未获取到有效的本地目录')
   const fileTree = getProjectFileTree(rootDir, ignoreList)
   const intentResult = await parseIntentWithDeepSeek(lastMessage.content, fileTree)
+  
   // 这里只返回意图解析结果，后续可根据 intentResult.intent 做自动化处理
   return { success: true, reply: intentResult, fileTree }
 }
