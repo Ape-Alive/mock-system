@@ -3,6 +3,8 @@ const fs = require('fs')
 const path = require('path')
 const { diff_match_patch } = require('diff-match-patch')
 const { getLocalDirectory } = require('./dbService')
+const { handleIntent } = require('./intentAutoHandler')
+const { batchWriteFiles } = require('./fileBatchWriter')
 
 const VECTOR_SERVER = 'http://localhost:8300'
 // 获取 DeepSeek API Key，优先用环境变量
@@ -192,56 +194,18 @@ function getProjectFileTree(rootDir, ignoreList) {
   ]
 }
 
-// DeepSeek LLM 意图解析
-async function parseIntentWithDeepSeek(userInput, fileTree) {
-  const systemPrompt = `You are a multilingual intent parser. Analyze user input in ANY language and output strictly in JSON format with no additional text. Intent names MUST be in English.
-
-### Output Format
-{
-  "intent": "english_intent_name",
-  "parameters": { /* key-value pairs */ }
+// 加载业务prompt
+function loadPrompts() {
+  const promptPath = path.join(__dirname, '../prompts/businessPrompts.json')
+  return JSON.parse(fs.readFileSync(promptPath, 'utf-8'))
 }
 
-### Intent-Parameter Mapping (English Only)
-| Intent                  | Parameters                                       | Path Handling               |
-|-------------------------|--------------------------------------------------|----------------------------|
-| project_creation        | directory (str , absolute path), tech_stack, project_type        | N/A                        |
-| feature_modification    | feature, modify_path (array)                     | ✅ Path as array           |
-| feature_addition        | feature, add_path (array)                        | ✅ Path as array           |
-| bug_fixing              | error_message, fix_path (array)                  | ✅ Path as array           |
-| code_refactoring        | scope, refactor_path (array)                     | ✅ Path as array           |
-| test_addition           | test_target, test_path (array)                   | ✅ Path as array           |
-| code_review             | review_path (array)                              | ✅ Path as array           |
-| dependency_management   | operation, package, version, dep_path (array)    | ✅ Path as array           |
-| configuration_change    | config_file, setting, value, config_path (array) | ✅ Path as array           |
-| database_operation      | operation, object, db_path (array)               | ✅ Path as array           |
-| api_development         | method, endpoint, api_path (array)               | ✅ Path as array           |
-| deployment_configuration| environment, deploy_path (array)                 | ✅ Path as array           |
-| documentation_generation| target, doc_path (array)                         | ✅ Path as array           |
-| code_explanation        | code_snippet, code_path (array)                  | ✅ Path as array           |
-| code_conversion         | source_lang, target_lang, convert_path (array)   | ✅ Path as array           |
-| performance_optimization| target, optimize_path (array)                    | ✅ Path as array           |
-| security_hardening      | vulnerability, secure_path (array)               | ✅ Path as array           |
-| internationalization    | language, i18n_path (array)                      | ✅ Path as array           |
-| debugging_assistance    | error_log, debug_path (array)                    | ✅ Path as array           |
-
-### Core Rules
-1. **English Intent Names**: Always use specified English names
-2. **Path/Directory Parameters**: Always return absolute paths as shown in the file tree above (never relative or partial)
-3. **project_creation intent**: The 'directory' parameter MUST be a valid absolute path from the file tree (never empty or missing)
-4. **Path Parameters**: Return as arrays (even for single paths)
-5. **Parameter Extraction**: Preserve original input values
-6. **Missing Values**:
-   - Path parameters → Empty array []
-   - Non-path parameters → Empty string ""
-7. **Unknown Intent**: {"intent":"unknown","parameters":{}}
-8. **Output Format**: Single-line compact JSON only (no comments/formatting)
-
-### Project File Tree (for context)
-${JSON.stringify(fileTree)}
-
-### User Input
-`
+// DeepSeek LLM 意图解析
+async function parseIntentWithDeepSeek(userInput, fileTree) {
+  const prompts = loadPrompts()
+  let systemPrompt = prompts.intent_parse.system
+  // 支持 ${fileTree} 占位符
+  systemPrompt = systemPrompt.replace('${fileTree}', JSON.stringify(fileTree))
   const messages = [
     { role: 'system', content: systemPrompt },
     { role: 'user', content: userInput },
@@ -274,9 +238,11 @@ async function chatWithAI(messages) {
   if (!rootDir) throw new Error('未获取到有效的本地目录')
   const fileTree = getProjectFileTree(rootDir, ignoreList)
   const intentResult = await parseIntentWithDeepSeek(lastMessage.content, fileTree)
-  
+  const handledResult = await handleIntent(intentResult, fileTree)
+  console.log('hhhhh', intentResult)
+
   // 这里只返回意图解析结果，后续可根据 intentResult.intent 做自动化处理
-  return { success: true, reply: intentResult, fileTree }
+  //   return { success: true, reply: handledResult, fileTree }
 }
 
 // 语义搜索
@@ -313,38 +279,6 @@ async function callLLM(prompt) {
   // 这里集成真实的LLM服务
   // 例如：OpenAI API、DeepSeek API等
   return `// AI生成的代码示例\nfunction example() {\n  console.log('Hello AI');\n}`
-}
-
-// 批量文件写入
-async function batchWriteFiles(files) {
-  try {
-    const results = []
-
-    for (const file of files) {
-      try {
-        // 确保目录存在
-        const dir = path.dirname(file.path)
-        await fs.mkdir(dir, { recursive: true })
-
-        // 写入文件
-        await fs.writeFile(file.path, file.content, 'utf-8')
-        results.push({ path: file.path, success: true })
-      } catch (error) {
-        results.push({ path: file.path, success: false, error: error.message })
-      }
-    }
-
-    const successCount = results.filter((r) => r.success).length
-    const failCount = results.length - successCount
-
-    return {
-      success: true,
-      message: `成功写入 ${successCount} 个文件${failCount > 0 ? `，失败 ${failCount} 个` : ''}`,
-      results,
-    }
-  } catch (error) {
-    return { success: false, message: error.message }
-  }
 }
 
 module.exports = {

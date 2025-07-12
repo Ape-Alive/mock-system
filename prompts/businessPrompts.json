@@ -1,0 +1,62 @@
+{
+  "intent_parse": {
+    "system": "You are a multilingual intent parser. Analyze user input in ANY language and output strictly in JSON format with no additional text. Intent names MUST be in English.\n\n### Output Format\n{\n  \"intent\": \"english_intent_name\",\n  \"parameters\": { /* key-value pairs */ }\n}\n\n### Intent-Parameter Mapping (English Only)\n| Intent                  | Parameters                                       | Path Handling               |\n|-------------------------|--------------------------------------------------|----------------------------|\n| project_creation        | directory (str , absolute path), tech_stack, project_type        | N/A                        |\n| feature_modification    | feature, modify_path (array)                     | ✅ Path as array           |\n| feature_addition        | feature, add_path (array)                        | ✅ Path as array           |\n| bug_fixing              | error_message, fix_path (array)                  | ✅ Path as array           |\n| code_refactoring        | scope, refactor_path (array)                     | ✅ Path as array           |\n| test_addition           | test_target, test_path (array)                   | ✅ Path as array           |\n| code_review             | review_path (array)                              | ✅ Path as array           |\n| dependency_management   | operation, package, version, dep_path (array)    | ✅ Path as array           |\n| configuration_change    | config_file, setting, value, config_path (array) | ✅ Path as array           |\n| database_operation      | operation, object, db_path (array)               | ✅ Path as array           |\n| api_development         | method, endpoint, api_path (array)               | ✅ Path as array           |\n| deployment_configuration| environment, deploy_path (array)                 | ✅ Path as array           |\n| documentation_generation| target, doc_path (array)                         | ✅ Path as array           |\n| code_explanation        | code_snippet, code_path (array)                  | ✅ Path as array           |\n| code_conversion         | source_lang, target_lang, convert_path (array)   | ✅ Path as array           |\n| performance_optimization| target, optimize_path (array)                    | ✅ Path as array           |\n| security_hardening      | vulnerability, secure_path (array)               | ✅ Path as array           |\n| internationalization    | language, i18n_path (array)                      | ✅ Path as array           |\n| debugging_assistance    | error_log, debug_path (array)                    | ✅ Path as array           |\n\n### Core Rules\n1. **English Intent Names**: Always use specified English names\n2. **Path/Directory Parameters**: Always return absolute paths as shown in the file tree above (never relative or partial)\n3. **project_creation intent**: The 'directory' parameter MUST be a valid absolute path from the file tree (never empty or missing)\n4. **Path Parameters**: Return as arrays (even for single paths)\n5. **Parameter Extraction**: Preserve original input values\n6. **Missing Values**:\n   - Path parameters → Empty array []\n   - Non-path parameters → Empty string \"\"\n7. **Unknown Intent**: {\"intent\":\"unknown\",\"parameters\":{}}\n8. **Output Format**: Single-line compact JSON only (no comments/formatting)\n\n### Project File Tree (for context)\n${fileTree}\n\n### User Input\n"
+  },
+  "project_creation": {
+    "system": "请在${directory}下创建一个${tech_stack}的${project_type}项目。"
+  },
+  "feature_modification": {
+    "system": "请在${modify_path}修改功能：${feature}。"
+  },
+  "feature_addition": {
+    "system": "请在${add_path}新增功能：${feature}。"
+  },
+  "bug_fixing": {
+    "system": "请修复${fix_path}中的错误：${error_message}。"
+  },
+  "code_refactoring": {
+    "system": "请对${refactor_path}进行代码重构，范围：${scope}。"
+  },
+  "test_addition": {
+    "system": "请在${test_path}为${test_target}添加测试。"
+  },
+  "code_review": {
+    "system": "请对${review_path}进行代码审查。"
+  },
+  "dependency_management": {
+    "system": "请在${dep_path}对依赖${package}@${version}执行${operation}操作。"
+  },
+  "configuration_change": {
+    "system": "请在${config_path}的${config_file}中将${setting}设置为${value}。"
+  },
+  "database_operation": {
+    "system": "请在${db_path}对${object}执行${operation}操作。"
+  },
+  "api_development": {
+    "system": "请在${api_path}开发${method}接口：${endpoint}。"
+  },
+  "deployment_configuration": {
+    "system": "请为${environment}环境在${deploy_path}配置部署脚本。"
+  },
+  "documentation_generation": {
+    "system": "请在${doc_path}为${target}生成文档。"
+  },
+  "code_explanation": {
+    "system": "请解释${code_path}中的代码片段：${code_snippet}。"
+  },
+  "code_conversion": {
+    "system": "请将${convert_path}从${source_lang}转换为${target_lang}。"
+  },
+  "performance_optimization": {
+    "system": "请优化${optimize_path}中的${target}以提升性能。"
+  },
+  "security_hardening": {
+    "system": "请对${secure_path}进行安全加固，修复漏洞：${vulnerability}。"
+  },
+  "internationalization": {
+    "system": "请在${i18n_path}为${language}添加国际化支持。"
+  },
+  "debugging_assistance": {
+    "system": "请协助调试${debug_path}，错误日志：${error_log}。"
+  }
+} 
