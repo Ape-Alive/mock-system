@@ -10,7 +10,7 @@ function loadPrompts() {
 }
 
 const prompts = loadPrompts()
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk-104ec0b815584973bf91b742170782b9'
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk-'
 
 // 主入口：根据 intent 分发
 async function handleIntent(intentResult, fileTree) {

@@ -4,17 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AI Agent 代码管理</title>
-    <link rel="stylesheet" href="aiAgent.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
 
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    <link rel="stylesheet" href="aiAgent.css" />
     <!-- jQuery 必须在 jsTree 之前引入 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <!-- jsTree 必须在 aiAgent.js 之前引入 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/jstree.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit/lib/xterm-addon-fit.js"></script>
     <!-- Monaco Editor -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
-    <!-- 你的主逻辑 -->
-    <script src="aiAgent.js"></script>
   </head>
   <body>
     <div class="ai-agent-container">
@@ -66,6 +66,50 @@
             </div>
           </div>
           <div id="monaco-editor" class="monaco-editor"></div>
+          <!-- 多终端窗口区域，风格与整体一致 -->
+          <div
+            id="terminal-panel"
+            style="
+              width: 100%;
+              border-top: 1px solid #e0e0e0;
+              background: #fafbfc;
+              border-radius: 0 0 6px 6px;
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+              margin-top: 0;
+            "
+          >
+            <div
+              id="terminal-tabs"
+              style="
+                display: flex;
+                align-items: center;
+                background: #f5f5f7;
+                border-bottom: 1px solid #e0e0e0;
+                border-radius: 0 0 0 0;
+              "
+            >
+              <button
+                id="new-terminal-btn"
+                title="新建终端"
+                style="
+                  margin: 0 8px;
+                  background: transparent;
+                  border: none;
+                  outline: none;
+                  cursor: pointer;
+                  font-size: 16px;
+                  color: #888;
+                "
+              >
+                <i class="fas fa-plus"></i>
+              </button>
+            </div>
+            <div id="terminal-resize-bar" style="height: 6px; cursor: row-resize; background: #e0e0e0"></div>
+            <div
+              id="terminal-container"
+              style="width: 100%; height: 260px; background: #181818; border-radius: 0 0 6px 6px"
+            ></div>
+          </div>
         </div>
 
         <!-- 右侧AI助手和Diff -->
@@ -172,5 +216,16 @@
       <div class="loading-spinner"></div>
       <div class="loading-text">处理中...</div>
     </div>
+    <script>
+      // 页面加载后初始化终端
+      window.addEventListener('DOMContentLoaded', function () {
+        // setTimeout(() => {
+        initTerminal()
+        // }, 1000)
+      })
+    </script>
+    <!-- 你的主逻辑 -->
+    <script src="aiAgent.js"></script>
+    <script src="terminal.js"></script>
   </body>
 </html>

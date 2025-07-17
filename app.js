@@ -4,6 +4,8 @@ const config = require('./config')
 const fileUtils = require('./utils/fileUtils')
 const mockService = require('./services/mockService')
 const routeMiddleware = require('./middleware/routeMiddleware')
+const http = require('http')
+const { setupTerminalWS } = require('./services/wsServer')
 
 // 导入路由
 const mockRoutes = require('./routes/mockRoutes')
@@ -45,10 +47,12 @@ function loadExistingMocks() {
 
 // 启动服务器
 function startServer() {
-  app.listen(config.PORT, () => {
+  const server = http.createServer(app)
+  server.listen(config.PORT, () => {
     console.log(`服务器运行在 http://localhost:${config.PORT}`)
     loadExistingMocks()
   })
+  setupTerminalWS(server)
 }
 
 module.exports = { app, startServer }
