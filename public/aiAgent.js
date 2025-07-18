@@ -58,9 +58,9 @@ class AIAgentManager {
   bindEvents() {
     // 工具栏事件
     document.getElementById('search-btn').addEventListener('click', () => this.searchCode())
-    document.getElementById('ai-complete-btn').addEventListener('click', () => this.aiComplete())
-    document.getElementById('ai-refactor-btn').addEventListener('click', () => this.aiRefactor())
-    document.getElementById('history-btn').addEventListener('click', () => this.showHistory())
+    // document.getElementById('ai-complete-btn').addEventListener('click', () => this.aiComplete())
+    // document.getElementById('ai-refactor-btn').addEventListener('click', () => this.aiRefactor())
+    // document.getElementById('history-btn').addEventListener('click', () => this.showHistory())
 
     // 搜索框事件
     document.getElementById('code-search').addEventListener('keypress', (e) => {

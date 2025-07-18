@@ -97,10 +97,19 @@ class TerminalManager {
         term.open(container)
         requestAnimationFrame(() => {
           fitAddon.fit()
-          term.writeln('欢迎使用 xterm.js')
+          term.writeln('欢迎使ai codeing 终端')
           term.scrollToBottom()
         })
-        window.addEventListener('resize', () => fitAddon.fit())
+        // 自动监听容器尺寸变化，自动fit
+        if (window.ResizeObserver) {
+          const resizeObserver = new ResizeObserver(() => {
+            fitAddon.fit()
+          })
+          resizeObserver.observe(container)
+        } else {
+          // 兼容性降级：窗口resize时fit
+          window.addEventListener('resize', () => fitAddon.fit())
+        }
         // 监听终端尺寸变化并通知后端
         term.onResize(({ cols, rows }) => {
           if (this.ws.readyState === 1) {
@@ -176,6 +185,20 @@ class TerminalUI {
 
   _bindUI() {
     document.getElementById('new-terminal-btn').onclick = () => this.createTerminalTab()
+    // 新增：全部关闭终端按钮
+    document.getElementById('close-all-terminals-btn').onclick = () => {
+      // 关闭所有终端
+      Object.keys(this.tm.terminals).forEach((sessionId) => this.tm.closeTerminal(sessionId))
+      // 清空tab栏
+      Array.from(this.tabs.children).forEach((tab) => {
+        if (tab.classList && tab.classList.contains('terminal-tab')) tab.remove()
+      })
+      // 清空终端内容区
+      this.container.innerHTML = ''
+      this.currentSessionId = null
+      // 隐藏终端面板
+      document.getElementById('terminal-panel').style.display = 'none'
+    }
     // 拖拽调整高度
     let dragging = false,
       startY = 0,
@@ -201,6 +224,14 @@ class TerminalUI {
         document.body.style.cursor = ''
       }
     })
+    // 绑定“打开终端”按钮，显示终端面板
+    const openTerminalBtn = document.getElementById('open-terminal-btn')
+    if (openTerminalBtn) {
+      openTerminalBtn.onclick = () => {
+        const panel = document.getElementById('terminal-panel')
+        if (panel) panel.style.display = ''
+      }
+    }
   }
 
   createTerminalTab() {
@@ -236,6 +267,10 @@ class TerminalUI {
     if (this.tm.terminals[sessionId]) {
       this.tm.terminals[sessionId].term.open(this.container)
       this.tm.terminals[sessionId].fitAddon.fit()
+      // 修复：切换tab后自动聚焦终端，保证输入可用
+      setTimeout(() => {
+        this.tm.terminals[sessionId].term.focus()
+      }, 0)
     }
     console.log('切换终端', sessionId)
   }
@@ -263,6 +298,17 @@ function initTerminal() {
   new TerminalUI(tm)
 }
 window.initTerminal = initTerminal
+
+// 全局绑定“打开终端”按钮，显示终端面板
+window.addEventListener('DOMContentLoaded', function () {
+  const openTerminalBtn = document.getElementById('open-terminal-btn')
+  if (openTerminalBtn) {
+    openTerminalBtn.onclick = () => {
+      const panel = document.getElementById('terminal-panel')
+      if (panel) panel.style.display = ''
+    }
+  }
+})
 
 function isElementVisible(el) {
   return el && el.offsetParent !== null && el.offsetWidth > 0 && el.offsetHeight > 0
