@@ -9,6 +9,7 @@ class AIAgentManager {
 
     this.init()
     this.initSearchDropdown()
+    this.initResizeBar()
   }
 
   async init() {
@@ -58,10 +59,6 @@ class AIAgentManager {
   bindEvents() {
     // 工具栏事件
     document.getElementById('search-btn').addEventListener('click', () => this.searchCode())
-    // document.getElementById('ai-complete-btn').addEventListener('click', () => this.aiComplete())
-    // document.getElementById('ai-refactor-btn').addEventListener('click', () => this.aiRefactor())
-    // document.getElementById('history-btn').addEventListener('click', () => this.showHistory())
-
     // 搜索框事件
     document.getElementById('code-search').addEventListener('keypress', (e) => {
       if (e.key === 'Enter') this.searchCode()
@@ -688,125 +685,149 @@ class AIAgentManager {
     this.switchPanel('diff')
   }
 
-  // AI代码补全
-  async aiComplete() {
-    if (!this.currentFile) {
-      this.showError('请先打开一个文件')
-      return
-    }
+  // 渲染多条命令为可点击行
+  renderShellCommandBlock(cmdArr) {
+    console.log('sjsshhsh', cmdArr)
 
-    const content = this.editor.getValue()
-    const selection = this.editor.getSelection()
-    const selectedText = this.editor.getModel().getValueInRange(selection)
-
-    try {
-      const response = await fetch('/api/ai/complete', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          prompt: selectedText || '请补全当前代码',
-          context: content,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        this.showCodeSuggestion(data.completion, 'AI代码补全')
-      } else {
-        this.showError(data.error)
-      }
-    } catch (error) {
-      this.showError('AI补全失败: ' + error.message)
-    }
+    if (!Array.isArray(cmdArr)) cmdArr = [cmdArr]
+    const blockId = 'cmd-block-' + Math.random().toString(36).slice(2)
+    return `
+      <div class="shell-cmd-block" id="${blockId}" style="margin-bottom:8px;">
+        <div>
+          ${cmdArr
+            .map((cmdObj) => {
+              if (typeof cmdObj === 'string') return this.renderShellCommandLine(cmdObj)
+              return this.renderShellCommandLine(cmdObj.command, cmdObj.commandExplain)
+            })
+            .join('')}
+        </div>
+      </div>
+    `
   }
 
-  // AI代码重构
-  async aiRefactor() {
-    if (!this.currentFile) {
-      this.showError('请先打开一个文件')
-      return
-    }
-
-    const content = this.editor.getValue()
-    const selection = this.editor.getSelection()
-    const selectedText = this.editor.getModel().getValueInRange(selection)
-
-    if (!selectedText) {
-      this.showError('请先选择要重构的代码')
-      return
-    }
-
-    try {
-      const response = await fetch('/api/ai-agent/batch-complete', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          prompt: '请重构以下代码，提高可读性和性能',
-          files: [
-            {
-              path: this.currentFile,
-              content: content,
-            },
-          ],
-        }),
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        this.showDiffSuggestions(data.results)
-      } else {
-        this.showError(data.error)
-      }
-    } catch (error) {
-      this.showError('AI重构失败: ' + error.message)
-    }
+  // 渲染单条命令为可点击行（支持命令解释）
+  renderShellCommandLine(cmd, explain) {
+    return `
+      <div class="shell-cmd-line-wrap">
+        ${explain ? `<div class="shell-cmd-explain">${this.escapeHtml(explain)}</div>` : ''}
+        <div class="shell-cmd-line">
+          <code class="shell-cmd-code">${this.escapeHtml(cmd)}</code>
+          <button class="run-cmd-btn" data-cmd="${encodeURIComponent(cmd)}" title="运行命令">
+            <i class="fas fa-play"></i>
+          </button>
+        </div>
+      </div>
+    `
   }
 
-  // 发送消息
+  // 绑定所有“运行”按钮事件和“全部运行”按钮事件
+  bindShellCmdBtnEvents() {
+    // 单条命令
+    document.querySelectorAll('.run-cmd-btn').forEach((btn) => {
+      if (btn._bound) return
+      btn._bound = true
+      btn.onclick = function () {
+        const cmd = decodeURIComponent(this.dataset.cmd)
+        if (window.sendTerminalCommand) {
+          window.sendTerminalCommand(cmd)
+          // 按钮动画反馈
+          this.classList.add('run-cmd-btn-active')
+          setTimeout(() => this.classList.remove('run-cmd-btn-active'), 300)
+        }
+      }
+    })
+    // 全部运行
+    document.querySelectorAll('.run-all-cmd-btn').forEach((btn) => {
+      if (btn._bound) return
+      btn._bound = true
+      btn.onclick = function () {
+        const block = this.closest('.shell-cmd-block')
+        if (!block) return
+        const cmdBtns = block.querySelectorAll('.run-cmd-btn')
+        for (const btn of cmdBtns) {
+          btn.click()
+        }
+        this.disabled = true
+        this.textContent = '已全部发送'
+      }
+    })
+  }
+
   async sendMessage() {
     const input = document.getElementById('user-input')
     const message = input.value.trim()
-
     if (!message) return
 
     // 添加用户消息
     this.addChatMessage('user', message)
     input.value = ''
 
-    // 添加AI回复
+    // 添加AI回复占位
     this.addChatMessage('ai', '正在思考...')
+    const aiMessage = document.querySelector('.message.ai:last-child .message-content .text')
+    aiMessage.innerHTML = ''
 
     try {
-      const response = await fetch('/api/ai-agent/chat', {
+      const response = await fetch('/api/ai-agent/chat/stream', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messages: [{ role: 'user', content: message }],
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: [{ role: 'user', content: message }] }),
       })
 
-      const data = await response.json()
+      if (!response.body) throw new Error('流式响应不支持')
 
-      if (data.success) {
-        // 更新AI回复
-        const aiMessage = document.querySelector('.message.ai:last-child .message-content')
-        aiMessage.innerHTML = this.formatMessage(data.reply)
-      } else {
-        this.showError(data.error)
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder('utf-8')
+      let buffer = ''
+      let done = false
+      let cmdGroup = []
+
+      while (!done) {
+        const { value, done: readerDone } = await reader.read()
+        done = readerDone
+        if (value) {
+          buffer += decoder.decode(value, { stream: true })
+          // 以SSE格式分割
+          let parts = buffer.split('\n\n')
+          buffer = parts.pop() // 剩余部分
+          for (const part of parts) {
+            if (part.startsWith('data: ')) {
+              const json = part.slice(6)
+              try {
+                const obj = JSON.parse(json)
+                if (obj.command) {
+                  cmdGroup.push(obj)
+                } else {
+                  // 一旦遇到非命令内容，先渲染命令组
+                  if (cmdGroup.length) {
+                    aiMessage.innerHTML += this.renderShellCommandBlock(cmdGroup)
+                    this.bindShellCmdBtnEvents()
+                    cmdGroup = []
+                  }
+                  if (obj.reply) {
+                    aiMessage.innerHTML += this.formatMessage(obj.reply)
+                  }
+                }
+              } catch (e) {
+                // 忽略解析失败
+              }
+            } else if (part.startsWith('event: end')) {
+              // 结束前渲染剩余命令
+              if (cmdGroup.length) {
+                aiMessage.innerHTML += this.renderShellCommandBlock(cmdGroup)
+                this.bindShellCmdBtnEvents()
+                cmdGroup = []
+              }
+              done = true
+              break
+            }
+          }
+        }
       }
     } catch (error) {
       this.showError('发送消息失败: ' + error.message)
     }
   }
-
   // 添加聊天消息
   addChatMessage(type, content) {
     const chatMessages = document.querySelector('.chat-messages')
@@ -1553,7 +1574,58 @@ class AIAgentManager {
       }
     }
   }
+  initResizeBar() {
+    // 保险起见，延迟初始化，确保 DOM 渲染完成
+    setTimeout(() => {
+      this.enableAiPanelResize()
+    }, 500)
+  }
+
+  enableAiPanelResize() {
+    // 获取拖拽条和 ai-panel
+    const resizeBar = document.getElementById('ai-panel-resize-bar')
+    const aiPanel = document.querySelector('.ai-panel')
+    if (!resizeBar || !aiPanel) return
+
+    // 拖拽逻辑
+    let dragging = false
+    let startX = 0
+    let startWidth = 0
+
+    resizeBar.addEventListener('mousedown', function (e) {
+      dragging = true
+      startX = e.clientX
+      // 读取当前 ai-panel 宽度（去掉 px）
+      startWidth = aiPanel.offsetWidth
+      document.body.style.cursor = 'ew-resize'
+      e.preventDefault()
+    })
+    document.addEventListener('mousemove', function (e) {
+      if (!dragging) return
+      let delta = e.clientX - startX
+      let newWidth = Math.max(200, Math.min(600, startWidth - delta))
+      aiPanel.style.width = newWidth + 'px'
+    })
+    document.addEventListener('mouseup', function () {
+      if (dragging) {
+        dragging = false
+        document.body.style.cursor = ''
+      }
+    })
+  }
 }
+
+// ========== AI助手面板宽度拖拽 ========== //
+
+// function waitForAiPanelAndInitResize() {
+//   const aiPanel = document.getElementById('ai-panel')
+//   if (aiPanel) {
+//     enableAiPanelResize()
+//   } else {
+//     setTimeout(waitForAiPanelAndInitResize, 100)
+//   }
+// }
+// window.addEventListener('DOMContentLoaded', waitForAiPanelAndInitResize)
 
 // 初始化应用
 const aiAgent = new AIAgentManager()

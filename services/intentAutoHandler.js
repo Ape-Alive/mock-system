@@ -10,52 +10,21 @@ function loadPrompts() {
 }
 
 const prompts = loadPrompts()
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk-'
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk- '
 
-// 主入口：根据 intent 分发
-async function handleIntent(intentResult, fileTree) {
+// 主入口：根据 intent 分发（流式 async generator 版本）
+async function* handleIntentStream(intentResult, fileTree) {
   const { intent, parameters } = intentResult
   switch (intent) {
-    case 'project_creation':
-      return await handleProjectCreation(parameters, fileTree)
-    case 'feature_modification':
-      return await handleFeatureModification(parameters, fileTree)
-    case 'feature_addition':
-      return await handleFeatureAddition(parameters, fileTree)
-    case 'bug_fixing':
-      return await handleBugFixing(parameters, fileTree)
-    case 'code_refactoring':
-      return await handleCodeRefactoring(parameters, fileTree)
-    case 'test_addition':
-      return await handleTestAddition(parameters, fileTree)
-    case 'code_review':
-      return await handleCodeReview(parameters, fileTree)
-    case 'dependency_management':
-      return await handleDependencyManagement(parameters, fileTree)
-    case 'configuration_change':
-      return await handleConfigurationChange(parameters, fileTree)
-    case 'database_operation':
-      return await handleDatabaseOperation(parameters, fileTree)
-    case 'api_development':
-      return await handleApiDevelopment(parameters, fileTree)
-    case 'deployment_configuration':
-      return await handleDeploymentConfiguration(parameters, fileTree)
-    case 'documentation_generation':
-      return await handleDocumentationGeneration(parameters, fileTree)
-    case 'code_explanation':
-      return await handleCodeExplanation(parameters, fileTree)
-    case 'code_conversion':
-      return await handleCodeConversion(parameters, fileTree)
-    case 'performance_optimization':
-      return await handlePerformanceOptimization(parameters, fileTree)
-    case 'security_hardening':
-      return await handleSecurityHardening(parameters, fileTree)
-    case 'internationalization':
-      return await handleInternationalization(parameters, fileTree)
-    case 'debugging_assistance':
-      return await handleDebuggingAssistance(parameters, fileTree)
+    case 'project_creation': {
+      // 这里调用流式的 handleProjectCreationStream
+      yield* handleProjectCreationStream(parameters, fileTree)
+      break
+    }
     default:
-      return { success: false, message: '暂不支持该意图自动化处理', intent }
+      // 其它 intent 仍然一次性返回
+      const result = await handleIntent(intentResult, fileTree)
+      yield result
   }
 }
 
@@ -73,14 +42,17 @@ function interpolate(tpl, params) {
 async function handleProjectCreation(params, fileTree) {
   const promptTpl = prompts.project_creation?.system || '请在${directory}下创建一个${tech_stack}的${project_type}项目。'
   const prompt = interpolate(promptTpl, params)
+  console.log('params', params)
 
-  // 1. 调用 DeepSeek LLM 生成项目结构
+  console.log('prompt', prompt)
+
+  // 1. 调用 DeepSeek LLM 生成命令数组
   const messages = [
     { role: 'system', content: prompt },
     {
       role: 'user',
       content:
-        '请以严格JSON格式输出项目文件结构和每个文件的内容，格式：[{"path": "绝对路径", "content": "文件内容"}, ...]，不要输出多余解释。',
+        '请以严格JSON数组格式输出所有初始化和依赖安装命令，每个元素为一条shell命令，格式如：["cmd1", "cmd2", ...]，不要输出多余解释。',
     },
   ]
   const res = await axios.post(
@@ -97,33 +69,110 @@ async function handleProjectCreation(params, fileTree) {
       },
     }
   )
-  let files = []
+  let commands = []
   try {
     const parsed = JSON.parse(res.data.choices[0].message.content)
+    console.log('uuuuu', parsed)
+
     if (Array.isArray(parsed)) {
-      files = parsed
-    } else if (Array.isArray(parsed.files)) {
-      files = parsed.files
+      commands = parsed
+    } else if (Array.isArray(parsed.commands)) {
+      commands = parsed.commands
     } else if (Array.isArray(parsed.response)) {
-      files = parsed.response
+      commands = parsed.response
     } else {
-      throw new Error('LLM返回内容不是数组或不包含 files/response 数组')
+      throw new Error('LLM返回内容不是数组或不包含 commands/response 数组')
     }
   } catch (e) {
     return { success: false, message: 'LLM返回内容解析失败', raw: res.data.choices[0].message.content }
   }
-  if (!Array.isArray(files)) {
-    return { success: false, message: 'files 不是数组', files }
+  if (!Array.isArray(commands)) {
+    return { success: false, message: 'commands 不是数组', commands }
   }
-  // 2. 批量写入文件
-  const writeResult = await batchWriteFiles(files)
+  // 只返回命令数组，不做后端执行
   return {
-    success: writeResult.success,
+    success: true,
     action: 'project_creation',
     prompt,
     parameters: params,
-    files,
-    writeResult,
+    commands,
+  }
+}
+
+// project_creation 自动化：适配 DeepSeek/OpenAI SSE 格式的逐条流式输出命令
+async function* handleProjectCreationStream(params, fileTree) {
+  const promptTpl = prompts.project_creation?.system || '请在${directory}下创建一个${tech_stack}的${project_type}项目。'
+  const prompt = interpolate(promptTpl, params)
+  const messages = [
+    { role: 'system', content: prompt },
+    {
+      role: 'user',
+      content: `请严格按照如下要求输出：\n\n1. 输出所有项目初始化和依赖安装命令，每条命令都单独输出一行JSON，格式为：{\"command\": \"xxx\", \"commandExplain\": \"xxx\"}\n2. 不要输出数组，不要输出多余解释，不要输出任何非JSON内容。\n3. 直到所有命令全部输出完毕为止。\n4. 必须覆盖：环境准备、目录创建、进入目录、项目初始化、依赖安装、启动命令等所有步骤。\n5. 例如：\n{\"command\": \"set -e\", \"commandExplain\": \"保证命令失败立即退出\"}\n{\"command\": \"mkdir -p \"/your/path\"\", \"commandExplain\": \"创建项目目录\"}\n{\"command\": \"cd \"/your/path\"\", \"commandExplain\": \"进入项目目录\"}\n{\"command\": \"npm init -y\", \"commandExplain\": \"初始化npm项目\"}\n{\"command\": \"npm install vue element-ui axios\", \"commandExplain\": \"安装核心依赖\"}\n{\"command\": \"npm run serve\", \"commandExplain\": \"启动开发服务器\"}\n6. 每条命令都要有简明中文解释（commandExplain），不要省略。\n7. 直到所有初始化和依赖安装命令全部输出完毕为止，最后一条一般是启动命令。`,
+    },
+  ]
+  // 调用 LLM 的流式接口
+  const response = await axios.post(
+    'https://api.deepseek.com/v1/chat/completions',
+    {
+      model: 'deepseek-coder',
+      messages,
+      stream: true,
+      response_format: { type: 'json_object' },
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      responseType: 'stream',
+    }
+  )
+
+  let buffer = ''
+  for await (const chunk of response.data) {
+    const str = chunk.toString('utf8')
+    // DeepSeek/OpenAI SSE格式：data: {...}\n\n
+    const lines = str.split('\n')
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        const data = line.slice(6).trim()
+        if (data === '[DONE]') continue
+        try {
+          const obj = JSON.parse(data)
+          const content = obj.choices?.[0]?.delta?.content
+          if (content) {
+            buffer += content
+            console.log('buffer:', JSON.stringify(buffer))
+            // 检查是否拼出一行完整JSON
+            if (buffer.endsWith('}\n') || buffer.endsWith('}\r\n')) {
+              const jsonLine = buffer.trim()
+              buffer = ''
+              try {
+                const cmdObj = JSON.parse(jsonLine)
+                if (cmdObj.command) {
+                  console.log('yield:', cmdObj)
+                  yield { action: 'project_creation', command: cmdObj.command, commandExplain: cmdObj.commandExplain }
+                }
+              } catch (e) {
+                /* 不是完整JSON，忽略 */
+              }
+            }
+          }
+        } catch (e) {
+          /* 不是合法JSON，忽略 */
+        }
+      }
+    }
+  }
+  // 处理最后一行
+  if (buffer.trim()) {
+    try {
+      const cmdObj = JSON.parse(buffer.trim())
+      if (cmdObj.command) {
+        console.log('yield:', cmdObj)
+        yield { action: 'project_creation', command: cmdObj.command, commandExplain: cmdObj.commandExplain }
+      }
+    } catch (e) {}
   }
 }
 
@@ -237,6 +286,55 @@ async function handleDebuggingAssistance(params, fileTree) {
   return { success: true, action: 'debugging_assistance', prompt, parameters: params }
 }
 
+// 主入口：根据 intent 分发（同步/一次性返回）
+async function handleIntent(intentResult, fileTree) {
+  const { intent, parameters } = intentResult
+  switch (intent) {
+    case 'project_creation':
+      return await handleProjectCreation(parameters, fileTree)
+    case 'feature_modification':
+      return await handleFeatureModification(parameters, fileTree)
+    case 'feature_addition':
+      return await handleFeatureAddition(parameters, fileTree)
+    case 'bug_fixing':
+      return await handleBugFixing(parameters, fileTree)
+    case 'code_refactoring':
+      return await handleCodeRefactoring(parameters, fileTree)
+    case 'test_addition':
+      return await handleTestAddition(parameters, fileTree)
+    case 'code_review':
+      return await handleCodeReview(parameters, fileTree)
+    case 'dependency_management':
+      return await handleDependencyManagement(parameters, fileTree)
+    case 'configuration_change':
+      return await handleConfigurationChange(parameters, fileTree)
+    case 'database_operation':
+      return await handleDatabaseOperation(parameters, fileTree)
+    case 'api_development':
+      return await handleApiDevelopment(parameters, fileTree)
+    case 'deployment_configuration':
+      return await handleDeploymentConfiguration(parameters, fileTree)
+    case 'documentation_generation':
+      return await handleDocumentationGeneration(parameters, fileTree)
+    case 'code_explanation':
+      return await handleCodeExplanation(parameters, fileTree)
+    case 'code_conversion':
+      return await handleCodeConversion(parameters, fileTree)
+    case 'performance_optimization':
+      return await handlePerformanceOptimization(parameters, fileTree)
+    case 'security_hardening':
+      return await handleSecurityHardening(parameters, fileTree)
+    case 'internationalization':
+      return await handleInternationalization(parameters, fileTree)
+    case 'debugging_assistance':
+      return await handleDebuggingAssistance(parameters, fileTree)
+    default:
+      return { success: false, message: '暂不支持该意图自动化处理', intent }
+  }
+}
+
 module.exports = {
   handleIntent,
+  handleIntentStream,
+  handleProjectCreationStream,
 }

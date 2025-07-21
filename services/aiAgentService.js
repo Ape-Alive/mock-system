@@ -3,12 +3,12 @@ const fs = require('fs')
 const path = require('path')
 const { diff_match_patch } = require('diff-match-patch')
 const { getLocalDirectory } = require('./dbService')
-const { handleIntent } = require('./intentAutoHandler')
+const { handleIntent, handleIntentStream } = require('./intentAutoHandler')
 const { batchWriteFiles } = require('./fileBatchWriter')
 
 const VECTOR_SERVER = 'http://localhost:8300'
 // 获取 DeepSeek API Key，优先用环境变量
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk-'
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk- '
 
 // 文本向量化
 async function vectorizeText(text) {
@@ -239,10 +239,21 @@ async function chatWithAI(messages) {
   const fileTree = getProjectFileTree(rootDir, ignoreList)
   const intentResult = await parseIntentWithDeepSeek(lastMessage.content, fileTree)
   const handledResult = await handleIntent(intentResult, fileTree)
-  console.log('hhhhh', intentResult)
+  return handledResult
+}
 
-  // 这里只返回意图解析结果，后续可根据 intentResult.intent 做自动化处理
-  //   return { success: true, reply: handledResult, fileTree }
+// chatWithAI 集成意图解析（流式 async generator 版本）
+async function* chatWithAIStream(messages) {
+  const lastMessage = messages[messages.length - 1]
+  const localDirResult = await getLocalDirectory()
+  const rootDir =
+    typeof localDirResult === 'string' ? localDirResult : localDirResult.directory || localDirResult.path || ''
+  if (!rootDir) throw new Error('未获取到有效的本地目录')
+  const fileTree = getProjectFileTree(rootDir, ignoreList)
+  const intentResult = await parseIntentWithDeepSeek(lastMessage.content, fileTree)
+  for await (const chunk of handleIntentStream(intentResult, fileTree)) {
+    yield chunk
+  }
 }
 
 // 语义搜索
@@ -294,6 +305,7 @@ module.exports = {
   generateDiff,
   applyDiff,
   chatWithAI,
+  chatWithAIStream,
   semanticSearch,
   codeRefactor,
   callLLM,

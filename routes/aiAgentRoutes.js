@@ -107,6 +107,24 @@ router.post('/chat', async (req, res) => {
   }
 })
 
+// AI多轮对话（流式SSE）
+router.post('/chat/stream', async (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream')
+  res.setHeader('Cache-Control', 'no-cache')
+  res.setHeader('Connection', 'keep-alive')
+  try {
+    const { messages } = req.body
+    for await (const chunk of aiAgent.chatWithAIStream(messages)) {
+      res.write(`data: ${JSON.stringify(chunk)}\n\n`)
+    }
+    res.write('event: end\ndata: [DONE]\n\n')
+    res.end()
+  } catch (e) {
+    res.write(`event: error\ndata: ${JSON.stringify(e.message)}\n\n`)
+    res.end()
+  }
+})
+
 // 获取历史记录
 router.get('/history', async (req, res) => {
   try {

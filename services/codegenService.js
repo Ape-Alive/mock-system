@@ -6,7 +6,7 @@ class CodegenService {
   constructor() {
     this.deepseekConfig = {
       baseURL: process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com',
-      apiKey: process.env.DEEPSEEK_API_KEY || 'sk-',
+      apiKey: process.env.DEEPSEEK_API_KEY || 'sk- ',
       model: 'deepseek-coder',
     }
     this.openai = new OpenAI({
