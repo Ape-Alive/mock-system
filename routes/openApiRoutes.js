@@ -7,6 +7,31 @@ const config = require('../config')
 
 const upload = multer({ dest: config.UPLOAD_DIR })
 
+/**
+ * @swagger
+ * /import-openapi:
+ *   post:
+ *     summary: 导入OpenAPI/Swagger接口
+ *     tags:
+ *       - OpenAPI
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *               group:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 成功导入接口
+ *       400:
+ *         description: 导入失败
+ */
 // 导入OpenAPI/Swagger接口
 router.post('/import-openapi', upload.single('file'), async (req, res) => {
   try {

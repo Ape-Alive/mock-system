@@ -150,6 +150,49 @@
 
           <!-- AI 助手面板 -->
           <div class="panel-content active" id="ai-assistant-panel">
+<!-- 隐藏的路径存储元素 -->
+              <input type="hidden" id="manual-paths" value="[]" />
+              <!-- 路径管理区域 -->
+              <div class="path-manager">
+                <div class="path-manager-header">
+                  <h4 id="path-manager-title" class="path-manager-title">
+                    <i class="fas fa-folder-open"></i> 相关文件路径
+                  </h4>
+                  <button id="add-path-btn" class="btn secondary" title="添加路径">
+                    <i class="fas fa-plus"></i>
+                  </button>
+                </div>
+                <!-- 只读Popover -->
+                <div id="selected-paths-popover" class="selected-paths-popover">
+                  <div class="path-list" id="path-list">
+                    <div class="no-paths">
+                      <i class="fas fa-info-circle"></i>
+                      <p>暂无相关文件路径</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            <!-- 路径选择Popover -->
+            <div id="path-popover" class="path-popover">
+              <div class="path-popover-header">
+                <h5>选择相关文件路径</h5>
+                <button id="close-path-popover" class="close-popover">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+              <div class="path-popover-search">
+                <input type="text" id="path-search-input" placeholder="搜索文件路径..." />
+              </div>
+              <div class="path-popover-content" id="path-popover-content">
+                <!-- 动态加载的文件路径列表 -->
+              </div>
+              <div class="path-popover-footer">
+                <button id="confirm-selected-paths" class="btn primary">确认选择</button>
+                <button id="cancel-path-selection" class="btn secondary">取消</button>
+              </div>
+            </div>
+
             <div class="ai-chat">
               <div class="chat-messages" id="chat-messages">
                 <div class="message ai">

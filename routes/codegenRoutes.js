@@ -2,6 +2,18 @@ const express = require('express')
 const router = express.Router()
 const codegenService = require('../services/codegenService')
 
+/**
+ * @swagger
+ * /api/codegen/options:
+ *   get:
+ *     summary: 获取代码生成配置选项
+ *     tags: [Codegen]
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ *       500:
+ *         description: 服务器错误
+ */
 // 获取代码生成配置选项
 router.get('/api/codegen/options', (req, res) => {
   try {
@@ -12,6 +24,25 @@ router.get('/api/codegen/options', (req, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /api/codegen/ui-libraries/{techStack}:
+ *   get:
+ *     summary: 获取指定技术栈的UI库选项
+ *     tags: [Codegen]
+ *     parameters:
+ *       - in: path
+ *         name: techStack
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: 技术栈名称
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ *       500:
+ *         description: 服务器错误
+ */
 // 获取UI库选项
 router.get('/api/codegen/ui-libraries/:techStack', (req, res) => {
   try {
@@ -23,6 +54,43 @@ router.get('/api/codegen/ui-libraries/:techStack', (req, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /api/codegen:
+ *   post:
+ *     summary: 生成代码
+ *     tags: [Codegen]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               techStack:
+ *                 type: string
+ *               outputType:
+ *                 type: string
+ *               uiLibrary:
+ *                 type: string
+ *               customLibrary:
+ *                 type: string
+ *               interfaceList:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *               pageStructure:
+ *                 type: object
+ *               pageLogic:
+ *                 type: object
+ *     responses:
+ *       200:
+ *         description: 生成成功
+ *       400:
+ *         description: 缺少必填参数
+ *       500:
+ *         description: 服务器错误
+ */
 // 生成代码
 router.post('/api/codegen', async (req, res) => {
   try {
@@ -49,6 +117,24 @@ router.post('/api/codegen', async (req, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /api/codegen/preview:
+ *   post:
+ *     summary: 预览生成的代码
+ *     tags: [Codegen]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: 预览成功
+ *       500:
+ *         description: 服务器错误
+ */
 // 流式生成代码
 router.post('/api/codegen/stream', async (req, res) => {
   try {
@@ -112,6 +198,24 @@ router.post('/api/codegen/stream', async (req, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /api/codegen/download:
+ *   post:
+ *     summary: 下载生成的代码
+ *     tags: [Codegen]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: 下载成功
+ *       500:
+ *         description: 服务器错误
+ */
 // 将生成的代码写入本地目录
 router.post('/api/codegen/write-to-local', async (req, res) => {
   try {

@@ -2,6 +2,24 @@ const express = require('express')
 const router = express.Router()
 const groupService = require('../services/groupService')
 
+/**
+ * @swagger
+ * /api/group-info:
+ *   get:
+ *     summary: 获取全部分组信息
+ *     tags: [Group]
+ *     responses:
+ *       200:
+ *         description: 获取成功，返回分组列表
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *       500:
+ *         description: 服务器错误
+ */
 // 获取全部分组
 router.get('/api/group-info', (req, res) => {
     try {
@@ -12,6 +30,27 @@ router.get('/api/group-info', (req, res) => {
     }
 })
 
+/**
+ * @swagger
+ * /api/group-info/{groupId}:
+ *   get:
+ *     summary: 获取指定分组信息
+ *     tags: [Group]
+ *     parameters:
+ *       - in: path
+ *         name: groupId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: 分组ID
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ *       404:
+ *         description: 未找到
+ *       500:
+ *         description: 服务器错误
+ */
 // 获取单个分组
 router.get('/api/group-info/:id', (req, res) => {
     try {

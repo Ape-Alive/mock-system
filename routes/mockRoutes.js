@@ -2,6 +2,24 @@ const express = require('express')
 const router = express.Router()
 const mockService = require('../services/mockService')
 
+/**
+ * @swagger
+ * /create-mock:
+ *   post:
+ *     summary: 创建请求项端点
+ *     tags: [Mock]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       201:
+ *         description: 请求项创建成功
+ *       400:
+ *         description: 错误
+ */
 // 创建请求项端点
 router.post('/create-mock', (req, res) => {
     try {

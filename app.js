@@ -6,6 +6,8 @@ const mockService = require('./services/mockService')
 const routeMiddleware = require('./middleware/routeMiddleware')
 const http = require('http')
 const { setupTerminalWS } = require('./services/wsServer')
+const swaggerUi = require('swagger-ui-express')
+const swaggerSpec = require('./swagger')
 
 // 导入路由
 const mockRoutes = require('./routes/mockRoutes')
@@ -32,6 +34,7 @@ app.use('/', groupRoutes)
 app.use('/', codegenRoutes)
 app.use('/', fileRoutes)
 app.use('/api/ai-agent', aiAgentRoutes)
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec))
 
 // 设置动态路由中间件
 routeMiddleware.setupDynamicRoutes(app)

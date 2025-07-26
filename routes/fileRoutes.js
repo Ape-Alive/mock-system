@@ -11,7 +11,31 @@ const upload = multer({
   },
 })
 
-// 设置本地目录
+/**
+ * @swagger
+ * /api/file/set-directory:
+ *   post:
+ *     summary: 设置本地目录
+ *     tags: [File]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               directoryPath:
+ *                 type: string
+ *               projectName:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 设置成功
+ *       400:
+ *         description: 参数错误
+ *       500:
+ *         description: 服务器错误
+ */
 router.post('/api/file/set-directory', async (req, res) => {
   try {
     const { directoryPath, projectName } = req.body
@@ -38,6 +62,18 @@ router.post('/api/file/set-directory', async (req, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /api/file/directory:
+ *   get:
+ *     summary: 获取本地目录信息
+ *     tags: [File]
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ *       500:
+ *         description: 服务器错误
+ */
 // 获取本地目录信息
 router.get('/api/file/directory', async (req, res) => {
   try {
@@ -48,6 +84,18 @@ router.get('/api/file/directory', async (req, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /api/file/tree:
+ *   get:
+ *     summary: 获取目录树
+ *     tags: [File]
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ *       500:
+ *         description: 服务器错误
+ */
 // 获取目录树
 router.get('/api/file/tree', async (req, res) => {
   try {
@@ -58,6 +106,27 @@ router.get('/api/file/tree', async (req, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /api/file/read:
+ *   get:
+ *     summary: 读取文件内容
+ *     tags: [File]
+ *     parameters:
+ *       - in: query
+ *         name: path
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: 文件路径
+ *     responses:
+ *       200:
+ *         description: 读取成功
+ *       400:
+ *         description: 参数错误
+ *       500:
+ *         description: 服务器错误
+ */
 // 读取文件内容
 router.get('/api/file/read', async (req, res) => {
   try {
@@ -74,6 +143,31 @@ router.get('/api/file/read', async (req, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /api/file/write:
+ *   post:
+ *     summary: 写入文件内容
+ *     tags: [File]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               filePath:
+ *                 type: string
+ *               content:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 写入成功
+ *       400:
+ *         description: 参数错误
+ *       500:
+ *         description: 服务器错误
+ */
 // 写入文件内容
 router.post('/api/file/write', async (req, res) => {
   try {
@@ -90,6 +184,31 @@ router.post('/api/file/write', async (req, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /api/file/create:
+ *   post:
+ *     summary: 创建文件
+ *     tags: [File]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               filePath:
+ *                 type: string
+ *               content:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 创建成功
+ *       400:
+ *         description: 参数错误
+ *       500:
+ *         description: 服务器错误
+ */
 // 创建文件
 router.post('/api/file/create', async (req, res) => {
   try {
@@ -106,6 +225,29 @@ router.post('/api/file/create', async (req, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /api/file/mkdir:
+ *   post:
+ *     summary: 创建目录
+ *     tags: [File]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               dirPath:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 创建成功
+ *       400:
+ *         description: 参数错误
+ *       500:
+ *         description: 服务器错误
+ */
 // 创建目录
 router.post('/api/file/mkdir', async (req, res) => {
   try {
@@ -122,6 +264,29 @@ router.post('/api/file/mkdir', async (req, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /api/file/delete:
+ *   delete:
+ *     summary: 删除文件或目录
+ *     tags: [File]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               itemPath:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 删除成功
+ *       400:
+ *         description: 参数错误
+ *       500:
+ *         description: 服务器错误
+ */
 // 删除文件或目录
 router.delete('/api/file/delete', async (req, res) => {
   try {
@@ -138,6 +303,31 @@ router.delete('/api/file/delete', async (req, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /api/file/rename:
+ *   put:
+ *     summary: 重命名文件或目录
+ *     tags: [File]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               oldPath:
+ *                 type: string
+ *               newName:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 重命名成功
+ *       400:
+ *         description: 参数错误
+ *       500:
+ *         description: 服务器错误
+ */
 // 重命名文件或目录
 router.put('/api/file/rename', async (req, res) => {
   try {
@@ -154,6 +344,32 @@ router.put('/api/file/rename', async (req, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /api/file/upload:
+ *   post:
+ *     summary: 上传文件
+ *     tags: [File]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *               uploadPath:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 上传成功
+ *       400:
+ *         description: 参数错误
+ *       500:
+ *         description: 服务器错误
+ */
 // 上传文件
 router.post('/api/file/upload', upload.single('file'), async (req, res) => {
   try {
@@ -172,6 +388,33 @@ router.post('/api/file/upload', upload.single('file'), async (req, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /api/file/write-generated-code:
+ *   post:
+ *     summary: 将生成的代码写入本地目录
+ *     tags: [File]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               codeData:
+ *                 type: object
+ *               techStack:
+ *                 type: string
+ *               outputType:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 写入成功
+ *       400:
+ *         description: 参数错误
+ *       500:
+ *         description: 服务器错误
+ */
 // 将生成的代码写入本地目录
 router.post('/api/file/write-generated-code', async (req, res) => {
   try {
@@ -188,6 +431,31 @@ router.post('/api/file/write-generated-code', async (req, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /api/file/execute-command:
+ *   post:
+ *     summary: 执行命令
+ *     tags: [File]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               command:
+ *                 type: string
+ *               cwd:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 执行成功
+ *       400:
+ *         description: 参数错误
+ *       500:
+ *         description: 服务器错误
+ */
 // 执行命令
 router.post('/api/file/execute-command', async (req, res) => {
   try {
@@ -204,6 +472,18 @@ router.post('/api/file/execute-command', async (req, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /api/file/clear-directory:
+ *   post:
+ *     summary: 清空本地目录（测试用）
+ *     tags: [File]
+ *     responses:
+ *       200:
+ *         description: 清空成功
+ *       500:
+ *         description: 服务器错误
+ */
 // 清空本地目录（测试用）
 router.post('/api/file/clear-directory', async (req, res) => {
   console.log('收到清空本地目录请求')
@@ -215,6 +495,25 @@ router.post('/api/file/clear-directory', async (req, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /api/file/list-directories:
+ *   get:
+ *     summary: 列举指定目录下的所有子目录（不递归）
+ *     tags: [File]
+ *     parameters:
+ *       - in: query
+ *         name: base
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: 基础目录
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ *       500:
+ *         description: 服务器错误
+ */
 // 列举指定目录下的所有子目录（不递归）
 router.get('/api/file/list-directories', async (req, res) => {
   try {
@@ -226,6 +525,37 @@ router.get('/api/file/list-directories', async (req, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /api/file/history:
+ *   get:
+ *     summary: 获取文件历史记录
+ *     tags: [File]
+ *     parameters:
+ *       - in: query
+ *         name: filePath
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: 文件路径
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         required: false
+ *         description: 页码
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *         required: false
+ *         description: 每页数量
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ *       500:
+ *         description: 服务器错误
+ */
 // 获取文件历史记录
 router.get('/api/file/history', async (req, res) => {
   try {
@@ -237,6 +567,25 @@ router.get('/api/file/history', async (req, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /api/file/history-by-id:
+ *   get:
+ *     summary: 根据ID获取历史记录
+ *     tags: [File]
+ *     parameters:
+ *       - in: query
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: 历史记录ID
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ *       500:
+ *         description: 服务器错误
+ */
 // 根据ID获取历史记录
 router.get('/api/file/history-by-id', async (req, res) => {
   try {
@@ -248,6 +597,29 @@ router.get('/api/file/history-by-id', async (req, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /api/file/rollback:
+ *   post:
+ *     summary: 回滚到历史版本
+ *     tags: [File]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               filePath:
+ *                 type: string
+ *               historyId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 回滚成功
+ *       500:
+ *         description: 服务器错误
+ */
 // 回滚到历史版本
 router.post('/api/file/rollback', async (req, res) => {
   try {
@@ -259,6 +631,29 @@ router.post('/api/file/rollback', async (req, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /api/file/batch-write:
+ *   post:
+ *     summary: 批量写入文件
+ *     tags: [File]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               files:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *     responses:
+ *       200:
+ *         description: 写入成功
+ *       500:
+ *         description: 服务器错误
+ */
 // 批量写入文件
 router.post('/api/file/batch-write', async (req, res) => {
   try {
@@ -270,6 +665,29 @@ router.post('/api/file/batch-write', async (req, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /api/file/batch-delete:
+ *   post:
+ *     summary: 批量删除文件
+ *     tags: [File]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               filePaths:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *     responses:
+ *       200:
+ *         description: 删除成功
+ *       500:
+ *         description: 服务器错误
+ */
 // 批量删除文件
 router.post('/api/file/batch-delete', async (req, res) => {
   try {

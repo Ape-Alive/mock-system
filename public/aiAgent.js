@@ -6,6 +6,8 @@ class AIAgentManager {
     this.fileTreeData = []
     this.selectedNode = null
     this.selectedNodePath = null
+    this.selectedPaths = [] // 初始化选中路径数组
+    this.pathListData = [] // 初始化路径列表数据
 
     this.init()
     this.initSearchDropdown()
@@ -13,14 +15,21 @@ class AIAgentManager {
   }
 
   async init() {
-    await this.initMonacoEditor()
-    this.initFileTree()
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => this.bindEvents())
-    } else {
+    try {
+      this.showLoading()
+      await this.initMonacoEditor()
+      this.initFileTree()
       this.bindEvents()
+      this.loadWelcomeContent()
+      this.initSearchDropdown()
+      this.initResizeBar()
+      this.renderPathList() // 初始化路径列表
+      this.hideLoading()
+    } catch (error) {
+      console.error('初始化失败:', error)
+      this.hideLoading()
+      this.showError('初始化失败: ' + error.message)
     }
-    this.loadWelcomeContent()
   }
 
   // 初始化Monaco编辑器
@@ -57,24 +66,58 @@ class AIAgentManager {
 
   // 绑定事件
   bindEvents() {
-    // 工具栏事件
-    document.getElementById('search-btn').addEventListener('click', () => this.searchCode())
-    // 搜索框事件
-    document.getElementById('code-search').addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') this.searchCode()
+    // 文件树事件
+    document.getElementById('file-tree').addEventListener('click', (e) => {
+      const nodeElement = e.target.closest('.file-tree-node')
+      if (nodeElement) {
+        const node = JSON.parse(nodeElement.dataset.node)
+        this.handleNodeClick(node, nodeElement)
+      }
     })
 
-    // 侧边栏事件
-    const refreshBtn = document.getElementById('refresh-tree')
-    if (refreshBtn) refreshBtn.addEventListener('click', () => this.loadFileTree())
+    // 右键菜单事件
+    document.addEventListener('click', () => this.hideContextMenu())
+    document.getElementById('file-tree').addEventListener('contextmenu', (e) => {
+      e.preventDefault()
+      const nodeElement = e.target.closest('.file-tree-node')
+      if (nodeElement) {
+        const node = JSON.parse(nodeElement.dataset.node)
+        this.showNodeContextMenu(e, node)
+      }
+    })
 
-    // 编辑器事件
+    // 标签页事件
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('.tab')) {
+        const tab = e.target.closest('.tab')
+        const filePath = tab.dataset.file
+        if (filePath) {
+          this.switchTab(filePath)
+        }
+      }
+      if (e.target.closest('.close-tab')) {
+        e.stopPropagation()
+        const tab = e.target.closest('.tab')
+        const filePath = tab.dataset.file
+        if (filePath) {
+          this.closeTab(filePath)
+        }
+      }
+    })
+
+    // 工具栏事件
+    document.getElementById('refresh-tree').addEventListener('click', () => this.loadFileTree())
+    document.getElementById('new-file-btn').addEventListener('click', () => this.handleCreateFile())
+    document.getElementById('new-folder-btn').addEventListener('click', () => this.handleCreateFolder())
     document.getElementById('save-file').addEventListener('click', () => this.saveCurrentFile())
     document.getElementById('format-code').addEventListener('click', () => this.formatCode())
 
-    // 面板切换事件
-    document.querySelectorAll('.panel-tab').forEach((tab) => {
-      tab.addEventListener('click', (e) => this.switchPanel(e.target.dataset.panel))
+    // 搜索事件
+    document.getElementById('search-btn').addEventListener('click', () => this.searchCode())
+    document.getElementById('code-search').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        this.searchCode()
+      }
     })
 
     // AI助手事件
@@ -86,31 +129,53 @@ class AIAgentManager {
       }
     })
 
-    // 代码对比事件
-    document.getElementById('accept-all').addEventListener('click', () => this.acceptAllDiffs())
-    document.getElementById('reject-all').addEventListener('click', () => this.rejectAllDiffs())
+    // 面板切换事件
+    document.querySelectorAll('.panel-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const panelName = tab.dataset.panel
+        this.switchPanel(panelName)
+      })
+    })
 
-    // 历史记录事件
-    document.getElementById('refresh-history').addEventListener('click', () => this.loadHistory())
+    // 路径管理事件
+    document.getElementById('add-path-btn').addEventListener('click', () => this.showPathPopover())
 
-    // 模态框事件
-    document.getElementById('modal-cancel').addEventListener('click', () => this.closeModal())
-    document.getElementById('modal-confirm').addEventListener('click', () => this.confirmModal())
-    document.querySelector('.close-modal').addEventListener('click', () => this.closeModal())
+    // 路径选择Popover事件
+    document.getElementById('path-manager-title').addEventListener('click', () => this.toggleSelectedPathsPopover())
+    document.getElementById('close-path-popover').addEventListener('click', () => this.hidePathPopover())
+    document.getElementById('cancel-path-selection').addEventListener('click', () => this.hidePathPopover())
+    document.getElementById('confirm-selected-paths').addEventListener('click', () => this.confirmPathSelection())
 
-    // 全局右键菜单事件
-    document.addEventListener('click', () => this.hideContextMenu())
+    // 路径搜索事件
+    document.getElementById('path-search-input').addEventListener('input', (e) => this.filterPathList(e.target.value))
 
-    const newFileBtn = document.getElementById('new-file-btn')
-    if (newFileBtn) newFileBtn.addEventListener('click', () => this.handleCreateFile())
-    const newFolderBtn = document.getElementById('new-folder-btn')
-    if (newFolderBtn) newFolderBtn.addEventListener('click', () => this.handleCreateFolder())
+    // 路径列表事件委托
+    document.getElementById('path-list').addEventListener('click', (e) => {
+      if (e.target.closest('.remove-path')) {
+        e.preventDefault()
+        const pathItem = e.target.closest('.path-item')
+        const path = pathItem.dataset.path
+        this.removePath(path)
+      }
+    })
+
+    // 路径选择Popover内容事件委托
+    document.getElementById('path-popover-content').addEventListener('click', (e) => {
+      const pathItem = e.target.closest('.path-popover-item')
+      if (pathItem) {
+        this.togglePathSelection(pathItem)
+      }
+    })
+
+    // 其他事件
+    document.getElementById('open-terminal-btn').addEventListener('click', () => this.openTerminal())
+    document.getElementById('settings-btn').addEventListener('click', () => this.showSettings())
   }
 
   // 加载欢迎内容
   loadWelcomeContent() {
     const welcomeContent = `// 欢迎使用AI Agent代码管理
-// 
+//
 // 功能特性：
 // 1. 智能代码补全和重构
 // 2. 语义化代码搜索
@@ -164,6 +229,7 @@ class AIAgentManager {
     nodeElement.className = `file-tree-node level-${level} ${node.type}`
     nodeElement.setAttribute('data-path', node.path)
     nodeElement.setAttribute('data-type', node.type)
+    nodeElement.setAttribute('data-node', JSON.stringify(node)) // 添加 data-node 属性
 
     const icon = this.getFileIcon(node)
 
@@ -432,6 +498,7 @@ class AIAgentManager {
     const tab = document.createElement('div')
     tab.className = 'tab'
     tab.setAttribute('data-path', filePath)
+    tab.setAttribute('data-file', filePath) // 添加 data-file 属性
     tab.innerHTML = `
       <span class="tab-name">${fileName}</span>
       <button class="close-tab" data-path="${filePath}">
@@ -661,8 +728,8 @@ class AIAgentManager {
       </div>
       <div class="diff-list">
         ${results
-          .map(
-            (result, index) => `
+        .map(
+          (result, index) => `
           <div class="diff-item">
             <div class="diff-item-header">
               <div class="diff-item-title">${result.meta?.filePath || '未知文件'}</div>
@@ -676,8 +743,8 @@ class AIAgentManager {
             </div>
           </div>
         `
-          )
-          .join('')}
+        )
+        .join('')}
       </div>
     `
 
@@ -695,11 +762,11 @@ class AIAgentManager {
       <div class="shell-cmd-block" id="${blockId}" style="margin-bottom:8px;">
         <div>
           ${cmdArr
-            .map((cmdObj) => {
-              if (typeof cmdObj === 'string') return this.renderShellCommandLine(cmdObj)
-              return this.renderShellCommandLine(cmdObj.command, cmdObj.commandExplain)
-            })
-            .join('')}
+        .map((cmdObj) => {
+          if (typeof cmdObj === 'string') return this.renderShellCommandLine(cmdObj)
+          return this.renderShellCommandLine(cmdObj.command, cmdObj.commandExplain)
+        })
+        .join('')}
         </div>
       </div>
     `
@@ -758,76 +825,138 @@ class AIAgentManager {
     const message = input.value.trim()
     if (!message) return
 
-    // 添加用户消息
-    this.addChatMessage('user', message)
+    // 清空输入框
     input.value = ''
 
-    // 添加AI回复占位
-    this.addChatMessage('ai', '正在思考...')
-    const aiMessage = document.querySelector('.message.ai:last-child .message-content .text')
-    aiMessage.innerHTML = ''
+    // 添加用户消息到聊天界面
+    this.addChatMessage('user', message)
+
+    // 获取当前编辑器文件路径
+    const currentTab = document.querySelector('.tab.active')
+    const editorFilePath = currentTab ? currentTab.dataset.file : null
+
+    // 获取手动添加的路径（这里可以从某个全局变量或DOM元素获取）
+    const manualPaths = this.getManualPaths()
+
+    // 获取上下文路径（最近四个请求的上下文）
+    const contextPaths = this.getContextPaths()
+
+    // 构建请求参数
+    const requestData = {
+      messages: [
+        {
+          role: 'user',
+          content: message
+        }
+      ],
+      editorFile: editorFilePath,
+      manualPaths: manualPaths,
+      contextPaths: contextPaths
+    }
 
     try {
+      // 发送流式请求
       const response = await fetch('/api/ai-agent/chat/stream', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: [{ role: 'user', content: message }] }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData)
       })
 
-      if (!response.body) throw new Error('流式响应不支持')
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
 
       const reader = response.body.getReader()
-      const decoder = new TextDecoder('utf-8')
-      let buffer = ''
-      let done = false
-      let cmdGroup = []
+      const decoder = new TextDecoder()
+      let aiMessage = ''
+      let isFirstChunk = true
 
-      while (!done) {
-        const { value, done: readerDone } = await reader.read()
-        done = readerDone
-        if (value) {
-          buffer += decoder.decode(value, { stream: true })
-          // 以SSE格式分割
-          let parts = buffer.split('\n\n')
-          buffer = parts.pop() // 剩余部分
-          for (const part of parts) {
-            if (part.startsWith('data: ')) {
-              const json = part.slice(6)
-              try {
-                const obj = JSON.parse(json)
-                if (obj.command) {
-                  cmdGroup.push(obj)
-                } else {
-                  // 一旦遇到非命令内容，先渲染命令组
-                  if (cmdGroup.length) {
-                    aiMessage.innerHTML += this.renderShellCommandBlock(cmdGroup)
-                    this.bindShellCmdBtnEvents()
-                    cmdGroup = []
-                  }
-                  if (obj.reply) {
-                    aiMessage.innerHTML += this.formatMessage(obj.reply)
-                  }
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value)
+        const lines = chunk.split('\n')
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6)
+            if (data === '[DONE]') {
+              // 流式传输结束
+              return
+            }
+
+            try {
+              const parsed = JSON.parse(data)
+              if (parsed.content) {
+                if (isFirstChunk) {
+                  // 第一次收到内容时创建AI消息
+                  this.addChatMessage('ai', '')
+                  isFirstChunk = false
                 }
-              } catch (e) {
-                // 忽略解析失败
+                aiMessage += parsed.content
+                // 更新最后一条AI消息的内容
+                this.updateLastAIMessage(aiMessage)
               }
-            } else if (part.startsWith('event: end')) {
-              // 结束前渲染剩余命令
-              if (cmdGroup.length) {
-                aiMessage.innerHTML += this.renderShellCommandBlock(cmdGroup)
-                this.bindShellCmdBtnEvents()
-                cmdGroup = []
-              }
-              done = true
-              break
+            } catch (e) {
+              console.error('解析流式数据失败:', e)
             }
           }
         }
       }
     } catch (error) {
-      this.showError('发送消息失败: ' + error.message)
+      console.error('发送消息失败:', error)
+      this.addChatMessage('ai', `发送消息失败: ${error.message}`)
     }
   }
+
+  // 获取手动添加的路径
+  getManualPaths() {
+    // 这里可以从DOM元素、localStorage或其他地方获取手动添加的路径
+    // 示例：从某个隐藏的input或全局变量获取
+    const manualPathsInput = document.getElementById('manual-paths')
+    if (manualPathsInput && manualPathsInput.value) {
+      return JSON.parse(manualPathsInput.value)
+    }
+    return []
+  }
+
+  // 获取上下文路径（最近四个请求的上下文）
+  getContextPaths() {
+    // 从localStorage或内存中获取最近四个请求的上下文
+    const contextHistory = JSON.parse(localStorage.getItem('aiChatContext') || '[]')
+    return contextHistory.slice(-4) // 返回最近4个
+  }
+
+  // 更新最后一条AI消息的内容
+  updateLastAIMessage(content) {
+    const messages = document.querySelectorAll('.message.ai')
+    if (messages.length > 0) {
+      const lastMessage = messages[messages.length - 1]
+      const textElement = lastMessage.querySelector('.text')
+      if (textElement) {
+        textElement.innerHTML = this.formatMessage(content)
+      }
+    }
+  }
+
+  // 保存上下文到localStorage
+  saveContext(message, paths) {
+    const contextHistory = JSON.parse(localStorage.getItem('aiChatContext') || '[]')
+    contextHistory.push({
+      message: message,
+      paths: paths,
+      timestamp: Date.now()
+    })
+    // 只保留最近10个上下文
+    if (contextHistory.length > 10) {
+      contextHistory.splice(0, contextHistory.length - 10)
+    }
+    localStorage.setItem('aiChatContext', JSON.stringify(contextHistory))
+  }
+
   // 添加聊天消息
   addChatMessage(type, content) {
     const chatMessages = document.querySelector('.chat-messages')
@@ -910,8 +1039,8 @@ class AIAgentManager {
       </div>
       <div class="diff-list">
         ${results
-          .map(
-            (result, index) => `
+        .map(
+          (result, index) => `
           <div class="diff-item">
             <div class="diff-item-header">
               <div class="diff-item-title">${result.path}</div>
@@ -925,8 +1054,8 @@ class AIAgentManager {
             </div>
           </div>
         `
-          )
-          .join('')}
+        )
+        .join('')}
       </div>
     `
 
@@ -1047,9 +1176,8 @@ class AIAgentManager {
           </div>
         </div>
         <div class="history-item-content">
-          <pre><code>${this.escapeHtml(history.content.substring(0, 200))}${
-          history.content.length > 200 ? '...' : ''
-        }</code></pre>
+          <pre><code>${this.escapeHtml(history.content.substring(0, 200))}${history.content.length > 200 ? '...' : ''
+          }</code></pre>
         </div>
       </div>
     `
@@ -1613,19 +1741,354 @@ class AIAgentManager {
       }
     })
   }
+
+  // 显示添加路径模态框
+  showAddPathModal() {
+    this.showInputModal(
+      '添加相关文件路径',
+      '请输入文件或目录路径（支持相对路径和绝对路径）',
+      (path) => {
+        this.addPath(path)
+      }
+    )
+  }
+
+  // 添加路径
+  addPath(path) {
+    const manualPathsInput = document.getElementById('manual-paths')
+    const currentPaths = JSON.parse(manualPathsInput.value || '[]')
+
+    // 检查路径是否已存在
+    if (!currentPaths.includes(path)) {
+      currentPaths.push(path)
+      manualPathsInput.value = JSON.stringify(currentPaths)
+      this.renderPathList()
+      this.showSuccess('路径添加成功')
+    } else {
+      this.showError('路径已存在')
+    }
+  }
+
+  // 删除路径
+  removePath(path) {
+    const manualPathsInput = document.getElementById('manual-paths')
+    const currentPaths = JSON.parse(manualPathsInput.value || '[]')
+    const index = currentPaths.indexOf(path)
+
+    if (index > -1) {
+      currentPaths.splice(index, 1)
+      manualPathsInput.value = JSON.stringify(currentPaths)
+      this.renderPathList()
+      this.showSuccess('路径删除成功')
+    }
+  }
+
+  // 渲染路径列表
+  renderPathList() {
+    const pathList = document.getElementById('path-list')
+    const manualPathsInput = document.getElementById('manual-paths')
+    const paths = JSON.parse(manualPathsInput.value || '[]')
+
+    if (paths.length === 0) {
+      pathList.innerHTML = `
+        <div class="no-paths">
+          <i class="fas fa-info-circle"></i>
+          <p>暂无相关文件路径</p>
+        </div>
+      `
+    } else {
+      pathList.innerHTML = paths.map(path => `
+        <div class="path-item" data-path="${path}">
+          <div class="path-item-content">${path}</div>
+          <div class="path-item-actions">
+            <button class="remove-path" title="删除路径">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        </div>
+      `).join('')
+    }
+  }
+
+  // 显示路径选择Popover
+  showPathPopover() {
+    const popover = document.getElementById('path-popover')
+    popover.classList.add('show')
+    this.loadPathList()
+  }
+
+  // 隐藏路径选择Popover
+  hidePathPopover() {
+    const popover = document.getElementById('path-popover')
+    popover.classList.remove('show')
+  }
+
+  // 加载路径列表
+  async loadPathList() {
+    try {
+      // 显示加载状态
+      const popoverContent = document.getElementById('path-popover-content')
+      popoverContent.innerHTML = `
+        <div class="path-popover-loading">
+          <div class="loading-spinner"></div>
+          <div>加载中...</div>
+        </div>
+      `
+
+      const response = await fetch('/api/file/tree')
+      const data = await response.json()
+
+      if (data.success && data.data) {
+        this.pathListData = this.flattenFileTree(data.data)
+        this.renderPathPopoverList()
+      } else {
+        popoverContent.innerHTML = `
+          <div class="path-popover-empty">
+            <i class="fas fa-exclamation-triangle"></i>
+            <div>加载路径列表失败</div>
+          </div>
+        `
+      }
+    } catch (error) {
+      const popoverContent = document.getElementById('path-popover-content')
+      popoverContent.innerHTML = `
+        <div class="path-popover-empty">
+          <i class="fas fa-exclamation-triangle"></i>
+          <div>加载失败: ${error.message}</div>
+        </div>
+      `
+    }
+  }
+
+  // 扁平化文件树为路径列表（带前端过滤）
+  flattenFileTree(tree, result = []) {
+    // 前端过滤规则，与后端 ignoreList 保持一致
+    const ignoreList = [
+      'node_modules',
+      'dist',
+      'build',
+      'coverage',
+      '.vite',
+      '.next',
+      '.turbo',
+      'android',
+      'ios',
+      'macos',
+      'Pods',
+      'bin',
+      'pkg',
+      'target',
+      'CMakeFiles',
+      'Makefile',
+      '.git',
+      '.DS_Store',
+      '.idea',
+      '.vscode',
+      '.env',
+      '.gradle',
+      'go.mod',
+      'go.sum',
+    ]
+    tree.forEach(node => {
+      // 过滤规则：只要路径中包含 ignoreList 里的任意一项就跳过
+      if (ignoreList.some(ig => node.path.includes(ig))) return
+      if (node.type === 'file') {
+        result.push({
+          path: node.path,
+          name: node.name,
+          type: 'file'
+        })
+      } else if (node.type === 'directory' && node.children) {
+        result.push({
+          path: node.path,
+          name: node.name,
+          type: 'directory'
+        })
+        this.flattenFileTree(node.children, result)
+      }
+    })
+    return result
+  }
+
+  // 渲染路径选择Popover列表
+  renderPathPopoverList() {
+    const popoverContent = document.getElementById('path-popover-content')
+    popoverContent.innerHTML = ''
+
+    if (this.pathListData.length === 0) {
+      popoverContent.innerHTML = `
+        <div class="path-popover-empty">
+          <i class="fas fa-folder-open"></i>
+          <div>暂无文件路径</div>
+        </div>
+      `
+      return
+    }
+
+    // 重置选中路径数组
+    this.selectedPaths = []
+
+    this.pathListData.forEach((item) => {
+      const pathItem = document.createElement('div')
+      pathItem.className = 'path-popover-item'
+      pathItem.setAttribute('data-path', item.path)
+      pathItem.setAttribute('data-type', item.type)
+      pathItem.setAttribute('data-name', item.name)
+
+      // 获取文件图标
+      const icon = this.getFileIcon({ type: item.type, name: item.name })
+
+      pathItem.innerHTML = `
+        <div class="path-popover-item-content">
+          <div class="path-popover-item-icon">
+            <i class="${icon}"></i>
+          </div>
+          <div class="path-popover-item-info">
+            <div class="path-popover-item-name">${item.name}</div>
+            <div class="path-popover-item-path">${item.path}</div>
+          </div>
+        </div>
+        <div class="path-popover-item-check">
+          <i class="fas fa-check"></i>
+        </div>
+      `
+
+      // 添加选中状态
+      const manualPathsInput = document.getElementById('manual-paths')
+      const currentPaths = JSON.parse(manualPathsInput.value || '[]')
+      if (currentPaths.includes(item.path)) {
+        pathItem.classList.add('selected')
+        this.selectedPaths.push(item.path)
+      }
+
+      popoverContent.appendChild(pathItem)
+    })
+  }
+
+  // 过滤路径列表
+  filterPathList(query) {
+    const popoverContent = document.getElementById('path-popover-content')
+    const items = popoverContent.querySelectorAll('.path-popover-item')
+    items.forEach((item) => {
+      const textContent = item.textContent.toLowerCase()
+      const queryLower = query.toLowerCase()
+      if (textContent.includes(queryLower)) {
+        item.style.display = 'block'
+      } else {
+        item.style.display = 'none'
+      }
+    })
+  }
+
+  // 切换路径选择状态
+  togglePathSelection(item) {
+    const path = item.dataset.path
+    const isSelected = this.selectedPaths.includes(path)
+    if (isSelected) {
+      this.selectedPaths = this.selectedPaths.filter(p => p !== path)
+      item.classList.remove('selected')
+    } else {
+      this.selectedPaths.push(path)
+      item.classList.add('selected')
+    }
+  }
+
+  // 确认路径选择
+  confirmPathSelection() {
+    if (this.selectedPaths.length === 0) {
+      this.showError('请至少选择一个路径')
+      return
+    }
+    this.addPathsToManualList(this.selectedPaths)
+    this.hidePathPopover()
+    this.showSuccess('路径已添加')
+  }
+
+  // 将选中的路径添加到手动路径列表
+  addPathsToManualList(paths) {
+    const manualPathsInput = document.getElementById('manual-paths')
+    const currentPaths = JSON.parse(manualPathsInput.value || '[]')
+    paths.forEach(path => {
+      if (!currentPaths.includes(path)) {
+        currentPaths.push(path)
+      }
+    })
+    manualPathsInput.value = JSON.stringify(currentPaths)
+    this.renderPathList()
+  }
+
+  // 切换只读Popover显示/隐藏
+  toggleSelectedPathsPopover() {
+    const popover = document.getElementById('selected-paths-popover')
+    if (popover.classList.contains('show')) {
+      popover.classList.remove('show')
+      if (this._popoverTimer) clearTimeout(this._popoverTimer)
+      return
+    }
+    this.showSelectedPathsPopover()
+  }
+
+  // 显示只读Popover
+  showSelectedPathsPopover() {
+    const popover = document.getElementById('selected-paths-popover')
+    const titleElement = document.getElementById('path-manager-title')
+    const manualPathsInput = document.getElementById('manual-paths')
+    const paths = JSON.parse(manualPathsInput.value || '[]')
+
+    // 动态定位Popover到标题下方
+    const titleRect = titleElement.getBoundingClientRect()
+    const containerRect = titleElement.closest('.path-manager').getBoundingClientRect()
+
+    // 计算相对于容器的位置
+    const relativeLeft = titleRect.left - containerRect.left
+    const relativeTop = titleRect.bottom - containerRect.top + 5 // 标题下方5px
+
+    // 设置Popover位置
+    popover.style.left = relativeLeft + 'px'
+    popover.style.top = relativeTop + 'px'
+    popover.style.minWidth = Math.max(titleElement.offsetWidth, 200) + 'px'
+
+    let html = ''
+    if (paths.length === 0) {
+      html = `<div class="selected-paths-popover-empty">暂无相关文件路径</div>`
+    } else {
+      html = `<div class="selected-paths-popover-list">` +
+        paths.map(path => `
+          <div class="selected-paths-popover-item">
+            <span title="${path}">${path.split('/').pop()}</span>
+            <button class="remove-path" data-path="${path}" title="移除">×</button>
+          </div>
+        `).join('') +
+        `</div>`
+    }
+    popover.innerHTML = html
+    popover.classList.add('show')
+    // 绑定删除事件
+    popover.querySelectorAll('.remove-path').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation()
+        this.removePath(btn.dataset.path)
+        this.showSelectedPathsPopover() // 重新渲染
+      }
+    })
+    // 自动消失
+    if (this._popoverTimer) clearTimeout(this._popoverTimer)
+    this._popoverTimer = setTimeout(() => {
+      popover.classList.remove('show')
+    }, 3000)
+    // 点击标题再次点击立即消失（已在 toggleSelectedPathsPopover 处理）
+    // 点击Popover外部关闭
+    setTimeout(() => {
+      const hide = (e) => {
+        if (!popover.contains(e.target) && e.target.id !== 'path-manager-title') {
+          popover.classList.remove('show')
+          document.removeEventListener('mousedown', hide)
+        }
+      }
+      document.addEventListener('mousedown', hide)
+    }, 0)
+  }
 }
-
-// ========== AI助手面板宽度拖拽 ========== //
-
-// function waitForAiPanelAndInitResize() {
-//   const aiPanel = document.getElementById('ai-panel')
-//   if (aiPanel) {
-//     enableAiPanelResize()
-//   } else {
-//     setTimeout(waitForAiPanelAndInitResize, 100)
-//   }
-// }
-// window.addEventListener('DOMContentLoaded', waitForAiPanelAndInitResize)
 
 // 初始化应用
 const aiAgent = new AIAgentManager()

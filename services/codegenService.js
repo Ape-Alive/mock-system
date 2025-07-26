@@ -6,7 +6,7 @@ class CodegenService {
   constructor() {
     this.deepseekConfig = {
       baseURL: process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com',
-      apiKey: process.env.DEEPSEEK_API_KEY || 'sk- ',
+      apiKey: process.env.DEEPSEEK_API_KEY || 'sk-',
       model: 'deepseek-coder',
     }
     this.openai = new OpenAI({
@@ -74,7 +74,7 @@ class CodegenService {
           pathContent: mockData.pathContent,
           pathContentDesc: mockData.pathContentDesc || {},
         })
-      } catch (error) {}
+      } catch (error) { }
     }
     return interfaces
   }
@@ -133,9 +133,8 @@ class CodegenService {
       'flutter-easyloading': 'flutter_easyloading',
       custom: customLibrary || '原生组件',
     }
-    let prompt = `请使用${techStackMap[techStack]}技术栈，生成一个${
-      outputType === 'component' ? '可复用的组件' : '完整的可预览的html页面'
-    }。\n\n`
+    let prompt = `请使用${techStackMap[techStack]}技术栈，生成一个${outputType === 'component' ? '可复用的组件' : '完整的可预览的html页面'
+      }。\n\n`
     if (uiLibrary && uiLibrary !== 'custom') {
       prompt += `UI库要求：使用${uiLibraryMap[uiLibrary]}\n`
     }
@@ -331,25 +330,18 @@ class CodegenService {
   generateMockCode({ techStack, outputType, uiLibrary, interfaces, pageStructure, pageLogic }) {
     // 这里只做简单示例，实际可根据参数生成更丰富的mock代码
     if (techStack === 'vue2' || techStack === 'vue3') {
-      return `<template>\n  <div>\n    <h2>示例组件：${
-        interfaces[0]?.pathName || '接口'
-      } </h2>\n    <pre>{{ info }}</pre>\n  </div>\n</template>\n\n<script${
-        techStack === 'vue3' ? ' setup' : ''
-      }>\nimport { onMounted, ref } from '${
-        techStack === 'vue2' ? 'vue' : 'vue'
-      }'\nimport axios from 'axios'\nconst info = ref(null)\nonMounted(() => {\n  axios.get('${
-        interfaces[0]?.path || '/api/example'
-      }').then(res => {\n    info.value = res.data\n  })\n})\n</script>\n`
+      return `<template>\n  <div>\n    <h2>示例组件：${interfaces[0]?.pathName || '接口'
+        } </h2>\n    <pre>{{ info }}</pre>\n  </div>\n</template>\n\n<script${techStack === 'vue3' ? ' setup' : ''
+        }>\nimport { onMounted, ref } from '${techStack === 'vue2' ? 'vue' : 'vue'
+        }'\nimport axios from 'axios'\nconst info = ref(null)\nonMounted(() => {\n  axios.get('${interfaces[0]?.path || '/api/example'
+        }').then(res => {\n    info.value = res.data\n  })\n})\n</script>\n`
     } else if (techStack === 'react') {
-      return `import React, { useEffect, useState } from 'react'\nimport axios from 'axios'\nexport default function Example() {\n  const [info, setInfo] = useState(null)\n  useEffect(() => {\n    axios.get('${
-        interfaces[0]?.path || '/api/example'
-      }').then(res => setInfo(res.data))\n  }, [])\n  return (\n    <div>\n      <h2>示例组件：${
-        interfaces[0]?.pathName || '接口'
-      }</h2>\n      <pre>{JSON.stringify(info, null, 2)}</pre>\n    </div>\n  )\n}`
+      return `import React, { useEffect, useState } from 'react'\nimport axios from 'axios'\nexport default function Example() {\n  const [info, setInfo] = useState(null)\n  useEffect(() => {\n    axios.get('${interfaces[0]?.path || '/api/example'
+        }').then(res => setInfo(res.data))\n  }, [])\n  return (\n    <div>\n      <h2>示例组件：${interfaces[0]?.pathName || '接口'
+        }</h2>\n      <pre>{JSON.stringify(info, null, 2)}</pre>\n    </div>\n  )\n}`
     } else if (techStack === 'flutter') {
-      return `import 'package:flutter/material.dart';\nimport 'package:dio/dio.dart';\nclass ExamplePage extends StatefulWidget {\n  @override\n  _ExamplePageState createState() => _ExamplePageState();\n}\nclass _ExamplePageState extends State<ExamplePage> {\n  dynamic info;\n  @override\n  void initState() {\n    super.initState();\n    fetchInfo();\n  }\n  void fetchInfo() async {\n    final response = await Dio().get('${
-        interfaces[0]?.path || '/api/example'
-      }');\n    setState(() { info = response.data; });\n  }\n  @override\n  Widget build(BuildContext context) {\n    return Scaffold(\n      appBar: AppBar(title: Text('示例页面')),\n      body: info == null ? Center(child: CircularProgressIndicator()) : Padding(\n        padding: EdgeInsets.all(16),\n        child: Text(info.toString()),\n      ),\n    );\n  }\n}`
+      return `import 'package:flutter/material.dart';\nimport 'package:dio/dio.dart';\nclass ExamplePage extends StatefulWidget {\n  @override\n  _ExamplePageState createState() => _ExamplePageState();\n}\nclass _ExamplePageState extends State<ExamplePage> {\n  dynamic info;\n  @override\n  void initState() {\n    super.initState();\n    fetchInfo();\n  }\n  void fetchInfo() async {\n    final response = await Dio().get('${interfaces[0]?.path || '/api/example'
+        }');\n    setState(() { info = response.data; });\n  }\n  @override\n  Widget build(BuildContext context) {\n    return Scaffold(\n      appBar: AppBar(title: Text('示例页面')),\n      body: info == null ? Center(child: CircularProgressIndicator()) : Padding(\n        padding: EdgeInsets.all(16),\n        child: Text(info.toString()),\n      ),\n    );\n  }\n}`
     }
     return '// 暂不支持该技术栈的mock代码生成'
   }

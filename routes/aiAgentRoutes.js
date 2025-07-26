@@ -3,7 +3,32 @@ const router = express.Router()
 const aiAgent = require('../services/aiAgentService')
 const { startWatching, rebuildIndex } = require('../services/aiAgentWatcherService')
 
-// 代码/文本语义检索
+/**
+ * @swagger
+ * /search:
+ *   post:
+ *     summary: 代码/文本语义检索
+ *     tags: [AI]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               query:
+ *                 type: string
+ *               type:
+ *                 type: string
+ *                 enum: [code, text]
+ *               top_k:
+ *                 type: integer
+ *     responses:
+ *       200:
+ *         description: 检索结果
+ *       500:
+ *         description: 服务器错误
+ */
 router.post('/search', async (req, res) => {
   const { query, type = 'code', top_k = 5 } = req.body
   try {
@@ -45,6 +70,29 @@ router.post('/search', async (req, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /complete:
+ *   post:
+ *     summary: 单文件代码补全
+ *     tags: [AI]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               prompt:
+ *                 type: string
+ *               context:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 补全结果
+ *       500:
+ *         description: 服务器错误
+ */
 // 单文件代码补全
 router.post('/complete', async (req, res) => {
   const { prompt, context = '' } = req.body
@@ -56,6 +104,31 @@ router.post('/complete', async (req, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /batch-complete:
+ *   post:
+ *     summary: 多文件批量补全/修改
+ *     tags: [AI]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               prompt:
+ *                 type: string
+ *               files:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *     responses:
+ *       200:
+ *         description: 批量补全结果
+ *       500:
+ *         description: 服务器错误
+ */
 // 多文件批量补全/修改
 router.post('/batch-complete', async (req, res) => {
   const { prompt, files } = req.body
@@ -67,6 +140,29 @@ router.post('/batch-complete', async (req, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /batch-write:
+ *   post:
+ *     summary: 批量文件写入
+ *     tags: [AI]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               files:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *     responses:
+ *       200:
+ *         description: 写入成功
+ *       500:
+ *         description: 服务器错误
+ */
 // 批量文件写入
 router.post('/batch-write', async (req, res) => {
   const { files } = req.body
@@ -78,6 +174,25 @@ router.post('/batch-write', async (req, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /set-watch-dir:
+ *   post:
+ *     summary: 设置监听目录
+ *     tags: [AI]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               dir:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 设置成功
+ */
 // 设置监听目录
 router.post('/set-watch-dir', (req, res) => {
   const { dir } = req.body
@@ -85,6 +200,27 @@ router.post('/set-watch-dir', (req, res) => {
   res.json({ success: true })
 })
 
+/**
+ * @swagger
+ * /update-index:
+ *   post:
+ *     summary: 手动触发全量索引重建
+ *     tags: [AI]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               dir:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 重建成功
+ *       500:
+ *         description: 服务器错误
+ */
 // 手动触发全量索引重建
 router.post('/update-index', async (req, res) => {
   const { dir } = req.body
@@ -96,6 +232,29 @@ router.post('/update-index', async (req, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /chat:
+ *   post:
+ *     summary: AI多轮对话
+ *     tags: [AI]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               messages:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *     responses:
+ *       200:
+ *         description: 对话结果
+ *       500:
+ *         description: 服务器错误
+ */
 // AI多轮对话
 router.post('/chat', async (req, res) => {
   try {
@@ -107,24 +266,127 @@ router.post('/chat', async (req, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /chat/stream:
+ *   post:
+ *     summary: AI多轮对话（流式SSE）
+ *     tags: [AI]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               messages:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                 description: 对话消息数组
+ *               editorFile:
+ *                 type: string
+ *                 description: 编辑器当前文件路径
+ *               manualPaths:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: 手动添加的路径列表
+ *               contextPaths:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: 上下文路径列表（最近4个请求）
+ *     responses:
+ *       200:
+ *         description: 流式对话结果，包含类型化的响应数据
+ *         content:
+ *           text/event-stream:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 type:
+ *                   type: string
+ *                   enum: [intent_info, action_start, command_item, text_response, code_modification, general_response, action_complete, error]
+ *                   description: 响应数据类型
+ *                 action:
+ *                   type: string
+ *                   description: 操作类型
+ *                 message:
+ *                   type: string
+ *                   description: 消息内容
+ *                 content:
+ *                   type: string
+ *                   description: 响应内容
+ *                 parameters:
+ *                   type: object
+ *                   description: 参数信息
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                   description: 时间戳
+ *                 id:
+ *                   type: string
+ *                   description: 唯一标识符
+ *       500:
+ *         description: 服务器错误
+ */
 // AI多轮对话（流式SSE）
 router.post('/chat/stream', async (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream')
   res.setHeader('Cache-Control', 'no-cache')
   res.setHeader('Connection', 'keep-alive')
   try {
-    const { messages } = req.body
-    for await (const chunk of aiAgent.chatWithAIStream(messages)) {
-      res.write(`data: ${JSON.stringify(chunk)}\n\n`)
+    const { messages, editorFile, manualPaths, contextPaths } = req.body
+
+    for await (const chunk of aiAgent.chatWithAIStream(messages, editorFile, manualPaths, contextPaths)) {
+      // 为每个chunk添加时间戳
+      const enhancedChunk = {
+        ...chunk,
+        timestamp: new Date().toISOString(),
+        id: Math.random().toString(36).substr(2, 9)
+      }
+      res.write(`data: ${JSON.stringify(enhancedChunk)}\n\n`)
     }
     res.write('event: end\ndata: [DONE]\n\n')
     res.end()
   } catch (e) {
-    res.write(`event: error\ndata: ${JSON.stringify(e.message)}\n\n`)
+    res.write(`event: error\ndata: ${JSON.stringify({ error: e.message, timestamp: new Date().toISOString() })}\n\n`)
     res.end()
   }
 })
 
+/**
+ * @swagger
+ * /history:
+ *   get:
+ *     summary: 获取历史记录
+ *     tags: [AI]
+ *     parameters:
+ *       - in: query
+ *         name: filePath
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: 文件路径
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         required: false
+ *         description: 页码
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *         required: false
+ *         description: 每页数量
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ *       500:
+ *         description: 服务器错误
+ */
 // 获取历史记录
 router.get('/history', async (req, res) => {
   try {
@@ -136,6 +398,29 @@ router.get('/history', async (req, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /rollback:
+ *   post:
+ *     summary: 回滚到历史版本
+ *     tags: [AI]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               filePath:
+ *                 type: string
+ *               historyId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 回滚成功
+ *       500:
+ *         description: 服务器错误
+ */
 // 回滚到历史版本
 router.post('/rollback', async (req, res) => {
   try {

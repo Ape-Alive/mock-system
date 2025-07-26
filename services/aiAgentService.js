@@ -8,7 +8,7 @@ const { batchWriteFiles } = require('./fileBatchWriter')
 
 const VECTOR_SERVER = 'http://localhost:8300'
 // 获取 DeepSeek API Key，优先用环境变量
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk- '
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk-'
 
 // 文本向量化
 async function vectorizeText(text) {
@@ -243,7 +243,7 @@ async function chatWithAI(messages) {
 }
 
 // chatWithAI 集成意图解析（流式 async generator 版本）
-async function* chatWithAIStream(messages) {
+async function* chatWithAIStream(messages, editorFile, manualPaths, contextPaths) {
   const lastMessage = messages[messages.length - 1]
   const localDirResult = await getLocalDirectory()
   const rootDir =
@@ -251,9 +251,75 @@ async function* chatWithAIStream(messages) {
   if (!rootDir) throw new Error('未获取到有效的本地目录')
   const fileTree = getProjectFileTree(rootDir, ignoreList)
   const intentResult = await parseIntentWithDeepSeek(lastMessage.content, fileTree)
+  console.log('intentResult', intentResult);
+
   for await (const chunk of handleIntentStream(intentResult, fileTree)) {
     yield chunk
   }
+}
+
+/**
+ * 处理多来源路径，按权重累加和排序
+ * @param {Object} params
+ * @param {string} params.editorFile 编辑器当前文件路径
+ * @param {string[]} params.manualPaths 手动添加路径
+ * @param {string[]} params.contextPaths 上下文路径
+ * @param {string[]} params.semanticPaths 语义解析路径
+ * @param {string[]} params.vectorPaths 向量搜索路径
+ * @param {string[]} params.globalPaths 全局搜索路径
+ * @param {number} params.maxLength 返回数组最大长度，默认10
+ * @returns {Array<{path: string, weight: number}>} 排序后的路径及权重
+ */
+async function processPathsForChatStream({
+  editorFile,
+  manualPaths = [],
+  contextPaths = [],
+  semanticPaths = [],
+  vectorPaths = [],
+  globalPaths = [],
+  maxLength = 10,
+}) {
+  // 权重定义
+  const WEIGHTS = {
+    editor: 1.0,
+    manual: 0.9,
+    context: 0.8,
+    semantic: 0.7,
+    vector: 0.6,
+    global: 0.5,
+  }
+  // 路径权重累加
+  const pathMap = new Map()
+  // 编辑器当前文件
+  if (editorFile) {
+    pathMap.set(editorFile, (pathMap.get(editorFile) || 0) + WEIGHTS.editor)
+  }
+  // 手动添加路径
+  new Set(manualPaths).forEach(p => {
+    pathMap.set(p, (pathMap.get(p) || 0) + WEIGHTS.manual)
+  })
+  // 上下文路径
+  new Set(contextPaths).forEach(p => {
+    pathMap.set(p, (pathMap.get(p) || 0) + WEIGHTS.context)
+  })
+  // 语义解析路径
+  new Set(semanticPaths).forEach(p => {
+    pathMap.set(p, (pathMap.get(p) || 0) + WEIGHTS.semantic)
+  })
+  // 向量搜索路径
+  new Set(vectorPaths).forEach(p => {
+    pathMap.set(p, (pathMap.get(p) || 0) + WEIGHTS.vector)
+  })
+  // 全局搜索路径
+  new Set(globalPaths).forEach(p => {
+    pathMap.set(p, (pathMap.get(p) || 0) + WEIGHTS.global)
+  })
+  // 排序并限制长度
+  const result = Array.from(pathMap.entries())
+    .map(([path, weight]) => ({ path, weight }))
+    .sort((a, b) => b.weight === a.weight ? a.path.localeCompare(b.path) : b.weight - a.weight)
+    .slice(0, maxLength)
+  return result
 }
 
 // 语义搜索
@@ -309,4 +375,5 @@ module.exports = {
   semanticSearch,
   codeRefactor,
   callLLM,
+  processPathsForChatStream,
 }

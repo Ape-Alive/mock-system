@@ -12,19 +12,129 @@ function loadPrompts() {
 const prompts = loadPrompts()
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk- '
 
+// 获取操作的中文显示名称
+function getActionDisplayName(action) {
+  const actionNames = {
+    'project_creation': '项目创建',
+    'code_explanation': '代码解释',
+    'code_review': '代码审查',
+    'documentation_generation': '文档生成',
+    'code_refactoring': '代码重构',
+    'bug_fixing': '错误修复',
+    'feature_modification': '功能修改',
+    'feature_addition': '功能添加',
+    'test_addition': '测试添加',
+    'dependency_management': '依赖管理',
+    'configuration_change': '配置变更',
+    'database_operation': '数据库操作',
+    'api_development': 'API开发',
+    'deployment_configuration': '部署配置',
+    'performance_optimization': '性能优化',
+    'security_hardening': '安全加固',
+    'internationalization': '国际化',
+    'debugging_assistance': '调试辅助',
+    'code_conversion': '代码转换'
+  }
+  return actionNames[action] || action
+}
+
 // 主入口：根据 intent 分发（流式 async generator 版本）
 async function* handleIntentStream(intentResult, fileTree) {
   const { intent, parameters } = intentResult
+
+  // 首先发送处理类型信息
+  yield {
+    type: 'intent_info',
+    action: intent,
+    parameters: parameters,
+    message: `开始处理: ${intent}`
+  }
+
   switch (intent) {
     case 'project_creation': {
+      // 发送项目创建开始标识
+      yield {
+        type: 'action_start',
+        action: 'project_creation',
+        message: '开始生成项目创建命令...'
+      }
       // 这里调用流式的 handleProjectCreationStream
       yield* handleProjectCreationStream(parameters, fileTree)
+      // 发送项目创建完成标识
+      yield {
+        type: 'action_complete',
+        action: 'project_creation',
+        message: '项目创建命令生成完成'
+      }
+      break
+    }
+    case 'code_explanation':
+    case 'code_review':
+    case 'documentation_generation': {
+      // 发送文本解释开始标识
+      yield {
+        type: 'action_start',
+        action: intent,
+        message: `开始${getActionDisplayName(intent)}...`
+      }
+      const result = await handleIntent(intentResult, fileTree)
+      yield {
+        type: 'text_response',
+        action: intent,
+        content: result.message || result.prompt,
+        parameters: parameters
+      }
+      yield {
+        type: 'action_complete',
+        action: intent,
+        message: `${getActionDisplayName(intent)}完成`
+      }
+      break
+    }
+    case 'code_refactoring':
+    case 'bug_fixing':
+    case 'feature_modification':
+    case 'feature_addition': {
+      // 发送代码修改开始标识
+      yield {
+        type: 'action_start',
+        action: intent,
+        message: `开始${getActionDisplayName(intent)}...`
+      }
+      const result = await handleIntent(intentResult, fileTree)
+      yield {
+        type: 'code_modification',
+        action: intent,
+        content: result.message || result.prompt,
+        parameters: parameters,
+        files: result.files || []
+      }
+      yield {
+        type: 'action_complete',
+        action: intent,
+        message: `${getActionDisplayName(intent)}完成`
+      }
       break
     }
     default:
-      // 其它 intent 仍然一次性返回
+      // 发送通用处理开始标识
+      yield {
+        type: 'action_start',
+        action: intent,
+        message: `开始处理: ${intent}`
+      }
       const result = await handleIntent(intentResult, fileTree)
-      yield result
+      yield {
+        type: 'general_response',
+        action: intent,
+        content: result.message || result.prompt,
+        parameters: parameters
+      }
+      yield {
+        type: 'action_complete',
+        action: intent,
+        message: `处理完成: ${intent}`
+      }
   }
 }
 
@@ -42,8 +152,6 @@ function interpolate(tpl, params) {
 async function handleProjectCreation(params, fileTree) {
   const promptTpl = prompts.project_creation?.system || '请在${directory}下创建一个${tech_stack}的${project_type}项目。'
   const prompt = interpolate(promptTpl, params)
-  console.log('params', params)
-
   console.log('prompt', prompt)
 
   // 1. 调用 DeepSeek LLM 生成命令数组
@@ -151,7 +259,12 @@ async function* handleProjectCreationStream(params, fileTree) {
                 const cmdObj = JSON.parse(jsonLine)
                 if (cmdObj.command) {
                   console.log('yield:', cmdObj)
-                  yield { action: 'project_creation', command: cmdObj.command, commandExplain: cmdObj.commandExplain }
+                  yield {
+                    type: 'command_item',
+                    action: 'project_creation',
+                    command: cmdObj.command,
+                    commandExplain: cmdObj.commandExplain
+                  }
                 }
               } catch (e) {
                 /* 不是完整JSON，忽略 */
@@ -170,9 +283,14 @@ async function* handleProjectCreationStream(params, fileTree) {
       const cmdObj = JSON.parse(buffer.trim())
       if (cmdObj.command) {
         console.log('yield:', cmdObj)
-        yield { action: 'project_creation', command: cmdObj.command, commandExplain: cmdObj.commandExplain }
+        yield {
+          type: 'command_item',
+          action: 'project_creation',
+          command: cmdObj.command,
+          commandExplain: cmdObj.commandExplain
+        }
       }
-    } catch (e) {}
+    } catch (e) { }
   }
 }
 
