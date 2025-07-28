@@ -8,7 +8,7 @@ const { batchWriteFiles } = require('./fileBatchWriter')
 
 const VECTOR_SERVER = 'http://localhost:8300'
 // 获取 DeepSeek API Key，优先用环境变量
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk-'
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk- '
 
 // 文本向量化
 async function vectorizeText(text) {
@@ -59,7 +59,160 @@ async function codeCompletion(prompt, context = '') {
   return { completion: '// 补全内容示例' }
 }
 
-// 多文件批量补全/修改
+// 多文件批量补全/修改（流式版本）
+async function* batchCodeCompletionStream(parameters, files, messages) {
+  // 组装多文件上下文
+  const context = files.map((f) => `文件: ${f.path}\n内容:\n${f.content}\n`).join('\n')
+
+  // 获取最近五次对话上下文
+  const recentMessages = messages.slice(-10) // 最近10条消息（5轮对话）
+
+  // 构建 prompt
+  const systemPrompt = `你是一个专业的代码助手。请根据用户需求对提供的文件进行智能修改。
+
+### 任务要求
+- 仔细分析用户需求和文件内容
+- 只修改必要的部分，保持代码风格一致
+- 如果不需要修改,无需返回任何内容
+- 返回格式必须是 JSON，包含修改结果
+
+### 输出格式
+{
+  "files": [
+    {
+      "path": "文件路径",
+      "oldContent": "原内容",
+      "newContent": "新内容", 
+      "diff": "diff格式的修改",
+      "reason": "修改原因"
+    }
+  ]
+}
+
+### 文件内容
+${context}
+
+### 对话历史（最近5轮）
+${recentMessages.map((msg, index) => `${msg.role === 'user' ? '用户' : 'AI'}: ${msg.content}`).join('\n')}
+
+### 当前用户需求
+${JSON.stringify(messages[messages.length - 1].content)}`
+
+  const llmMessages = [
+    { role: 'system', content: systemPrompt },
+    ...recentMessages.map((msg) => ({
+      role: msg.role === 'user' ? 'user' : 'assistant',
+      content: msg.content,
+    })),
+    {
+      role: 'user',
+      content: `请根据上述对话历史和需求修改文件：${JSON.stringify(messages[messages.length - 1].content)}`,
+    },
+  ]
+
+  try {
+    // 流式调用 DeepSeek
+    const response = await axios.post(
+      'https://api.deepseek.com/v1/chat/completions',
+      {
+        model: 'deepseek-chat',
+        messages: llmMessages,
+        stream: true,
+        temperature: 0.1,
+        max_tokens: 4000,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        responseType: 'stream',
+      }
+    )
+
+    let fullResponse = ''
+
+    for await (const chunk of response.data) {
+      const lines = chunk.toString().split('\n')
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6)
+
+          if (data === '[DONE]') {
+            // 流式传输完成，解析完整响应
+            try {
+              const result = JSON.parse(fullResponse)
+
+              // 处理每个文件的修改结果
+              for (const fileResult of result.files || []) {
+                const originalFile = files.find((f) => f.path === fileResult.path)
+                if (originalFile) {
+                  if (fileResult.oldContent !== fileResult.newContent) {
+                    // 有修改
+                    yield {
+                      type: 'file_modification',
+                      path: fileResult.path,
+                      oldContent: fileResult.oldContent,
+                      newContent: fileResult.newContent,
+                      diff: fileResult.diff,
+                      reason: fileResult.reason,
+                    }
+                  } else {
+                    // 无修改
+                    yield {
+                      type: 'file_no_change',
+                      path: fileResult.path,
+                      reason: fileResult.reason || '无需修改',
+                    }
+                  }
+                }
+              }
+
+              // 如果没有文件被修改
+              const hasModifications = (result.files || []).some((f) => f.oldContent !== f.newContent)
+              if (!hasModifications) {
+                yield {
+                  type: 'no_modifications',
+                  message: '未检测到需要修改的内容',
+                }
+              }
+            } catch (parseError) {
+              yield {
+                type: 'error',
+                message: `解析响应失败: ${parseError.message}`,
+                rawResponse: fullResponse,
+              }
+            }
+            return
+          }
+
+          try {
+            const parsed = JSON.parse(data)
+            if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.content) {
+              fullResponse += parsed.choices[0].delta.content
+
+              // 流式返回部分内容给前端
+              yield {
+                type: 'stream_chunk',
+                content: parsed.choices[0].delta.content,
+              }
+            }
+          } catch (e) {
+            // 忽略解析错误，继续处理
+          }
+        }
+      }
+    }
+  } catch (error) {
+    yield {
+      type: 'error',
+      message: `调用 DeepSeek API 失败: ${error.message}`,
+    }
+  }
+}
+
+// 保持原有的同步版本作为备用
 async function batchCodeCompletion(prompt, files) {
   // 组装多文件上下文
   const context = files.map((f) => `文件: ${f.path}\n内容:\n${f.content}\n`).join('\n')
@@ -251,9 +404,15 @@ async function* chatWithAIStream(messages, editorFile, manualPaths, contextPaths
   if (!rootDir) throw new Error('未获取到有效的本地目录')
   const fileTree = getProjectFileTree(rootDir, ignoreList)
   const intentResult = await parseIntentWithDeepSeek(lastMessage.content, fileTree)
-  console.log('intentResult', intentResult);
 
-  for await (const chunk of handleIntentStream(intentResult, fileTree)) {
+  const afterHandlePaths = await processPathsForChatStream({
+    editorFile,
+    manualPaths,
+    contextPaths,
+    semanticPaths: intentResult.paths,
+  })
+  console.log('intentResult', afterHandlePaths, intentResult, editorFile, manualPaths, contextPaths)
+  for await (const chunk of handleIntentStream(intentResult, fileTree, afterHandlePaths, messages)) {
     yield chunk
   }
 }
@@ -295,29 +454,29 @@ async function processPathsForChatStream({
     pathMap.set(editorFile, (pathMap.get(editorFile) || 0) + WEIGHTS.editor)
   }
   // 手动添加路径
-  new Set(manualPaths).forEach(p => {
+  new Set(manualPaths).forEach((p) => {
     pathMap.set(p, (pathMap.get(p) || 0) + WEIGHTS.manual)
   })
   // 上下文路径
-  new Set(contextPaths).forEach(p => {
+  new Set(contextPaths).forEach((p) => {
     pathMap.set(p, (pathMap.get(p) || 0) + WEIGHTS.context)
   })
   // 语义解析路径
-  new Set(semanticPaths).forEach(p => {
+  new Set(semanticPaths).forEach((p) => {
     pathMap.set(p, (pathMap.get(p) || 0) + WEIGHTS.semantic)
   })
   // 向量搜索路径
-  new Set(vectorPaths).forEach(p => {
+  new Set(vectorPaths).forEach((p) => {
     pathMap.set(p, (pathMap.get(p) || 0) + WEIGHTS.vector)
   })
   // 全局搜索路径
-  new Set(globalPaths).forEach(p => {
+  new Set(globalPaths).forEach((p) => {
     pathMap.set(p, (pathMap.get(p) || 0) + WEIGHTS.global)
   })
   // 排序并限制长度
   const result = Array.from(pathMap.entries())
     .map(([path, weight]) => ({ path, weight }))
-    .sort((a, b) => b.weight === a.weight ? a.path.localeCompare(b.path) : b.weight - a.weight)
+    .sort((a, b) => (b.weight === a.weight ? a.path.localeCompare(b.path) : b.weight - a.weight))
     .slice(0, maxLength)
   return result
 }
@@ -367,6 +526,7 @@ module.exports = {
   faissUpdate,
   codeCompletion,
   batchCodeCompletion,
+  batchCodeCompletionStream,
   batchWriteFiles,
   generateDiff,
   applyDiff,

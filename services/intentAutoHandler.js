@@ -2,6 +2,7 @@ const fs = require('fs')
 const path = require('path')
 const axios = require('axios')
 const { batchWriteFiles } = require('./fileBatchWriter')
+const { batchCodeCompletion, batchCodeCompletionStream } = require('./aiAgentService')
 
 // 统一加载所有业务 prompt
 function loadPrompts() {
@@ -15,126 +16,125 @@ const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk- '
 // 获取操作的中文显示名称
 function getActionDisplayName(action) {
   const actionNames = {
-    'project_creation': '项目创建',
-    'code_explanation': '代码解释',
-    'code_review': '代码审查',
-    'documentation_generation': '文档生成',
-    'code_refactoring': '代码重构',
-    'bug_fixing': '错误修复',
-    'feature_modification': '功能修改',
-    'feature_addition': '功能添加',
-    'test_addition': '测试添加',
-    'dependency_management': '依赖管理',
-    'configuration_change': '配置变更',
-    'database_operation': '数据库操作',
-    'api_development': 'API开发',
-    'deployment_configuration': '部署配置',
-    'performance_optimization': '性能优化',
-    'security_hardening': '安全加固',
-    'internationalization': '国际化',
-    'debugging_assistance': '调试辅助',
-    'code_conversion': '代码转换'
+    project_creation: '项目创建',
+    code_explanation: '代码解释',
+    code_review: '代码审查',
+    documentation_generation: '文档生成',
+    code_refactoring: '代码重构',
+    bug_fixing: '错误修复',
+    feature_modification: '功能修改',
+    feature_addition: '功能添加',
+    test_addition: '测试添加',
+    dependency_management: '依赖管理',
+    configuration_change: '配置变更',
+    database_operation: '数据库操作',
+    api_development: 'API开发',
+    deployment_configuration: '部署配置',
+    performance_optimization: '性能优化',
+    security_hardening: '安全加固',
+    internationalization: '国际化',
+    debugging_assistance: '调试辅助',
+    code_conversion: '代码转换',
   }
   return actionNames[action] || action
 }
 
 // 主入口：根据 intent 分发（流式 async generator 版本）
-async function* handleIntentStream(intentResult, fileTree) {
+async function* handleIntentStream(intentResult, fileTree, afterHandlePaths, messages) {
   const { intent, parameters } = intentResult
 
-  // 首先发送处理类型信息
-  yield {
-    type: 'intent_info',
-    action: intent,
-    parameters: parameters,
-    message: `开始处理: ${intent}`
+  // project_creation 走原有逻辑
+  if (intent === 'project_creation') {
+    yield {
+      type: 'action_start',
+      action: 'project_creation',
+      message: '开始生成项目创建命令...',
+    }
+    yield* handleProjectCreationStream(parameters, fileTree)
+    yield {
+      type: 'action_complete',
+      action: 'project_creation',
+      message: '项目创建命令生成完成',
+    }
+    return
   }
 
-  switch (intent) {
-    case 'project_creation': {
-      // 发送项目创建开始标识
+  // 其它类型统一处理
+  // 1. 读取 afterHandlePaths 里的所有文件内容
+  const fileList = (afterHandlePaths || []).map((item) => item.path).filter(Boolean)
+  const files = []
+  for (const filePath of fileList) {
+    try {
+      const content = fs.readFileSync(filePath, 'utf-8')
+      files.push({ path: filePath, content })
+    } catch (e) {
       yield {
-        type: 'action_start',
-        action: 'project_creation',
-        message: '开始生成项目创建命令...'
+        type: 'file_read_error',
+        path: filePath,
+        message: `读取文件失败: ${e.message}`,
       }
-      // 这里调用流式的 handleProjectCreationStream
-      yield* handleProjectCreationStream(parameters, fileTree)
-      // 发送项目创建完成标识
-      yield {
-        type: 'action_complete',
-        action: 'project_creation',
-        message: '项目创建命令生成完成'
-      }
-      break
     }
-    case 'code_explanation':
-    case 'code_review':
-    case 'documentation_generation': {
-      // 发送文本解释开始标识
-      yield {
-        type: 'action_start',
-        action: intent,
-        message: `开始${getActionDisplayName(intent)}...`
-      }
-      const result = await handleIntent(intentResult, fileTree)
-      yield {
-        type: 'text_response',
-        action: intent,
-        content: result.message || result.prompt,
-        parameters: parameters
-      }
-      yield {
-        type: 'action_complete',
-        action: intent,
-        message: `${getActionDisplayName(intent)}完成`
-      }
-      break
+  }
+  if (files.length === 0) {
+    yield {
+      type: 'no_files',
+      message: '未找到可处理的文件路径',
     }
-    case 'code_refactoring':
-    case 'bug_fixing':
-    case 'feature_modification':
-    case 'feature_addition': {
-      // 发送代码修改开始标识
-      yield {
-        type: 'action_start',
-        action: intent,
-        message: `开始${getActionDisplayName(intent)}...`
-      }
-      const result = await handleIntent(intentResult, fileTree)
-      yield {
-        type: 'code_modification',
-        action: intent,
-        content: result.message || result.prompt,
-        parameters: parameters,
-        files: result.files || []
-      }
-      yield {
-        type: 'action_complete',
-        action: intent,
-        message: `${getActionDisplayName(intent)}完成`
-      }
-      break
+    return
+  }
+
+  // 2. 调用 LLM 批量补全/修改（流式版本）
+  for await (const chunk of batchCodeCompletionStream(parameters, files, messages)) {
+    switch (chunk.type) {
+      case 'stream_chunk':
+        // 流式传输的文本块，直接转发给前端
+        yield {
+          type: 'stream_chunk',
+          content: chunk.content,
+        }
+        break
+
+      case 'file_modification':
+        // 文件被修改
+        yield {
+          type: 'code_modification',
+          path: chunk.path,
+          diff: chunk.diff,
+          newContent: chunk.newContent,
+          reason: chunk.reason,
+        }
+        break
+
+      case 'file_no_change':
+        // 文件无需修改
+        yield {
+          type: 'file_no_change',
+          path: chunk.path,
+          reason: chunk.reason,
+        }
+        break
+
+      case 'no_modifications':
+        // 整体无需修改
+        yield {
+          type: 'no_modification',
+          message: chunk.message,
+        }
+        break
+
+      case 'error':
+        // 发生错误
+        yield {
+          type: 'error',
+          message: chunk.message,
+          rawResponse: chunk.rawResponse,
+        }
+        break
+
+      default:
+        // 其他类型直接转发
+        yield chunk
     }
-    default:
-      // 发送通用处理开始标识
-      yield {
-        type: 'action_start',
-        action: intent,
-        message: `开始处理: ${intent}`
-      }
-      const result = await handleIntent(intentResult, fileTree)
-      yield {
-        type: 'general_response',
-        action: intent,
-        content: result.message || result.prompt,
-        parameters: parameters
-      }
-      yield {
-        type: 'action_complete',
-        action: intent,
-        message: `处理完成: ${intent}`
-      }
   }
 }
 
@@ -250,7 +250,7 @@ async function* handleProjectCreationStream(params, fileTree) {
           const content = obj.choices?.[0]?.delta?.content
           if (content) {
             buffer += content
-            console.log('buffer:', JSON.stringify(buffer))
+            // console.log('buffer:', JSON.stringify(buffer))
             // 检查是否拼出一行完整JSON
             if (buffer.endsWith('}\n') || buffer.endsWith('}\r\n')) {
               const jsonLine = buffer.trim()
@@ -263,7 +263,7 @@ async function* handleProjectCreationStream(params, fileTree) {
                     type: 'command_item',
                     action: 'project_creation',
                     command: cmdObj.command,
-                    commandExplain: cmdObj.commandExplain
+                    commandExplain: cmdObj.commandExplain,
                   }
                 }
               } catch (e) {
@@ -287,10 +287,10 @@ async function* handleProjectCreationStream(params, fileTree) {
           type: 'command_item',
           action: 'project_creation',
           command: cmdObj.command,
-          commandExplain: cmdObj.commandExplain
+          commandExplain: cmdObj.commandExplain,
         }
       }
-    } catch (e) { }
+    } catch (e) {}
   }
 }
 

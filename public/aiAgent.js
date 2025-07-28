@@ -130,7 +130,7 @@ class AIAgentManager {
     })
 
     // 面板切换事件
-    document.querySelectorAll('.panel-tab').forEach(tab => {
+    document.querySelectorAll('.panel-tab').forEach((tab) => {
       tab.addEventListener('click', () => {
         const panelName = tab.dataset.panel
         this.switchPanel(panelName)
@@ -528,7 +528,8 @@ class AIAgentManager {
     document.querySelectorAll('.tab').forEach((tab) => {
       tab.classList.remove('active')
     })
-    const currentTab = document.querySelector(`[data-path="${filePath}"]`)
+    // const currentTab = document.querySelector(`[data-path="${filePath}"]`)
+    const currentTab = document.querySelector(`[data-file="${filePath}"]`)
     if (currentTab) {
       currentTab.classList.add('active')
       // 自动滚动到当前tab
@@ -728,8 +729,8 @@ class AIAgentManager {
       </div>
       <div class="diff-list">
         ${results
-        .map(
-          (result, index) => `
+          .map(
+            (result, index) => `
           <div class="diff-item">
             <div class="diff-item-header">
               <div class="diff-item-title">${result.meta?.filePath || '未知文件'}</div>
@@ -743,8 +744,8 @@ class AIAgentManager {
             </div>
           </div>
         `
-        )
-        .join('')}
+          )
+          .join('')}
       </div>
     `
 
@@ -762,11 +763,11 @@ class AIAgentManager {
       <div class="shell-cmd-block" id="${blockId}" style="margin-bottom:8px;">
         <div>
           ${cmdArr
-        .map((cmdObj) => {
-          if (typeof cmdObj === 'string') return this.renderShellCommandLine(cmdObj)
-          return this.renderShellCommandLine(cmdObj.command, cmdObj.commandExplain)
-        })
-        .join('')}
+            .map((cmdObj) => {
+              if (typeof cmdObj === 'string') return this.renderShellCommandLine(cmdObj)
+              return this.renderShellCommandLine(cmdObj.command, cmdObj.commandExplain)
+            })
+            .join('')}
         </div>
       </div>
     `
@@ -846,12 +847,12 @@ class AIAgentManager {
       messages: [
         {
           role: 'user',
-          content: message
-        }
+          content: message,
+        },
       ],
       editorFile: editorFilePath,
       manualPaths: manualPaths,
-      contextPaths: contextPaths
+      contextPaths: contextPaths,
     }
 
     try {
@@ -861,7 +862,7 @@ class AIAgentManager {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestData)
+        body: JSON.stringify(requestData),
       })
 
       if (!response.ok) {
@@ -948,7 +949,7 @@ class AIAgentManager {
     contextHistory.push({
       message: message,
       paths: paths,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     })
     // 只保留最近10个上下文
     if (contextHistory.length > 10) {
@@ -1039,8 +1040,8 @@ class AIAgentManager {
       </div>
       <div class="diff-list">
         ${results
-        .map(
-          (result, index) => `
+          .map(
+            (result, index) => `
           <div class="diff-item">
             <div class="diff-item-header">
               <div class="diff-item-title">${result.path}</div>
@@ -1054,8 +1055,8 @@ class AIAgentManager {
             </div>
           </div>
         `
-        )
-        .join('')}
+          )
+          .join('')}
       </div>
     `
 
@@ -1176,8 +1177,9 @@ class AIAgentManager {
           </div>
         </div>
         <div class="history-item-content">
-          <pre><code>${this.escapeHtml(history.content.substring(0, 200))}${history.content.length > 200 ? '...' : ''
-          }</code></pre>
+          <pre><code>${this.escapeHtml(history.content.substring(0, 200))}${
+          history.content.length > 200 ? '...' : ''
+        }</code></pre>
         </div>
       </div>
     `
@@ -1744,13 +1746,9 @@ class AIAgentManager {
 
   // 显示添加路径模态框
   showAddPathModal() {
-    this.showInputModal(
-      '添加相关文件路径',
-      '请输入文件或目录路径（支持相对路径和绝对路径）',
-      (path) => {
-        this.addPath(path)
-      }
-    )
+    this.showInputModal('添加相关文件路径', '请输入文件或目录路径（支持相对路径和绝对路径）', (path) => {
+      this.addPath(path)
+    })
   }
 
   // 添加路径
@@ -1797,7 +1795,9 @@ class AIAgentManager {
         </div>
       `
     } else {
-      pathList.innerHTML = paths.map(path => `
+      pathList.innerHTML = paths
+        .map(
+          (path) => `
         <div class="path-item" data-path="${path}">
           <div class="path-item-content">${path}</div>
           <div class="path-item-actions">
@@ -1806,7 +1806,9 @@ class AIAgentManager {
             </button>
           </div>
         </div>
-      `).join('')
+      `
+        )
+        .join('')
     }
   }
 
@@ -1889,20 +1891,20 @@ class AIAgentManager {
       'go.mod',
       'go.sum',
     ]
-    tree.forEach(node => {
+    tree.forEach((node) => {
       // 过滤规则：只要路径中包含 ignoreList 里的任意一项就跳过
-      if (ignoreList.some(ig => node.path.includes(ig))) return
+      if (ignoreList.some((ig) => node.path.includes(ig))) return
       if (node.type === 'file') {
         result.push({
           path: node.path,
           name: node.name,
-          type: 'file'
+          type: 'file',
         })
       } else if (node.type === 'directory' && node.children) {
         result.push({
           path: node.path,
           name: node.name,
-          type: 'directory'
+          type: 'directory',
         })
         this.flattenFileTree(node.children, result)
       }
@@ -1985,7 +1987,7 @@ class AIAgentManager {
     const path = item.dataset.path
     const isSelected = this.selectedPaths.includes(path)
     if (isSelected) {
-      this.selectedPaths = this.selectedPaths.filter(p => p !== path)
+      this.selectedPaths = this.selectedPaths.filter((p) => p !== path)
       item.classList.remove('selected')
     } else {
       this.selectedPaths.push(path)
@@ -2008,7 +2010,7 @@ class AIAgentManager {
   addPathsToManualList(paths) {
     const manualPathsInput = document.getElementById('manual-paths')
     const currentPaths = JSON.parse(manualPathsInput.value || '[]')
-    paths.forEach(path => {
+    paths.forEach((path) => {
       if (!currentPaths.includes(path)) {
         currentPaths.push(path)
       }
@@ -2052,19 +2054,24 @@ class AIAgentManager {
     if (paths.length === 0) {
       html = `<div class="selected-paths-popover-empty">暂无相关文件路径</div>`
     } else {
-      html = `<div class="selected-paths-popover-list">` +
-        paths.map(path => `
+      html =
+        `<div class="selected-paths-popover-list">` +
+        paths
+          .map(
+            (path) => `
           <div class="selected-paths-popover-item">
             <span title="${path}">${path.split('/').pop()}</span>
             <button class="remove-path" data-path="${path}" title="移除">×</button>
           </div>
-        `).join('') +
+        `
+          )
+          .join('') +
         `</div>`
     }
     popover.innerHTML = html
     popover.classList.add('show')
     // 绑定删除事件
-    popover.querySelectorAll('.remove-path').forEach(btn => {
+    popover.querySelectorAll('.remove-path').forEach((btn) => {
       btn.onclick = (e) => {
         e.stopPropagation()
         this.removePath(btn.dataset.path)
