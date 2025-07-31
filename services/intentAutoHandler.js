@@ -2,7 +2,7 @@ const fs = require('fs')
 const path = require('path')
 const axios = require('axios')
 const { batchWriteFiles } = require('./fileBatchWriter')
-const { batchCodeCompletion, batchCodeCompletionStream } = require('./aiAgentService')
+const { batchCodeCompletion } = require('./aiAgentService')
 
 // 统一加载所有业务 prompt
 function loadPrompts() {
@@ -39,6 +39,134 @@ function getActionDisplayName(action) {
   return actionNames[action] || action
 }
 
+// 多文件批量补全/修改（流式版本）
+async function* batchCodeCompletionStream(parameters, files, messages) {
+  console.log('jjjj', parameters, files, messages)
+
+  // 组装多文件上下文
+  const context = files.map((f) => `文件: ${f.path}\n内容:\n${f.content}\n`).join('\n')
+
+  // 获取最近五次对话上下文
+  const recentMessages = messages.slice(-10) // 最近10条消息（5轮对话）
+
+  // 构建 prompt
+  const systemPrompt = `你是一个专业的代码助手。请根据用户需求对提供的文件进行智能修改。\n\n### 任务要求\n- 仔细分析用户需求和文件内容\n- 只修改必要的部分，保持代码风格一致\n- 如果不需要修改,无需返回任何内容\n- 返回格式必须是 JSON，包含修改结果\n\n### 输出格式\n{\n  \"files\": [\n    {\n      \"path\": \"文件路径\",\n      \"oldContent\": \"原内容\",\n      \"newContent\": \"新内容\", \n      \"diff\": \"diff格式的修改\",\n      \"reason\": \"修改原因\"\n    }\n  ]\n}\n\n### 文件内容\n${context}\n\n### 对话历史（最近5轮）\n${recentMessages
+    .map((msg, index) => `${msg.role === 'user' ? '用户' : 'AI'}: ${msg.content}`)
+    .join('\\n')}\n\n### 当前用户需求\n${JSON.stringify(parameters)}`
+
+  const llmMessages = [
+    { role: 'system', content: systemPrompt },
+    ...recentMessages.map((msg) => ({
+      role: msg.role === 'user' ? 'user' : 'assistant',
+      content: msg.content,
+    })),
+    { role: 'user', content: `请根据上述对话历史和需求修改文件：${JSON.stringify(parameters)}` },
+  ]
+
+  try {
+    const axios = require('axios')
+    const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk- '
+    // 流式调用 DeepSeek
+    const response = await axios.post(
+      'https://api.deepseek.com/v1/chat/completions',
+      {
+        model: 'deepseek-chat',
+        messages: llmMessages,
+        stream: true,
+        temperature: 0.1,
+        max_tokens: 4000,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        responseType: 'stream',
+      }
+    )
+
+    let fullResponse = ''
+
+    for await (const chunk of response.data) {
+      const lines = chunk.toString().split('\n')
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6)
+
+          if (data === '[DONE]') {
+            // 流式传输完成，解析完整响应
+            try {
+              const result = JSON.parse(fullResponse)
+
+              // 处理每个文件的修改结果
+              for (const fileResult of result.files || []) {
+                const originalFile = files.find((f) => f.path === fileResult.path)
+                if (originalFile) {
+                  if (fileResult.oldContent !== fileResult.newContent) {
+                    // 有修改
+                    yield {
+                      type: 'file_modification',
+                      path: fileResult.path,
+                      oldContent: fileResult.oldContent,
+                      newContent: fileResult.newContent,
+                      diff: fileResult.diff,
+                      reason: fileResult.reason,
+                    }
+                  } else {
+                    // 无修改
+                    yield {
+                      type: 'file_no_change',
+                      path: fileResult.path,
+                      reason: fileResult.reason || '无需修改',
+                    }
+                  }
+                }
+              }
+
+              // 如果没有文件被修改
+              const hasModifications = (result.files || []).some((f) => f.oldContent !== f.newContent)
+              if (!hasModifications) {
+                yield {
+                  type: 'no_modifications',
+                  message: '未检测到需要修改的内容',
+                }
+              }
+            } catch (parseError) {
+              yield {
+                type: 'error',
+                message: `解析响应失败: ${parseError.message}`,
+                rawResponse: fullResponse,
+              }
+            }
+            return
+          }
+
+          try {
+            const parsed = JSON.parse(data)
+            if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.content) {
+              fullResponse += parsed.choices[0].delta.content
+
+              // 流式返回部分内容给前端
+              yield {
+                type: 'stream_chunk',
+                content: parsed.choices[0].delta.content,
+              }
+            }
+          } catch (e) {
+            // 忽略解析错误，继续处理
+          }
+        }
+      }
+    }
+  } catch (error) {
+    yield {
+      type: 'error',
+      message: `调用 DeepSeek API 失败: ${error.message}`,
+    }
+  }
+}
+
 // 主入口：根据 intent 分发（流式 async generator 版本）
 async function* handleIntentStream(intentResult, fileTree, afterHandlePaths, messages) {
   const { intent, parameters } = intentResult
@@ -62,6 +190,8 @@ async function* handleIntentStream(intentResult, fileTree, afterHandlePaths, mes
   // 其它类型统一处理
   // 1. 读取 afterHandlePaths 里的所有文件内容
   const fileList = (afterHandlePaths || []).map((item) => item.path).filter(Boolean)
+  //   console.log('fileList', fileList)
+
   const files = []
   for (const filePath of fileList) {
     try {
@@ -82,9 +212,10 @@ async function* handleIntentStream(intentResult, fileTree, afterHandlePaths, mes
     }
     return
   }
-
+  console.log('files', files)
   // 2. 调用 LLM 批量补全/修改（流式版本）
   for await (const chunk of batchCodeCompletionStream(parameters, files, messages)) {
+    console.log('chunk', chunk)
     switch (chunk.type) {
       case 'stream_chunk':
         // 流式传输的文本块，直接转发给前端

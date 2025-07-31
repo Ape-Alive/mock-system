@@ -788,7 +788,7 @@ class AIAgentManager {
     `
   }
 
-  // 绑定所有“运行”按钮事件和“全部运行”按钮事件
+  // 绑定所有"运行"按钮事件和"全部运行"按钮事件
   bindShellCmdBtnEvents() {
     // 单条命令
     document.querySelectorAll('.run-cmd-btn').forEach((btn) => {
@@ -836,10 +836,9 @@ class AIAgentManager {
     const currentTab = document.querySelector('.tab.active')
     const editorFilePath = currentTab ? currentTab.dataset.file : null
 
-    // 获取手动添加的路径（这里可以从某个全局变量或DOM元素获取）
+    // 获取手动添加的路径
     const manualPaths = this.getManualPaths()
-
-    // 获取上下文路径（最近四个请求的上下文）
+    // 获取上下文路径
     const contextPaths = this.getContextPaths()
 
     // 构建请求参数
@@ -873,32 +872,41 @@ class AIAgentManager {
       const decoder = new TextDecoder()
       let aiMessage = ''
       let isFirstChunk = true
+      this.diffResults = [] // 每次发送消息前清空 diffResults
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
-
         const chunk = decoder.decode(value)
         const lines = chunk.split('\n')
-
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             const data = line.slice(6)
             if (data === '[DONE]') {
-              // 流式传输结束
+              if (this.diffResults && this.diffResults.length > 0) {
+                this.addChatMessage('ai', 'AI已生成修改建议，请在右侧Diff面板查看并对比。')
+              }
               return
             }
-
             try {
               const parsed = JSON.parse(data)
+              if (parsed.type === 'file_read_error' || parsed.type === 'no_files' || parsed.type === 'error') {
+                this.showError(parsed.message || '发生错误')
+                continue
+              }
+              console.log('hhhhhh', parsed, this.diffResults)
+
+              if (parsed.type === 'file_modification') {
+                this.diffResults.push(parsed)
+                this.showDiffSuggestions(this.diffResults)
+                continue
+              }
               if (parsed.content) {
                 if (isFirstChunk) {
-                  // 第一次收到内容时创建AI消息
                   this.addChatMessage('ai', '')
                   isFirstChunk = false
                 }
                 aiMessage += parsed.content
-                // 更新最后一条AI消息的内容
                 this.updateLastAIMessage(aiMessage)
               }
             } catch (e) {
@@ -1027,41 +1035,69 @@ class AIAgentManager {
     this.switchPanel('chat')
   }
 
-  // 显示差异建议
+  // Diff 面板渲染和 Monaco Diff Editor 弹窗
   showDiffSuggestions(results) {
-    const diffPanel = document.getElementById('diff-panel')
-    diffPanel.innerHTML = `
-      <div class="diff-header">
-        <h4>AI重构建议</h4>
-        <div class="diff-actions">
-          <button class="btn secondary" onclick="aiAgent.acceptAllDiffs()">应用全部</button>
-          <button class="btn secondary" onclick="aiAgent.rejectAllDiffs()">拒绝全部</button>
+    const diffPanel = document.getElementById('diff-list')
+    if (!diffPanel) return
+    diffPanel.innerHTML = results
+      .map(
+        (result, idx) => `
+      <div class="diff-item">
+        <div class="diff-item-header">
+          <span>${result.path}</span>
+          <button class="btn secondary" onclick="aiAgent.showFileDiff(${idx})">对比</button>
         </div>
       </div>
-      <div class="diff-list">
-        ${results
-          .map(
-            (result, index) => `
-          <div class="diff-item">
-            <div class="diff-item-header">
-              <div class="diff-item-title">${result.path}</div>
-              <div class="diff-item-actions">
-                <button class="btn success" onclick="aiAgent.acceptDiff(${index})">应用</button>
-                <button class="btn danger" onclick="aiAgent.rejectDiff(${index})">拒绝</button>
-              </div>
-            </div>
-            <div class="diff-item-content">
-              <pre><code>${this.escapeHtml(result.diff)}</code></pre>
-            </div>
-          </div>
-        `
-          )
-          .join('')}
+    `
+      )
+      .join('')
+    this.switchPanel('diff')
+    this.diffResults = results
+  }
+
+  async showFileDiff(idx) {
+    const result = this.diffResults[idx]
+    let modal = document.getElementById('monaco-diff-modal')
+    if (modal) modal.remove()
+    modal = document.createElement('div')
+    modal.id = 'monaco-diff-modal'
+    modal.className = 'diff-modal'
+    modal.innerHTML = `
+      <div class="diff-modal-content" style="padding: 0; background: #23272e; border-radius: 8px; box-shadow: 0 4px 32px rgba(0,0,0,0.4);">
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 20px 24px 10px 24px; border-bottom: 1px solid #333;">
+          <h3 style="margin: 0; font-size: 18px; color: #fff;">文件对比：${result.path}</h3>
+          <button class="btn secondary" id="close-diff-modal" style="font-size: 18px;">×</button>
+        </div>
+        <div id="monaco-diff" style="height:520px; background: #1e1e1e;"></div>
+        <div style="display: flex; justify-content: flex-end; gap: 12px; padding: 16px 24px 20px 24px; border-top: 1px solid #333; background: #23272e; border-radius: 0 0 8px 8px;">
+          <button class="btn success" id="apply-diff-btn">应用建议</button>
+          <button class="btn danger" id="reject-diff-btn">拒绝建议</button>
+        </div>
       </div>
     `
-
-    this.diffSuggestions = results
-    this.switchPanel('diff')
+    document.body.appendChild(modal)
+    document.getElementById('close-diff-modal').onclick = () => modal.remove()
+    document.getElementById('reject-diff-btn').onclick = () => modal.remove()
+    document.getElementById('apply-diff-btn').onclick = () => {
+      this.editor.setValue(result.newContent)
+      this.showSuccess('AI建议已应用到编辑器')
+      modal.remove()
+    }
+    if (typeof require === 'undefined') {
+      alert('Monaco Editor require.js 未加载')
+      return
+    }
+    require.config({ paths: { vs: 'https://unpkg.com/monaco-editor@0.44.0/min/vs' } })
+    require(['vs/editor/editor.main'], function () {
+      const originalModel = monaco.editor.createModel(result.oldContent || '', 'javascript')
+      const modifiedModel = monaco.editor.createModel(result.newContent || '', 'javascript')
+      const diffEditor = monaco.editor.createDiffEditor(document.getElementById('monaco-diff'), {
+        theme: 'vs-dark',
+        readOnly: true,
+        automaticLayout: true,
+      })
+      diffEditor.setModel({ original: originalModel, modified: modifiedModel })
+    })
   }
 
   // 接受差异

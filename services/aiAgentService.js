@@ -61,6 +61,8 @@ async function codeCompletion(prompt, context = '') {
 
 // 多文件批量补全/修改（流式版本）
 async function* batchCodeCompletionStream(parameters, files, messages) {
+  console.log('hhhhh', parameters, files, messages)
+
   // 组装多文件上下文
   const context = files.map((f) => `文件: ${f.path}\n内容:\n${f.content}\n`).join('\n')
 
@@ -109,6 +111,7 @@ ${JSON.stringify(messages[messages.length - 1].content)}`
       content: `请根据上述对话历史和需求修改文件：${JSON.stringify(messages[messages.length - 1].content)}`,
     },
   ]
+  console.log('lllll', llmMessages)
 
   try {
     // 流式调用 DeepSeek
@@ -473,9 +476,23 @@ async function processPathsForChatStream({
   new Set(globalPaths).forEach((p) => {
     pathMap.set(p, (pathMap.get(p) || 0) + WEIGHTS.global)
   })
+
+  // 新增：路径绝对化处理
+  const allPaths = Array.from(pathMap.keys())
+  const localDirResult = await getLocalDirectory()
+  const rootDir =
+    typeof localDirResult === 'string' ? localDirResult : localDirResult.directory || localDirResult.path || ''
+  const absPaths = allPaths.map((p) => {
+    if (!p) return p
+    // 判断是否为绝对路径
+    if (path.isAbsolute(p)) return p
+    // 拼接为绝对路径
+    return path.join(rootDir, p)
+  })
+
   // 排序并限制长度
-  const result = Array.from(pathMap.entries())
-    .map(([path, weight]) => ({ path, weight }))
+  const result = absPaths
+    .map((path, i) => ({ path, weight: pathMap.get(allPaths[i]) }))
     .sort((a, b) => (b.weight === a.weight ? a.path.localeCompare(b.path) : b.weight - a.weight))
     .slice(0, maxLength)
   return result

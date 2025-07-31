@@ -340,11 +340,12 @@ router.post('/chat/stream', async (req, res) => {
     const { messages, editorFile, manualPaths, contextPaths } = req.body
 
     for await (const chunk of aiAgent.chatWithAIStream(messages, editorFile, manualPaths, contextPaths)) {
+      console.log('chunk:', chunk)
       // 为每个chunk添加时间戳
       const enhancedChunk = {
         ...chunk,
         timestamp: new Date().toISOString(),
-        id: Math.random().toString(36).substr(2, 9)
+        id: Math.random().toString(36).substr(2, 9),
       }
       res.write(`data: ${JSON.stringify(enhancedChunk)}\n\n`)
     }
