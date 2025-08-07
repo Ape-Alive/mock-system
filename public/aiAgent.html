@@ -225,7 +225,11 @@
     <script>
       // 顶部“打开终端”按钮滚动到终端区域
       document.getElementById('open-terminal-btn').onclick = function() {
-        document.getElementById('terminal-panel').scrollIntoView({ behavior: 'smooth' });
+        const terminalPanel = document.getElementById('terminal-panel');
+        if (terminalPanel) {
+          terminalPanel.style.display = 'block';
+          // terminalPanel.scrollIntoView({ behavior: 'smooth' });
+        }
       };
       // iframe 通信示例
       const terminalIframe = document.getElementById('ai-terminal-iframe');
@@ -233,6 +237,14 @@
         if (event.data.source !== 'terminal-iframe') return;
         // 你可以在这里处理 tab-created/tab-closed/tab-activated/status 等事件
         console.log('终端事件:', event.data.type, event.data.data);
+
+        // 处理关闭所有终端的消息
+        if (event.data.type === 'close-all-terminals') {
+          const terminalPanel = document.getElementById('terminal-panel');
+          if (terminalPanel) {
+            terminalPanel.style.display = 'none';
+          }
+        }
       });
       // 示例：发送命令到终端
       // terminalIframe.contentWindow.postMessage({ type: 'send-command', data: { command: 'ls -la' } }, '*');

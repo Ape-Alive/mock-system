@@ -609,6 +609,11 @@
       Object.keys(terminals).forEach(tabId => {
         closeTab(tabId);
       });
+
+      // 关闭所有终端后，通知父窗口隐藏终端面板
+      sendToParent('close-all-terminals', {
+        message: '所有终端已关闭'
+      });
     }
 
     // 标签页点击事件
