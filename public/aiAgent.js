@@ -23,6 +23,7 @@ class AIAgentManager {
       this.loadWelcomeContent()
       this.initSearchDropdown()
       this.initResizeBar()
+      this.initTerminalResizeBar() // 新增：初始化终端拖拽条
       this.renderPathList() // 初始化路径列表
       this.hideLoading()
     } catch (error) {
@@ -30,6 +31,53 @@ class AIAgentManager {
       this.hideLoading()
       this.showError('初始化失败: ' + error.message)
     }
+  }
+
+  // 新增：初始化终端拖拽条
+  initTerminalResizeBar() {
+    const resizeBar = document.getElementById('terminal-resize-bar');
+    const editor = document.getElementById('monaco-editor');
+    const terminalPanel = document.getElementById('terminal-panel');
+    const iframeWrapper = document.getElementById('terminal-iframe-wrapper');
+    const dragMask = document.getElementById('iframe-drag-mask');
+    if (!resizeBar || !editor || !terminalPanel || !dragMask) return;
+
+    let dragging = false;
+    let startY = 0;
+    let startEditorHeight = 0;
+    let startTerminalHeight = 0;
+
+    resizeBar.addEventListener('mousedown', function (e) {
+      dragging = true;
+      startY = e.clientY;
+      startEditorHeight = editor.offsetHeight;
+      startTerminalHeight = terminalPanel.offsetHeight;
+      document.body.style.cursor = 'row-resize';
+      document.body.style.userSelect = 'none';
+      dragMask.style.display = 'block'; // 显示遮罩
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', function (e) {
+      if (!dragging) return;
+      const dy = e.clientY - startY;
+      const minEditorHeight = 100;
+      const minTerminalHeight = 80;
+      let newEditorHeight = Math.max(minEditorHeight, startEditorHeight + dy);
+      let newTerminalHeight = Math.max(minTerminalHeight, startTerminalHeight - dy);
+      editor.style.height = newEditorHeight + 'px';
+      terminalPanel.style.height = newTerminalHeight + 'px';
+      if (iframeWrapper) iframeWrapper.style.height = newTerminalHeight + 'px';
+    });
+
+    document.addEventListener('mouseup', function () {
+      if (dragging) {
+        dragging = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        dragMask.style.display = 'none'; // 隐藏遮罩
+      }
+    });
   }
 
   // 初始化Monaco编辑器
@@ -729,8 +777,8 @@ class AIAgentManager {
       </div>
       <div class="diff-list">
         ${results
-          .map(
-            (result, index) => `
+        .map(
+          (result, index) => `
           <div class="diff-item">
             <div class="diff-item-header">
               <div class="diff-item-title">${result.meta?.filePath || '未知文件'}</div>
@@ -744,8 +792,8 @@ class AIAgentManager {
             </div>
           </div>
         `
-          )
-          .join('')}
+        )
+        .join('')}
       </div>
     `
 
@@ -763,11 +811,11 @@ class AIAgentManager {
       <div class="shell-cmd-block" id="${blockId}" style="margin-bottom:8px;">
         <div>
           ${cmdArr
-            .map((cmdObj) => {
-              if (typeof cmdObj === 'string') return this.renderShellCommandLine(cmdObj)
-              return this.renderShellCommandLine(cmdObj.command, cmdObj.commandExplain)
-            })
-            .join('')}
+        .map((cmdObj) => {
+          if (typeof cmdObj === 'string') return this.renderShellCommandLine(cmdObj)
+          return this.renderShellCommandLine(cmdObj.command, cmdObj.commandExplain)
+        })
+        .join('')}
         </div>
       </div>
     `
@@ -1213,9 +1261,8 @@ class AIAgentManager {
           </div>
         </div>
         <div class="history-item-content">
-          <pre><code>${this.escapeHtml(history.content.substring(0, 200))}${
-          history.content.length > 200 ? '...' : ''
-        }</code></pre>
+          <pre><code>${this.escapeHtml(history.content.substring(0, 200))}${history.content.length > 200 ? '...' : ''
+          }</code></pre>
         </div>
       </div>
     `

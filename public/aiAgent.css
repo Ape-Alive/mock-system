@@ -1300,6 +1300,16 @@ body {
   background: #838383;
   opacity: 1;
 }
+#terminal-resize-bar {
+  height: 5px;
+  background: #292727;
+  cursor: row-resize;
+  transition: background 0.2s;
+  user-select: none;
+}
+#terminal-resize-bar:hover {
+  background: #444;
+}
 
 /* Shell 命令块美化 */
 .shell-cmd-block {

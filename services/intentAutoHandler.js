@@ -421,7 +421,7 @@ async function* handleProjectCreationStream(params, fileTree) {
           commandExplain: cmdObj.commandExplain,
         }
       }
-    } catch (e) {}
+    } catch (e) { }
   }
 }
 

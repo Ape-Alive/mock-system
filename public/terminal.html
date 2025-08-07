@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>AI Coding Terminal</title>
+  <link rel="stylesheet" href="assets/xterm.css"/>
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: #2d2d2d;
+      overflow: hidden;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    }
+
+    .terminal-container {
+      height: 100vh;
+      width: 100vw;
+      background: #2d2d2d;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .terminal-header {
+      background: #3c3c3c;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      border-bottom: 1px solid #4a4a4a;
+      -webkit-app-region: drag;
+    }
+
+    .control-btn {
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+      margin-right: 8px;
+    }
+
+    .new-tab-btn {
+      background: none;
+      border: none;
+      color: #cccccc;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 4px;
+      -webkit-app-region: no-drag;
+    }
+
+    .new-tab-btn:hover {
+      background: #4a4a4a;
+    }
+
+    .tabs-container {
+      display: flex;
+      align-items: center;
+      flex: 1;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scroll-behavior: smooth;
+      position: relative;
+      -webkit-overflow-scrolling: touch;
+      cursor: grab;
+    }
+
+    .tabs-container:active {
+      cursor: grabbing;
+    }
+
+    /* 隐藏滚动条 */
+    .tabs-container::-webkit-scrollbar {
+      display: none;
+    }
+
+    .tabs-container {
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .tab {
+      display: flex;
+      align-items: center;
+      background: #2d2d2d;
+      color: #cccccc;
+      padding: 8px 12px;
+      margin-right: 2px;
+      border-radius: 6px 6px 0 0;
+      cursor: pointer;
+      font-size: 12px;
+      width: 200px;
+      min-width: 200px;
+      max-width: 200px;
+      position: relative;
+      -webkit-app-region: no-drag;
+      flex-shrink: 0;
+      white-space: nowrap;
+      border: 1px solid transparent;
+      border-bottom: none;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+
+    .tab.active {
+      background: #1e1e1e;
+      color: #ffffff;
+      border-color: #4a4a4a;
+    }
+
+    .tab:hover:not(.active) {
+      background: #353535;
+    }
+
+    .tab-title {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tab-close {
+      background: none;
+      border: none;
+      color: inherit;
+      font-size: 14px;
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 2px;
+      margin-left: 8px;
+      opacity: 0.7;
+      flex-shrink: 0;
+    }
+
+    .tab-close:hover {
+      background: #4a4a4a;
+      opacity: 1;
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      margin-left: auto;
+    }
+
+    .power-btn {
+      background: none;
+      border: none;
+      color: #ff6b6b;
+      font-size: 16px;
+      cursor: pointer;
+      padding: 6px 8px;
+      border-radius: 4px;
+      -webkit-app-region: no-drag;
+    }
+
+    .power-btn:hover {
+      background: #4a4a4a;
+    }
+
+    .terminal-content {
+      flex: 1;
+      background: #1e1e1e;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      min-height: 0; /* 允许flex子元素收缩 */
+    }
+
+    .terminal-pane {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: none;
+      height: 100%;
+    }
+
+    .terminal-pane.active {
+      display: block;
+    }
+
+    .terminal-element {
+      height: 100%;
+      width: 100%;
+      padding: 8px;
+      background: #1e1e1e;
+      box-sizing: border-box;
+    }
+
+    .xterm-viewport {
+      overflow-y: auto;
+      scrollbar-width: none; /* Firefox */
+    }
+
+    .xterm-viewport::-webkit-scrollbar {
+      width: 0px; /* Chrome/Safari/Webkit */
+      background: transparent;
+    }
+
+    /* 自定义终端样式 */
+    .xterm {
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      font-size: 14px;
+      line-height: 1.2;
+    }
+
+    .xterm-screen {
+      background: #1e1e1e;
+    }
+
+    .welcome-message {
+      color: #ffffff;
+      font-size: 14px;
+      line-height: 1.4;
+      padding: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="terminal-container">
+    <div class="terminal-header">
+      <div class="control-btn">
+        <button class="new-tab-btn" onclick="createNewTab()">+</button>
+      </div>
+      <div id="tabs-container" class="tabs-container"></div>
+      <div class="header-controls">
+        <button class="power-btn" onclick="closeAllTabs()" title="关闭所有终端">⏻</button>
+      </div>
+    </div>
+    <div class="terminal-content" id="terminal-content">
+      <!-- 终端面板将通过 JavaScript 动态创建 -->
+    </div>
+  </div>
+
+  <script src="assets/xterm.js"></script>
+  <script src="assets/xterm-addon-fit.js"></script>
+  <script>
+    // 全局变量
+    let activeTabId = null;
+    let tabCounter = 1;
+    const terminals = {};
+    const tabs = {};
+
+    // iframe 通信相关
+    let parentOrigin = '*';
+    let isInIframe = false;
+
+    // 获取 URL 参数中的 nas-token
+    function getNasToken() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tokenFromUrl = urlParams.get('nas-token');
+      if (tokenFromUrl) {
+        return tokenFromUrl;
+      }
+      return localStorage.getItem(`${location.hostname}_JWT`);
+    }
+
+    // 检测是否在 iframe 中
+    function detectIframe() {
+      try {
+        isInIframe = window !== window.parent;
+        if (isInIframe) {
+          parentOrigin = window.parent.location.origin;
+          console.log('检测到在 iframe 中运行');
+        }
+      } catch (e) {
+        // 跨域情况下无法访问 parent
+        isInIframe = true;
+        parentOrigin = '*';
+      }
+    }
+
+    // 向父窗口发送消息
+    function sendToParent(type, data) {
+      if (isInIframe) {
+        window.parent.postMessage({
+          type: type,
+          data: data,
+          source: 'terminal-iframe'
+        }, parentOrigin);
+      }
+    }
+
+    // 处理来自父窗口的消息
+    function handleParentMessage(event) {
+      if (!isInIframe) return;
+
+      const { type, data } = event.data;
+
+      switch (type) {
+        case 'create-tab':
+          createNewTab();
+          break;
+        case 'close-tab':
+          if (data && data.tabId) {
+            closeTab(data.tabId);
+          }
+          break;
+        case 'close-all-tabs':
+          closeAllTabs();
+          break;
+        case 'send-command':
+          if (data && data.command && activeTabId) {
+            sendCommandToTerminal(activeTabId, data.command);
+          }
+          break;
+        case 'get-status':
+          sendToParent('status', {
+            activeTabId: activeTabId,
+            tabCount: Object.keys(terminals).length,
+            tabs: Object.keys(terminals).map(id => ({
+              id: id,
+              title: document.querySelector(`[data-tab-id="${id}"] .tab-title`)?.textContent || id
+            }))
+          });
+          break;
+        case 'resize':
+          if (data && data.width && data.height) {
+            resizeTerminal(data.width, data.height);
+          }
+          break;
+      }
+    }
+
+        // 创建新标签页
+    function createNewTab() {
+      const tabId = `term_${Date.now()}_${tabCounter++}`;
+      const tabTitle = `term_${tabId.split('_')[1]}_${tabCounter - 1}`;
+
+      // 创建标签页元素
+      const tab = document.createElement('div');
+      tab.className = 'tab';
+      tab.setAttribute('data-tab-id', tabId);
+      tab.innerHTML = `
+        <span class="tab-title">${tabTitle}</span>
+        <button class="tab-close" onclick="closeTab('${tabId}')">×</button>
+      `;
+
+      // 创建终端面板
+      const terminalPane = document.createElement('div');
+      terminalPane.className = 'terminal-pane';
+      terminalPane.id = `terminal-${tabId}`;
+
+      // 添加到 DOM
+      document.getElementById('tabs-container').appendChild(tab);
+      document.getElementById('terminal-content').appendChild(terminalPane);
+
+      // 初始化终端
+      initializeTerminal(tabId, tabTitle);
+
+                        // 激活新标签页
+      activateTab(tabId);
+
+      // 自动滚动到最新标签页
+      setTimeout(() => {
+        const container = document.getElementById('tabs-container');
+        if (container.scrollWidth > container.clientWidth) {
+          container.scrollLeft = container.scrollWidth;
+        }
+      }, 100);
+
+      // 通知父窗口标签页已创建
+      sendToParent('tab-created', {
+        tabId: tabId,
+        title: tabTitle
+      });
+
+      return tabId;
+    }
+
+    // 初始化终端
+    function initializeTerminal(tabId, title) {
+      const terminalPane = document.getElementById(`terminal-${tabId}`);
+
+      // 创建终端元素
+      const terminalElement = document.createElement('div');
+      terminalElement.id = `terminal-${tabId}-element`;
+      terminalElement.className = 'terminal-element';
+      terminalPane.appendChild(terminalElement);
+
+      // 配置终端
+      const term = new Terminal({
+        cursorBlink: true,
+        cursorStyle: 'block',
+        fontSize: 12,
+        fontFamily: 'Monaco, Menlo, Ubuntu Mono, monospace',
+        theme: {
+          background: '#1e1e1e',
+          foreground: '#ffffff',
+          cursor: '#ffffff',
+          selection: '#264f78',
+          black: '#000000',
+          red: '#cd3131',
+          green: '#0dbc79',
+          yellow: '#e5e510',
+          blue: '#2472c8',
+          magenta: '#bc3fbc',
+          cyan: '#11a8cd',
+          white: '#e5e5e5',
+          brightBlack: '#666666',
+          brightRed: '#f14c4c',
+          brightGreen: '#23d18b',
+          brightYellow: '#f5f543',
+          brightBlue: '#3b8eea',
+          brightMagenta: '#d670d6',
+          brightCyan: '#29b8db',
+          brightWhite: '#ffffff'
+        }
+      });
+
+      const fitAddon = new FitAddon.FitAddon();
+      term.loadAddon(fitAddon);
+      term.open(terminalElement);
+      fitAddon.fit();
+
+      // 显示欢迎信息
+      term.write('\x1b[32m欢迎使用 AI Coding 终端\x1b[0m\r\n');
+      // term.write('\x1b[36m正在连接服务器...\x1b[0m\r\n');
+
+      // 创建 WebSocket 连接
+      const nasToken = getNasToken();
+      const socket = new WebSocket(`ws://${location.hostname}:${location.port}/ws/terminal`);
+
+      // WebSocket 事件处理
+      socket.addEventListener('open', () => {
+        console.log('WebSocket connected successfully');
+        // term.write('\x1b[32m✓ 连接成功\x1b[0m\r\n');
+        // term.write('\x1b[33m终端已就绪，可以开始输入命令\x1b[0m\r\n\r\n');
+
+        // 创建终端会话
+        socket.send(JSON.stringify({
+          type: 'create',
+          sessionId: tabId,
+          cols: term.cols,
+          rows: term.rows
+        }));
+      });
+
+      socket.addEventListener('error', (error) => {
+        console.error('WebSocket error:', error);
+        term.write('\r\n\x1b[31m✗ WebSocket 连接错误\x1b[0m\r\n');
+      });
+
+      socket.addEventListener('close', (event) => {
+        console.log('WebSocket closed:', event.code, event.reason);
+        if (event.code === 1006) {
+          term.write('\r\n\x1b[31m✗ 连接意外断开\x1b[0m\r\n');
+        } else {
+          term.write(`\r\n\x1b[31m✗ 连接已关闭 (${event.code})\x1b[0m\r\n`);
+        }
+      });
+
+      // 接收服务器消息
+      socket.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          if (message.type === 'stdout') {
+            term.write(message.data);
+          } else if (message.type === 'error') {
+            term.write(`\r\n\x1b[31m✗ ${message.data}\x1b[0m\r\n`);
+          }
+        } catch (e) {
+          // 如果不是 JSON，直接写入
+          term.write(event.data);
+        }
+      };
+
+      // 发送用户输入
+      term.onData((data) => {
+        if (socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({
+            type: 'stdin',
+            data: data,
+            sessionId: tabId
+          }));
+        }
+      });
+
+      // 终端尺寸调整
+      function resizeTerminal() {
+        fitAddon.fit();
+        const cols = term.cols;
+        const rows = term.rows;
+        if (socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({
+            type: 'resize',
+            cols: cols,
+            rows: rows,
+            sessionId: tabId
+          }));
+        }
+      }
+
+      window.addEventListener('resize', resizeTerminal);
+      term.onResize(resizeTerminal);
+
+      // 存储终端实例
+      terminals[tabId] = {
+        terminal: term,
+        socket: socket,
+        fitAddon: fitAddon
+      };
+
+      // 初始化时发送终端尺寸
+      setTimeout(() => {
+        resizeTerminal();
+      }, 100);
+    }
+
+            // 激活标签页
+    function activateTab(tabId) {
+      // 移除所有活动状态
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      document.querySelectorAll('.terminal-pane').forEach(pane => pane.classList.remove('active'));
+
+      // 激活指定标签页
+      const tab = document.querySelector(`[data-tab-id="${tabId}"]`);
+      const pane = document.getElementById(`terminal-${tabId}`);
+
+      if (tab && pane) {
+        tab.classList.add('active');
+        pane.classList.add('active');
+        activeTabId = tabId;
+
+        // 滚动到新标签页
+        scrollToTab(tab);
+
+        // 调整终端尺寸
+        if (terminals[tabId]) {
+          setTimeout(() => {
+            terminals[tabId].fitAddon.fit();
+          }, 10);
+        }
+
+        // 通知父窗口标签页已激活
+        sendToParent('tab-activated', {
+          tabId: tabId,
+          title: tab.querySelector('.tab-title')?.textContent || tabId
+        });
+      }
+    }
+
+        // 关闭标签页
+    function closeTab(tabId) {
+      // 关闭 WebSocket 连接
+      if (terminals[tabId]) {
+        terminals[tabId].socket.close();
+        delete terminals[tabId];
+      }
+
+      // 移除 DOM 元素
+      const tab = document.querySelector(`[data-tab-id="${tabId}"]`);
+      const pane = document.getElementById(`terminal-${tabId}`);
+
+      if (tab) tab.remove();
+      if (pane) pane.remove();
+
+      // 如果关闭的是当前活动标签页，激活其他标签页
+      if (activeTabId === tabId) {
+        const remainingTabs = document.querySelectorAll('.tab');
+        if (remainingTabs.length > 0) {
+          const nextTabId = remainingTabs[0].getAttribute('data-tab-id');
+          activateTab(nextTabId);
+        } else {
+          activeTabId = null;
+        }
+      }
+
+      // 通知父窗口标签页已关闭
+      sendToParent('tab-closed', {
+        tabId: tabId
+      });
+    }
+
+
+
+    // 发送命令到指定终端
+    function sendCommandToTerminal(tabId, command) {
+      if (terminals[tabId] && terminals[tabId].socket && terminals[tabId].socket.readyState === WebSocket.OPEN) {
+        terminals[tabId].socket.send(JSON.stringify({
+          type: 'stdin',
+          data: command + '\n',
+          sessionId: tabId
+        }));
+      }
+    }
+
+    // 调整终端尺寸
+    function resizeTerminal(width, height) {
+      const container = document.querySelector('.terminal-container');
+      if (container) {
+        container.style.width = width + 'px';
+        container.style.height = height + 'px';
+
+        // 重新调整所有终端的尺寸
+        Object.values(terminals).forEach(terminal => {
+          if (terminal.fitAddon) {
+            terminal.fitAddon.fit();
+          }
+        });
+      }
+    }
+
+    // 关闭所有标签页
+    function closeAllTabs() {
+      Object.keys(terminals).forEach(tabId => {
+        closeTab(tabId);
+      });
+    }
+
+    // 标签页点击事件
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('.tab') && !e.target.closest('.tab-close')) {
+        const tabId = e.target.closest('.tab').getAttribute('data-tab-id');
+        activateTab(tabId);
+      }
+    });
+
+            // 鼠标滚轮事件 - 控制标签页左右滚动
+    document.addEventListener('wheel', (e) => {
+      const tabsContainer = document.getElementById('tabs-container');
+
+      // 检查鼠标是否在标签页容器上方
+      const rect = tabsContainer.getBoundingClientRect();
+      if (e.clientY >= rect.top && e.clientY <= rect.bottom) {
+        // 阻止默认的垂直滚动
+        e.preventDefault();
+
+        // 计算滚动量（根据滚轮速度调整）
+        const scrollAmount = Math.min(Math.abs(e.deltaY) * 1.2, 100);
+
+        // 根据滚轮方向控制水平滚动
+        if (e.deltaY > 0) {
+          // 向下滚动 = 向右滚动标签页
+          const newScrollLeft = Math.min(
+            tabsContainer.scrollLeft + scrollAmount,
+            tabsContainer.scrollWidth - tabsContainer.clientWidth
+          );
+          tabsContainer.scrollLeft = newScrollLeft;
+        } else {
+          // 向上滚动 = 向左滚动标签页
+          const newScrollLeft = Math.max(
+            tabsContainer.scrollLeft - scrollAmount,
+            0
+          );
+          tabsContainer.scrollLeft = newScrollLeft;
+        }
+
+        // 添加滚动动画效果
+        tabsContainer.style.scrollBehavior = 'smooth';
+        setTimeout(() => {
+          tabsContainer.style.scrollBehavior = 'auto';
+        }, 200);
+      }
+    }, { passive: false });
+
+                // 标签页滚动优化
+    function scrollToTab(tabElement) {
+      tabElement.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'nearest'
+      });
+    }
+
+        // 监听来自父窗口的消息
+    window.addEventListener('message', handleParentMessage);
+
+    // 初始化
+    window.addEventListener('load', () => {
+      // 检测是否在 iframe 中
+      detectIframe();
+
+      // 创建第一个标签页
+      createNewTab();
+
+      // 通知父窗口终端已就绪
+      sendToParent('ready', {
+        version: '1.0.0',
+        features: ['create-tab', 'close-tab', 'send-command', 'resize']
+      });
+    });
+  </script>
+</body>
+</html>

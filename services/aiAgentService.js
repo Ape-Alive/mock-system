@@ -84,7 +84,7 @@ async function* batchCodeCompletionStream(parameters, files, messages) {
     {
       "path": "文件路径",
       "oldContent": "原内容",
-      "newContent": "新内容", 
+      "newContent": "新内容",
       "diff": "diff格式的修改",
       "reason": "修改原因"
     }
