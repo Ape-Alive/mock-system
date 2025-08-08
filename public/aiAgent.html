@@ -67,9 +67,26 @@
           <div id="monaco-editor" class="monaco-editor"></div>
           <div id="terminal-resize-bar" class="resize-bar"></div>
           <!-- 终端区域：直接嵌入iframe -->
-          <div id="terminal-panel" style="width: 100%; border-top: 1px solid #454545; background: #fafbfc; border-radius: 0 0 6px 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); margin-top: 0;">
-            <div id="terminal-iframe-wrapper" style="width: 100%; height: 320px; background: #181818; border-radius: 0 0 6px 6px;">
-              <iframe id="ai-terminal-iframe" src="/terminal.html" style="width:100%;height:100%;border:none;background:#181818;border-radius:0 0 6px 6px;"></iframe>
+          <div
+            id="terminal-panel"
+            style="
+              width: 100%;
+              border-top: 1px solid #454545;
+              background: #fafbfc;
+              border-radius: 0 0 6px 6px;
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+              margin-top: 0;
+            "
+          >
+            <div
+              id="terminal-iframe-wrapper"
+              style="width: 100%; height: 320px; background: #181818; border-radius: 0 0 6px 6px"
+            >
+              <iframe
+                id="ai-terminal-iframe"
+                src="/terminal.html"
+                style="width: 100%; height: 100%; border: none; background: #181818; border-radius: 0 0 6px 6px"
+              ></iframe>
             </div>
           </div>
         </div>
@@ -86,28 +103,28 @@
 
           <!-- AI 助手面板 -->
           <div class="panel-content active" id="ai-assistant-panel">
-<!-- 隐藏的路径存储元素 -->
-              <input type="hidden" id="manual-paths" value="[]" />
-              <!-- 路径管理区域 -->
-              <div class="path-manager">
-                <div class="path-manager-header">
-                  <h4 id="path-manager-title" class="path-manager-title">
-                    <i class="fas fa-folder-open"></i> 相关文件路径
-                  </h4>
-                  <button id="add-path-btn" class="btn secondary" title="添加路径">
-                    <i class="fas fa-plus"></i>
-                  </button>
-                </div>
-                <!-- 只读Popover -->
-                <div id="selected-paths-popover" class="selected-paths-popover">
-                  <div class="path-list" id="path-list">
-                    <div class="no-paths">
-                      <i class="fas fa-info-circle"></i>
-                      <p>暂无相关文件路径</p>
-                    </div>
+            <!-- 隐藏的路径存储元素 -->
+            <input type="hidden" id="manual-paths" value="[]" />
+            <!-- 路径管理区域 -->
+            <div class="path-manager">
+              <div class="path-manager-header">
+                <h4 id="path-manager-title" class="path-manager-title">
+                  <i class="fas fa-folder-open"></i> 相关文件路径
+                </h4>
+                <button id="add-path-btn" class="btn secondary" title="添加路径">
+                  <i class="fas fa-plus"></i>
+                </button>
+              </div>
+              <!-- 只读Popover -->
+              <div id="selected-paths-popover" class="selected-paths-popover">
+                <div class="path-list" id="path-list">
+                  <div class="no-paths">
+                    <i class="fas fa-info-circle"></i>
+                    <p>暂无相关文件路径</p>
                   </div>
                 </div>
               </div>
+            </div>
 
             <!-- 路径选择Popover -->
             <div id="path-popover" class="path-popover">
@@ -221,31 +238,47 @@
       <div class="loading-spinner"></div>
       <div class="loading-text">处理中...</div>
     </div>
-    <div id="iframe-drag-mask" style="display:none;position:fixed;z-index:9999;top:0;left:0;width:100vw;height:100vh;cursor:row-resize;"></div>
+    <div
+      id="iframe-drag-mask"
+      style="
+        display: none;
+        position: fixed;
+        z-index: 9999;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        cursor: row-resize;
+      "
+    ></div>
     <script>
       // 顶部“打开终端”按钮滚动到终端区域
-      document.getElementById('open-terminal-btn').onclick = function() {
-        const terminalPanel = document.getElementById('terminal-panel');
+      document.getElementById('open-terminal-btn').onclick = function () {
+        const terminalPanel = document.getElementById('terminal-panel')
         if (terminalPanel) {
-          terminalPanel.style.display = 'block';
+          terminalPanel.style.display = 'block'
           // terminalPanel.scrollIntoView({ behavior: 'smooth' });
         }
-      };
+      }
       // iframe 通信示例
-      const terminalIframe = document.getElementById('ai-terminal-iframe');
+      const terminalIframe = document.getElementById('ai-terminal-iframe')
       window.addEventListener('message', (event) => {
-        if (event.data.source !== 'terminal-iframe') return;
+        if (event.data.source !== 'terminal-iframe') return
         // 你可以在这里处理 tab-created/tab-closed/tab-activated/status 等事件
-        console.log('终端事件:', event.data.type, event.data.data);
+        console.log('终端事件:', event.data.type, event.data.data)
 
         // 处理关闭所有终端的消息
         if (event.data.type === 'close-all-terminals') {
-          const terminalPanel = document.getElementById('terminal-panel');
+          const terminalPanel = document.getElementById('terminal-panel')
           if (terminalPanel) {
-            terminalPanel.style.display = 'none';
+            terminalPanel.style.display = 'none'
+          }
+          // 重置终端标签页创建标志
+          if (window.aiAgent && window.aiAgent.resetTerminalState) {
+            window.aiAgent.resetTerminalState()
           }
         }
-      });
+      })
       // 示例：发送命令到终端
       // terminalIframe.contentWindow.postMessage({ type: 'send-command', data: { command: 'ls -la' } }, '*');
     </script>

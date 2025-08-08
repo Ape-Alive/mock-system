@@ -8,10 +8,14 @@ class AIAgentManager {
     this.selectedNodePath = null
     this.selectedPaths = [] // 初始化选中路径数组
     this.pathListData = [] // 初始化路径列表数据
+    this.terminalTabCreated = false // 初始化终端标签页创建标志
 
     this.init()
     this.initSearchDropdown()
     this.initResizeBar()
+    this.initTerminalResizeBar() // 新增：初始化终端拖拽条
+    this.renderPathList() // 初始化路径列表
+    this.hideLoading()
   }
 
   async init() {
@@ -35,49 +39,49 @@ class AIAgentManager {
 
   // 新增：初始化终端拖拽条
   initTerminalResizeBar() {
-    const resizeBar = document.getElementById('terminal-resize-bar');
-    const editor = document.getElementById('monaco-editor');
-    const terminalPanel = document.getElementById('terminal-panel');
-    const iframeWrapper = document.getElementById('terminal-iframe-wrapper');
-    const dragMask = document.getElementById('iframe-drag-mask');
-    if (!resizeBar || !editor || !terminalPanel || !dragMask) return;
+    const resizeBar = document.getElementById('terminal-resize-bar')
+    const editor = document.getElementById('monaco-editor')
+    const terminalPanel = document.getElementById('terminal-panel')
+    const iframeWrapper = document.getElementById('terminal-iframe-wrapper')
+    const dragMask = document.getElementById('iframe-drag-mask')
+    if (!resizeBar || !editor || !terminalPanel || !dragMask) return
 
-    let dragging = false;
-    let startY = 0;
-    let startEditorHeight = 0;
-    let startTerminalHeight = 0;
+    let dragging = false
+    let startY = 0
+    let startEditorHeight = 0
+    let startTerminalHeight = 0
 
     resizeBar.addEventListener('mousedown', function (e) {
-      dragging = true;
-      startY = e.clientY;
-      startEditorHeight = editor.offsetHeight;
-      startTerminalHeight = terminalPanel.offsetHeight;
-      document.body.style.cursor = 'row-resize';
-      document.body.style.userSelect = 'none';
-      dragMask.style.display = 'block'; // 显示遮罩
-      e.preventDefault();
-    });
+      dragging = true
+      startY = e.clientY
+      startEditorHeight = editor.offsetHeight
+      startTerminalHeight = terminalPanel.offsetHeight
+      document.body.style.cursor = 'row-resize'
+      document.body.style.userSelect = 'none'
+      dragMask.style.display = 'block' // 显示遮罩
+      e.preventDefault()
+    })
 
     document.addEventListener('mousemove', function (e) {
-      if (!dragging) return;
-      const dy = e.clientY - startY;
-      const minEditorHeight = 100;
-      const minTerminalHeight = 80;
-      let newEditorHeight = Math.max(minEditorHeight, startEditorHeight + dy);
-      let newTerminalHeight = Math.max(minTerminalHeight, startTerminalHeight - dy);
-      editor.style.height = newEditorHeight + 'px';
-      terminalPanel.style.height = newTerminalHeight + 'px';
-      if (iframeWrapper) iframeWrapper.style.height = newTerminalHeight + 'px';
-    });
+      if (!dragging) return
+      const dy = e.clientY - startY
+      const minEditorHeight = 100
+      const minTerminalHeight = 80
+      let newEditorHeight = Math.max(minEditorHeight, startEditorHeight + dy)
+      let newTerminalHeight = Math.max(minTerminalHeight, startTerminalHeight - dy)
+      editor.style.height = newEditorHeight + 'px'
+      terminalPanel.style.height = newTerminalHeight + 'px'
+      if (iframeWrapper) iframeWrapper.style.height = newTerminalHeight + 'px'
+    })
 
     document.addEventListener('mouseup', function () {
       if (dragging) {
-        dragging = false;
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
-        dragMask.style.display = 'none'; // 隐藏遮罩
+        dragging = false
+        document.body.style.cursor = ''
+        document.body.style.userSelect = ''
+        dragMask.style.display = 'none' // 隐藏遮罩
       }
-    });
+    })
   }
 
   // 初始化Monaco编辑器
@@ -214,6 +218,21 @@ class AIAgentManager {
         this.togglePathSelection(pathItem)
       }
     })
+
+    // 代码对比面板事件
+    document.getElementById('accept-all').addEventListener('click', () => this.acceptAllDiffs())
+    document.getElementById('reject-all').addEventListener('click', () => this.rejectAllDiffs())
+
+    // 历史记录面板事件
+    document.getElementById('refresh-history').addEventListener('click', () => this.showHistory())
+
+    // 窗口大小变化事件 - 自动调整 AI 面板高度
+    window.addEventListener('resize', () => {
+      this.adjustAiPanelHeight()
+    })
+
+    // 初始化时设置 AI 面板高度
+    this.adjustAiPanelHeight()
 
     // 其他事件
     document.getElementById('open-terminal-btn').addEventListener('click', () => this.openTerminal())
@@ -545,11 +564,10 @@ class AIAgentManager {
     const tabsContainer = document.querySelector('.editor-tabs')
     const tab = document.createElement('div')
     tab.className = 'tab'
-    tab.setAttribute('data-path', filePath)
-    tab.setAttribute('data-file', filePath) // 添加 data-file 属性
+    tab.setAttribute('data-file', filePath)
     tab.innerHTML = `
       <span class="tab-name">${fileName}</span>
-      <button class="close-tab" data-path="${filePath}">
+      <button class="close-tab" data-file="${filePath}">
         <i class="fas fa-times"></i>
       </button>
     `
@@ -572,29 +590,196 @@ class AIAgentManager {
 
   // 切换标签页
   switchTab(filePath) {
+    console.log('切换到 tab:', filePath)
+
     // 更新标签页状态
     document.querySelectorAll('.tab').forEach((tab) => {
       tab.classList.remove('active')
     })
-    // const currentTab = document.querySelector(`[data-path="${filePath}"]`)
+
     const currentTab = document.querySelector(`[data-file="${filePath}"]`)
     if (currentTab) {
       currentTab.classList.add('active')
       // 自动滚动到当前tab
       currentTab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+    } else {
+      console.error('找不到对应的 tab:', filePath)
+      return
     }
+
     // 更新编辑器内容
     const tabData = this.openTabs.get(filePath)
     if (tabData) {
       this.currentFile = filePath
-      this.editor.setValue(tabData.content)
-      this.setEditorLanguage(filePath)
+
+      // 如果是对比 tab，重新创建 Diff Editor
+      if (tabData.isDiff && tabData.diffData) {
+        this.recreateDiffEditor(tabData.diffData)
+      } else {
+        // 普通文件 tab - 需要确保是普通编辑器
+        this.recreateNormalEditor(tabData.content, filePath)
+      }
+    } else {
+      console.error('找不到 tab 数据:', filePath)
+    }
+  }
+
+  // 重新创建 Diff Editor
+  recreateDiffEditor(diffData) {
+    if (typeof require !== 'undefined') {
+      require.config({ paths: { vs: 'https://unpkg.com/monaco-editor@0.44.0/min/vs' } })
+      require(['vs/editor/editor.main'], () => {
+        console.log('重新创建 Monaco Diff Editor')
+
+        // 销毁当前编辑器
+        if (this.editor) {
+          this.editor.dispose()
+        }
+
+        // 根据文件扩展名设置语言
+        const fileExt = diffData.path.split('.').pop().toLowerCase()
+        const language = this.getMonacoLanguage(fileExt)
+
+        const originalModel = monaco.editor.createModel(diffData.oldContent || '', language)
+        const modifiedModel = monaco.editor.createModel(diffData.newContent || '', language)
+
+        // 创建 Diff Editor
+        this.editor = monaco.editor.createDiffEditor(document.getElementById('monaco-editor'), {
+          theme: 'vs-dark',
+          readOnly: true,
+          automaticLayout: true,
+          renderSideBySide: true,
+          enableSplitViewResizing: true,
+          renderOverviewRuler: true,
+          ignoreTrimWhitespace: false,
+          renderIndicators: true,
+          originalEditor: {
+            readOnly: true,
+          },
+          modifiedEditor: {
+            readOnly: true,
+          },
+        })
+
+        this.editor.setModel({
+          original: originalModel,
+          modified: modifiedModel,
+        })
+
+        // 添加应用和拒绝按钮到编辑器容器
+        const editorContainer = document.getElementById('monaco-editor')
+        const buttonContainer = document.createElement('div')
+        buttonContainer.style.cssText = `
+          position: absolute;
+          transform: translateX(50%);
+          bottom: 15px;
+          right: 50%;
+          z-index: 1000;
+          display: flex;
+          gap: 8px;
+        `
+        buttonContainer.innerHTML = `
+          <button class="btn success" onclick="aiAgent.applyDiffFromTab('${diffData.newContent.replace(
+            /'/g,
+            "\\'"
+          )}')" style="padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">应用建议</button>
+          <button class="btn danger" onclick="aiAgent.rejectDiffFromTab()" style="padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">拒绝建议</button>
+        `
+        editorContainer.style.position = 'relative'
+        editorContainer.appendChild(buttonContainer)
+
+        console.log('Diff Editor 重新创建成功')
+      })
+    }
+  }
+
+  // 设置 AI 面板高度
+  setAiPanelHeight(height) {
+    const aiPanel = document.querySelector('.ai-panel')
+    if (aiPanel) {
+      aiPanel.style.height = typeof height === 'number' ? `${height}px` : height
+      console.log('AI 面板高度已设置为:', height)
+    } else {
+      console.error('找不到 .ai-panel 元素')
+    }
+  }
+
+  // 获取 AI 面板高度
+  getAiPanelHeight() {
+    const aiPanel = document.querySelector('.ai-panel')
+    if (aiPanel) {
+      return aiPanel.style.height || 'auto'
+    }
+    return null
+  }
+
+  // 重置 AI 面板高度为默认值
+  resetAiPanelHeight() {
+    const aiPanel = document.querySelector('.ai-panel')
+    if (aiPanel) {
+      aiPanel.style.height = ''
+      console.log('AI 面板高度已重置为默认值')
+    }
+  }
+
+  // 根据窗口大小自动调整 AI 面板高度
+  adjustAiPanelHeight() {
+    const windowHeight = window.innerHeight
+    const toolbarHeight = 60 // 工具栏高度
+    const aiPanelHeight = windowHeight - toolbarHeight
+    this.setAiPanelHeight(aiPanelHeight)
+  }
+
+  // 重新创建普通编辑器
+  recreateNormalEditor(content, filePath) {
+    if (typeof require !== 'undefined') {
+      require.config({ paths: { vs: 'https://unpkg.com/monaco-editor@0.44.0/min/vs' } })
+      require(['vs/editor/editor.main'], () => {
+        console.log('重新创建普通 Monaco Editor')
+
+        // 销毁当前编辑器
+        if (this.editor) {
+          this.editor.dispose()
+        }
+
+        // 清除可能存在的按钮容器
+        const editorContainer = document.getElementById('monaco-editor')
+        const existingButtons = editorContainer.querySelector('div[style*="position: absolute"]')
+        if (existingButtons) {
+          existingButtons.remove()
+        }
+
+        // 根据文件扩展名设置语言
+        const fileExt = filePath.split('.').pop().toLowerCase()
+        const language = this.getMonacoLanguage(fileExt)
+
+        // 创建普通编辑器
+        this.editor = monaco.editor.create(document.getElementById('monaco-editor'), {
+          value: content,
+          language: language,
+          theme: 'vs-dark',
+          automaticLayout: true,
+          minimap: { enabled: true },
+          scrollBeyondLastLine: false,
+          fontSize: 14,
+          lineNumbers: 'on',
+          roundedSelection: false,
+          scrollbar: {
+            vertical: 'visible',
+            horizontal: 'visible',
+          },
+        })
+
+        console.log('普通 Editor 重新创建成功')
+      })
     }
   }
 
   // 关闭标签页
   closeTab(filePath) {
-    const tab = document.querySelector(`[data-path="${filePath}"]`)
+    console.log('关闭 tab:', filePath)
+
+    const tab = document.querySelector(`[data-file="${filePath}"]`)
     if (tab) {
       tab.remove()
       this.openTabs.delete(filePath)
@@ -604,7 +789,8 @@ class AIAgentManager {
         const remainingTabs = document.querySelectorAll('.tab')
         if (remainingTabs.length > 0) {
           const nextTab = remainingTabs[0]
-          const nextPath = nextTab.getAttribute('data-path')
+          const nextPath = nextTab.getAttribute('data-file')
+          console.log('切换到下一个 tab:', nextPath)
           this.switchTab(nextPath)
           // 自动滚动到新激活tab
           if (nextTab) {
@@ -615,75 +801,75 @@ class AIAgentManager {
           this.loadWelcomeContent()
         }
       }
+    } else {
+      console.error('找不到要关闭的 tab:', filePath)
     }
   }
 
   // 设置编辑器语言
   setEditorLanguage(filePath) {
-    const ext = filePath.split('.').pop().toLowerCase()
-    let language = 'plaintext'
+    const language = this.getMonacoLanguage(filePath.split('.').pop().toLowerCase())
+    monaco.editor.setModelLanguage(this.editor.getModel(), language)
+  }
 
-    switch (ext) {
+  getMonacoLanguage(extension) {
+    switch (extension) {
       case 'js':
       case 'jsx':
-        language = 'javascript'
-        break
+        return 'javascript'
       case 'ts':
       case 'tsx':
-        language = 'typescript'
-        break
+        return 'typescript'
       case 'py':
-        language = 'python'
-        break
+        return 'python'
       case 'java':
-        language = 'java'
-        break
+        return 'java'
       case 'cpp':
       case 'cc':
       case 'cxx':
-        language = 'cpp'
-        break
+        return 'cpp'
       case 'c':
-        language = 'c'
-        break
+        return 'c'
       case 'html':
       case 'htm':
-        language = 'html'
-        break
+        return 'html'
       case 'css':
       case 'scss':
       case 'sass':
-        language = 'css'
-        break
+        return 'css'
       case 'json':
-        language = 'json'
-        break
+        return 'json'
       case 'xml':
-        language = 'xml'
-        break
+        return 'xml'
       case 'md':
-        language = 'markdown'
-        break
+        return 'markdown'
       case 'sql':
-        language = 'sql'
-        break
+        return 'sql'
       case 'php':
-        language = 'php'
-        break
+        return 'php'
       case 'go':
-        language = 'go'
-        break
+        return 'go'
       case 'rs':
-        language = 'rust'
-        break
+        return 'rust'
       case 'vue':
-        language = 'vue'
-        break
+        return 'vue'
+      case 'yaml':
+      case 'yml':
+        return 'yaml'
+      case 'toml':
+        return 'toml'
+      case 'ini':
+        return 'ini'
+      case 'sh':
+      case 'bash':
+        return 'shell'
+      case 'log':
+        return 'log'
+      case 'txt':
+        return 'plaintext'
       default:
-        language = 'plaintext'
+        return 'plaintext'
     }
-
-    monaco.editor.setModelLanguage(this.editor.getModel(), language)
   }
 
   // 保存当前文件
@@ -777,8 +963,8 @@ class AIAgentManager {
       </div>
       <div class="diff-list">
         ${results
-        .map(
-          (result, index) => `
+          .map(
+            (result, index) => `
           <div class="diff-item">
             <div class="diff-item-header">
               <div class="diff-item-title">${result.meta?.filePath || '未知文件'}</div>
@@ -792,8 +978,8 @@ class AIAgentManager {
             </div>
           </div>
         `
-        )
-        .join('')}
+          )
+          .join('')}
       </div>
     `
 
@@ -807,51 +993,76 @@ class AIAgentManager {
 
     if (!Array.isArray(cmdArr)) cmdArr = [cmdArr]
     const blockId = 'cmd-block-' + Math.random().toString(36).slice(2)
-    return `
-      <div class="shell-cmd-block" id="${blockId}" style="margin-bottom:8px;">
-        <div>
-          ${cmdArr
-        .map((cmdObj) => {
-          if (typeof cmdObj === 'string') return this.renderShellCommandLine(cmdObj)
-          return this.renderShellCommandLine(cmdObj.command, cmdObj.commandExplain)
-        })
-        .join('')}
-        </div>
-      </div>
-    `
+    return `<div class="shell-cmd-block" id="${blockId}" style="margin-bottom:8px;"><div>${cmdArr
+      .map((cmdObj) => {
+        if (typeof cmdObj === 'string') return this.renderShellCommandLine(cmdObj)
+        console.log('渲染命令:', cmdObj.command, '说明:', cmdObj.explain)
+        return this.renderShellCommandLine(cmdObj.command, cmdObj.explain)
+      })
+      .join('')}</div></div>`
   }
 
   // 渲染单条命令为可点击行（支持命令解释）
   renderShellCommandLine(cmd, explain) {
-    return `
-      <div class="shell-cmd-line-wrap">
-        ${explain ? `<div class="shell-cmd-explain">${this.escapeHtml(explain)}</div>` : ''}
-        <div class="shell-cmd-line">
-          <code class="shell-cmd-code">${this.escapeHtml(cmd)}</code>
-          <button class="run-cmd-btn" data-cmd="${encodeURIComponent(cmd)}" title="运行命令">
-            <i class="fas fa-play"></i>
-          </button>
-        </div>
-      </div>
-    `
+    console.log('渲染命令行:', { cmd, explain })
+
+    // 参数验证
+    if (!cmd || typeof cmd !== 'string') {
+      console.error('无效的命令参数:', cmd)
+      return '<div class="shell-cmd-line-wrap"><div class="shell-cmd-line"><code class="shell-cmd-code">无效命令</code></div></div>'
+    }
+
+    const explainHtml = explain ? `<div class="shell-cmd-explain">${this.escapeHtml(explain)}</div>` : ''
+    const encodedCmd = encodeURIComponent(cmd)
+    console.log('编码后的命令:', encodedCmd)
+
+    return `<div class="shell-cmd-line-wrap">${explainHtml}<div class="shell-cmd-line"><code class="shell-cmd-code">${this.escapeHtml(
+      cmd
+    )}</code><button class="run-cmd-btn" data-cmd="${encodedCmd}" title="运行命令"><i class="fas fa-play"></i></button></div></div>`
   }
 
   // 绑定所有"运行"按钮事件和"全部运行"按钮事件
   bindShellCmdBtnEvents() {
+    console.log('开始绑定运行命令按钮事件')
+
     // 单条命令
     document.querySelectorAll('.run-cmd-btn').forEach((btn) => {
-      if (btn._bound) return
+      if (btn._bound) {
+        console.log('按钮已绑定，跳过:', btn)
+        return
+      }
       btn._bound = true
+      console.log('绑定按钮:', btn, 'data-cmd:', btn.dataset.cmd)
+
       btn.onclick = function () {
-        const cmd = decodeURIComponent(this.dataset.cmd)
-        if (window.sendTerminalCommand) {
-          window.sendTerminalCommand(cmd)
+        try {
+          console.log('按钮被点击:', this)
+          console.log('按钮dataset:', this.dataset)
+
+          if (!this.dataset.cmd) {
+            console.error('按钮没有data-cmd属性')
+            return
+          }
+
+          const cmd = decodeURIComponent(this.dataset.cmd)
+          console.log('运行命令:', cmd)
+
+          // 发送命令到终端iframe
+          if (aiAgent && aiAgent.sendCommandToTerminal) {
+            aiAgent.sendCommandToTerminal(cmd)
+          } else {
+            console.error('aiAgent或sendCommandToTerminal方法不存在')
+          }
+
           // 按钮动画反馈
           this.classList.add('run-cmd-btn-active')
           setTimeout(() => this.classList.remove('run-cmd-btn-active'), 300)
+        } catch (error) {
+          console.error('运行命令时出错:', error)
         }
       }
     })
+
     // 全部运行
     document.querySelectorAll('.run-all-cmd-btn').forEach((btn) => {
       if (btn._bound) return
@@ -867,12 +1078,77 @@ class AIAgentManager {
         this.textContent = '已全部发送'
       }
     })
+
+    console.log('运行命令按钮事件绑定完成')
+  }
+
+  // 发送命令到终端iframe
+  sendCommandToTerminal(command) {
+    try {
+      // 查找终端iframe
+      const terminalIframe = document.querySelector('#ai-terminal-iframe')
+      if (!terminalIframe) {
+        console.error('找不到终端iframe')
+        this.showError('找不到终端，请确保终端已打开')
+        return
+      }
+
+      // 确保iframe已加载
+      if (!terminalIframe.contentWindow) {
+        console.error('终端iframe未加载完成')
+        this.showError('终端未加载完成，请稍后重试')
+        return
+      }
+
+      // 确保终端面板可见
+      const terminalPanel = document.getElementById('terminal-panel')
+      if (terminalPanel && terminalPanel.style.display === 'none') {
+        terminalPanel.style.display = 'block'
+      }
+
+      // 检查是否已经创建了终端标签页
+      if (!this.terminalTabCreated) {
+        console.log('首次运行命令，创建新终端标签页')
+        // 先创建新标签页，然后发送命令
+        terminalIframe.contentWindow.postMessage(
+          {
+            type: 'create-tab',
+          },
+          '*'
+        )
+        this.terminalTabCreated = true
+
+        // 延迟发送命令，确保标签页创建完成
+        setTimeout(() => {
+          this.sendCommandToTerminal(command)
+        }, 500)
+        return
+      }
+
+      // 直接发送命令到现有标签页
+      console.log('使用现有终端标签页发送命令:', command)
+      terminalIframe.contentWindow.postMessage(
+        {
+          type: 'send-command',
+          data: { command: command },
+        },
+        '*'
+      )
+      console.log('命令已发送到终端:', command)
+      this.showSuccess(`命令已发送: ${command}`)
+    } catch (error) {
+      console.error('发送命令到终端失败:', error)
+      this.showError('发送命令失败: ' + error.message)
+    }
   }
 
   async sendMessage() {
     const input = document.getElementById('user-input')
     const message = input.value.trim()
     if (!message) return
+
+    // 重置终端标签页创建标志，每次新对话都创建新标签页
+    this.terminalTabCreated = false
 
     // 清空输入框
     input.value = ''
@@ -921,6 +1197,7 @@ class AIAgentManager {
       let aiMessage = ''
       let isFirstChunk = true
       this.diffResults = [] // 每次发送消息前清空 diffResults
+      this.modificationStatusShown = false // 重置修改状态显示标志
 
       while (true) {
         const { done, value } = await reader.read()
@@ -932,30 +1209,90 @@ class AIAgentManager {
             const data = line.slice(6)
             if (data === '[DONE]') {
               if (this.diffResults && this.diffResults.length > 0) {
-                this.addChatMessage('ai', 'AI已生成修改建议，请在右侧Diff面板查看并对比。')
+                // 移除"开始修改项目代码..."消息
+                if (this.modificationStatusShown) {
+                  this.removeLastAIMessage()
+                }
+                // 显示完成消息
+                this.addChatMessage('ai', '✅ AI已生成修改建议，请在右侧Diff面板查看并对比。')
               }
               return
             }
             try {
               const parsed = JSON.parse(data)
+              console.log('收到数据:', parsed)
+
               if (parsed.type === 'file_read_error' || parsed.type === 'no_files' || parsed.type === 'error') {
                 this.showError(parsed.message || '发生错误')
                 continue
               }
-              console.log('hhhhhh', parsed, this.diffResults)
 
               if (parsed.type === 'file_modification') {
+                console.log('收到文件修改:', parsed)
                 this.diffResults.push(parsed)
                 this.showDiffSuggestions(this.diffResults)
+
+                // 显示"开始修改项目代码..."消息（只显示一次）
+                if (!this.modificationStatusShown) {
+                  this.addChatMessage('ai', '🔧 开始修改项目代码...')
+                  this.modificationStatusShown = true
+                }
                 continue
               }
-              if (parsed.content) {
+
+              // 处理项目创建相关的流式数据
+              if (parsed.type === 'action_start') {
+                console.log('收到动作开始:', parsed)
+                if (isFirstChunk) {
+                  this.addChatMessage('ai', '')
+                  isFirstChunk = false
+                }
+                aiMessage += `<div class="action-start">🚀 ${parsed.message}</div>`
+                this.updateLastAIMessage(aiMessage)
+                continue
+              }
+
+              if (parsed.type === 'command_item') {
+                console.log('收到命令项:', parsed)
+                console.log('命令:', parsed.command)
+                console.log('说明:', parsed.commandExplain)
+                if (isFirstChunk) {
+                  this.addChatMessage('ai', '')
+                  isFirstChunk = false
+                }
+                // 使用现有的 shell 命令渲染方法
+                const commandBlock = this.renderShellCommandBlock([
+                  {
+                    command: parsed.command,
+                    explain: parsed.commandExplain,
+                  },
+                ])
+                console.log('生成的命令块HTML:', commandBlock)
+                aiMessage += commandBlock
+                this.updateLastAIMessage(aiMessage)
+                // 绑定运行按钮事件
+                setTimeout(() => this.bindShellCmdBtnEvents(), 0)
+                continue
+              }
+
+              if (parsed.type === 'action_complete') {
+                console.log('收到动作完成:', parsed)
+                if (isFirstChunk) {
+                  this.addChatMessage('ai', '')
+                  isFirstChunk = false
+                }
+                aiMessage += `<div class="action-complete">✅ ${parsed.message}</div>`
+                this.updateLastAIMessage(aiMessage)
+                continue
+              }
+
+              if (parsed.type === 'stream_chunk' && parsed.content) {
                 if (isFirstChunk) {
                   this.addChatMessage('ai', '')
                   isFirstChunk = false
                 }
                 aiMessage += parsed.content
-                this.updateLastAIMessage(aiMessage)
+                // this.updateLastAIMessage(aiMessage)
               }
             } catch (e) {
               console.error('解析流式数据失败:', e)
@@ -1029,6 +1366,15 @@ class AIAgentManager {
     chatMessages.scrollTop = chatMessages.scrollHeight
   }
 
+  // 移除最后一条AI消息
+  removeLastAIMessage() {
+    const messages = document.querySelectorAll('.message.ai')
+    if (messages.length > 0) {
+      const lastMessage = messages[messages.length - 1]
+      lastMessage.remove()
+    }
+  }
+
   // 格式化消息
   formatMessage(content) {
     return content
@@ -1069,10 +1415,46 @@ class AIAgentManager {
   }
 
   // 应用建议
-  acceptSuggestion() {
+  async acceptSuggestion() {
     if (this.currentSuggestion) {
+      // 将新内容应用到编辑器
       this.editor.setValue(this.currentSuggestion)
-      this.showSuccess('建议已应用')
+
+      // 获取当前文件路径
+      if (!this.currentFile) {
+        this.showError('没有打开的文件')
+        return
+      }
+
+      try {
+        // 调用文件写入接口
+        const response = await fetch('/api/file/write', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            filePath: this.currentFile,
+            content: this.currentSuggestion,
+          }),
+        })
+
+        const data = await response.json()
+
+        if (data.success) {
+          // 更新标签页内容
+          this.openTabs.set(this.currentFile, {
+            fileName: this.currentFile.split('/').pop(),
+            content: this.currentSuggestion,
+          })
+          this.showSuccess('建议已应用并保存到文件')
+        } else {
+          this.showError(data.error || '保存文件失败')
+        }
+      } catch (error) {
+        this.showError('保存文件失败: ' + error.message)
+      }
+
       this.switchPanel('chat')
     }
   }
@@ -1086,74 +1468,310 @@ class AIAgentManager {
   // Diff 面板渲染和 Monaco Diff Editor 弹窗
   showDiffSuggestions(results) {
     const diffPanel = document.getElementById('diff-list')
-    if (!diffPanel) return
-    diffPanel.innerHTML = results
+    if (!diffPanel) {
+      console.error('找不到 diff-list 元素')
+      return
+    }
+
+    console.log('显示 Diff 建议，结果数量:', results.length)
+
+    // 清空现有内容
+    diffPanel.innerHTML = ''
+
+    // 只创建文件列表，不创建 Diff Editor 容器
+    const fileList = document.createElement('div')
+    fileList.className = 'diff-file-list'
+    fileList.innerHTML = results
       .map(
         (result, idx) => `
       <div class="diff-item">
         <div class="diff-item-header">
           <span>${result.path}</span>
+          <span class="operation-badge ${result.operation || 'edit'}">${result.operation || 'edit'}</span>
           <button class="btn secondary" onclick="aiAgent.showFileDiff(${idx})">对比</button>
         </div>
       </div>
     `
       )
       .join('')
-    this.switchPanel('diff')
+
+    // 只添加文件列表到面板
+    diffPanel.appendChild(fileList)
+
+    this.switchPanel('diff-view')
     this.diffResults = results
+
+    console.log('Diff 面板已更新，只显示文件列表')
   }
 
   async showFileDiff(idx) {
     const result = this.diffResults[idx]
-    let modal = document.getElementById('monaco-diff-modal')
-    if (modal) modal.remove()
-    modal = document.createElement('div')
-    modal.id = 'monaco-diff-modal'
-    modal.className = 'diff-modal'
-    modal.innerHTML = `
-      <div class="diff-modal-content" style="padding: 0; background: #23272e; border-radius: 8px; box-shadow: 0 4px 32px rgba(0,0,0,0.4);">
-        <div style="display: flex; align-items: center; justify-content: space-between; padding: 20px 24px 10px 24px; border-bottom: 1px solid #333;">
-          <h3 style="margin: 0; font-size: 18px; color: #fff;">文件对比：${result.path}</h3>
-          <button class="btn secondary" id="close-diff-modal" style="font-size: 18px;">×</button>
-        </div>
-        <div id="monaco-diff" style="height:520px; background: #1e1e1e;"></div>
-        <div style="display: flex; justify-content: flex-end; gap: 12px; padding: 16px 24px 20px 24px; border-top: 1px solid #333; background: #23272e; border-radius: 0 0 8px 8px;">
-          <button class="btn success" id="apply-diff-btn">应用建议</button>
-          <button class="btn danger" id="reject-diff-btn">拒绝建议</button>
-        </div>
-      </div>
+    console.log('显示文件对比:', result)
+
+    // 生成对比文件的路径和标题
+    const fileName = result.path.split('/').pop()
+    const diffFilePath = `diff_${fileName}_${Date.now()}`
+    const diffTabTitle = `对比: ${fileName}`
+
+    // 在主编辑器中打开新的 tab
+    this.openDiffTab(diffFilePath, diffTabTitle, result)
+  }
+
+  // 打开对比 tab
+  openDiffTab(filePath, title, diffResult) {
+    // 创建新的 tab
+    const tab = document.createElement('div')
+    tab.className = 'tab'
+    tab.setAttribute('data-file', filePath)
+    tab.innerHTML = `
+      <span>${title}</span>
+      <button class="close-tab" data-file="${filePath}"><i class="fas fa-times"></i></button>
     `
-    document.body.appendChild(modal)
-    document.getElementById('close-diff-modal').onclick = () => modal.remove()
-    document.getElementById('reject-diff-btn').onclick = () => modal.remove()
-    document.getElementById('apply-diff-btn').onclick = () => {
-      this.editor.setValue(result.newContent)
-      this.showSuccess('AI建议已应用到编辑器')
-      modal.remove()
+
+    // 绑定关闭事件
+    tab.querySelector('.close-tab').addEventListener('click', (e) => {
+      e.stopPropagation()
+      this.closeTab(filePath)
+    })
+
+    // 绑定切换事件
+    tab.addEventListener('click', () => this.switchTab(filePath))
+
+    // 添加到 tab 列表
+    const tabsContainer = document.querySelector('.editor-tabs')
+    tabsContainer.appendChild(tab)
+
+    // 切换到新 tab
+    this.switchTab(filePath)
+
+    // 保存当前编辑器状态
+    const currentEditor = this.editor
+
+    // 创建新的 Monaco Diff Editor
+    if (typeof require !== 'undefined') {
+      require.config({ paths: { vs: 'https://unpkg.com/monaco-editor@0.44.0/min/vs' } })
+      require(['vs/editor/editor.main'], () => {
+        console.log('创建 Monaco Diff Editor')
+
+        // 销毁当前编辑器
+        if (currentEditor) {
+          currentEditor.dispose()
+        }
+
+        // 根据文件扩展名设置语言
+        const fileExt = diffResult.path.split('.').pop().toLowerCase()
+        const language = this.getMonacoLanguage(fileExt)
+        console.log('文件类型:', fileExt, '语言:', language)
+
+        const originalModel = monaco.editor.createModel(diffResult.oldContent || '', language)
+        const modifiedModel = monaco.editor.createModel(diffResult.newContent || '', language)
+
+        // 创建 Diff Editor
+        this.editor = monaco.editor.createDiffEditor(document.getElementById('monaco-editor'), {
+          theme: 'vs-dark',
+          readOnly: true,
+          automaticLayout: true,
+          renderSideBySide: true,
+          enableSplitViewResizing: true,
+          renderOverviewRuler: true,
+          ignoreTrimWhitespace: false,
+          renderIndicators: true,
+          originalEditor: {
+            readOnly: true,
+          },
+          modifiedEditor: {
+            readOnly: true,
+          },
+        })
+
+        this.editor.setModel({
+          original: originalModel,
+          modified: modifiedModel,
+        })
+
+        // 添加应用和拒绝按钮到编辑器容器
+        const editorContainer = document.getElementById('monaco-editor')
+        const buttonContainer = document.createElement('div')
+        buttonContainer.style.cssText = `
+          position: absolute;
+          transform: translateX(50%);
+          bottom: 15px;
+          right: 50%;
+          z-index: 1000;
+          display: flex;
+          gap: 8px;
+        `
+        buttonContainer.innerHTML = `
+          <button class="btn success" id="apply-diff-btn" style="padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">应用建议</button>
+          <button class="btn danger" onclick="aiAgent.rejectDiffFromTab()" style="padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">拒绝建议</button>
+        `
+
+        // 绑定应用建议按钮事件
+        const applyBtn = buttonContainer.querySelector('#apply-diff-btn')
+        applyBtn.addEventListener('click', () => {
+          this.applyDiffFromTab(diffResult.newContent)
+        })
+        editorContainer.style.position = 'relative'
+        editorContainer.appendChild(buttonContainer)
+
+        console.log('Diff Editor 创建成功')
+      })
+    } else {
+      console.error('Monaco Editor 未加载')
+      alert('Monaco Editor 未加载，请刷新页面重试')
     }
-    if (typeof require === 'undefined') {
-      alert('Monaco Editor require.js 未加载')
+
+    // 保存 tab 信息
+    this.openTabs.set(filePath, {
+      fileName: title,
+      content: '',
+      isDiff: true,
+      diffData: diffResult,
+    })
+
+    console.log('对比 tab 已打开:', filePath)
+  }
+
+  // 从 tab 应用更改
+  async applyDiffFromTab(newContent) {
+    console.log('applyDiffFromTab 被调用，newContent 长度:', newContent.length)
+    // 获取原始文件路径
+    let filePath = null
+    const currentTab = document.querySelector('.tab.active')
+    if (currentTab && currentTab.dataset.file) {
+      const currentFilePath = currentTab.dataset.file
+      if (currentFilePath.startsWith('diff_')) {
+        if (this.diffResults && this.diffResults.length > 0) {
+          const tabTitle = currentTab.querySelector('span').textContent
+          const fileName = tabTitle.replace('对比: ', '')
+          const diffResult = this.diffResults.find((result) => result.path.split('/').pop() === fileName)
+          if (diffResult) {
+            filePath = diffResult.path
+          }
+        }
+      } else {
+        filePath = currentFilePath
+      }
+    }
+    if (!filePath) {
+      this.showError('无法获取文件路径')
       return
     }
-    require.config({ paths: { vs: 'https://unpkg.com/monaco-editor@0.44.0/min/vs' } })
-    require(['vs/editor/editor.main'], function () {
-      const originalModel = monaco.editor.createModel(result.oldContent || '', 'javascript')
-      const modifiedModel = monaco.editor.createModel(result.newContent || '', 'javascript')
-      const diffEditor = monaco.editor.createDiffEditor(document.getElementById('monaco-diff'), {
-        theme: 'vs-dark',
-        readOnly: true,
-        automaticLayout: true,
+    // 1. 切换回普通编辑器
+    this.recreateNormalEditor(newContent, filePath)
+    // 2. 保存到文件
+    try {
+      const response = await fetch('/api/file/write', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filePath, content: newContent }),
       })
-      diffEditor.setModel({ original: originalModel, modified: modifiedModel })
-    })
+      const data = await response.json()
+      if (data.success) {
+        this.openTabs.set(filePath, {
+          fileName: filePath.split('/').pop(),
+          content: newContent,
+        })
+        this.showSuccess('AI建议已应用并保存到文件')
+      } else {
+        this.showError(data.error || '保存文件失败')
+      }
+    } catch (error) {
+      this.showError('保存文件失败: ' + error.message)
+    }
+    // 关闭当前对比 tab
+    this.closeCurrentTab()
+  }
+
+  // 拒绝更改并关闭 tab
+  rejectDiffFromTab() {
+    this.showSuccess('已拒绝当前建议')
+    this.closeCurrentTab()
+  }
+
+  // 关闭当前 tab
+  closeCurrentTab() {
+    const currentTab = document.querySelector('.tab.active')
+    if (currentTab) {
+      this.closeTab(currentTab.dataset.file)
+    }
   }
 
   // 接受差异
-  acceptDiff(diffId) {
+  async acceptDiff(diffId) {
     const diff = this.diffSuggestions[diffId]
     if (diff) {
+      // 将新内容应用到编辑器
       this.editor.setValue(diff.newContent)
-      this.showSuccess('差异已应用')
+
+      // 获取文件路径
+      let filePath = null
+
+      // 检查当前tab是否是对比tab
+      const currentTab = document.querySelector('.tab.active')
+      if (currentTab && currentTab.dataset.file) {
+        const currentFilePath = currentTab.dataset.file
+
+        // 如果是对比tab（以diff_开头），需要获取原始文件路径
+        if (currentFilePath.startsWith('diff_')) {
+          // 从diffResults中找到对应的原始文件路径
+          if (this.diffResults && this.diffResults.length > 0) {
+            // 获取当前对比tab的标题，从中提取文件名
+            const tabTitle = currentTab.querySelector('span').textContent
+            const fileName = tabTitle.replace('对比: ', '')
+
+            // 在diffResults中查找匹配的文件
+            const diffResult = this.diffResults.find((result) => result.path.split('/').pop() === fileName)
+
+            if (diffResult) {
+              filePath = diffResult.path
+            }
+          }
+        } else {
+          // 不是对比tab，直接使用当前文件路径
+          filePath = currentFilePath
+        }
+      }
+
+      // 如果还是无法获取文件路径，尝试从diff对象中获取
+      if (!filePath && diff.meta && diff.meta.filePath) {
+        filePath = diff.meta.filePath
+      }
+
+      if (!filePath) {
+        this.showError('无法获取文件路径')
+        return
+      }
+
+      try {
+        // 调用文件写入接口
+        const response = await fetch('/api/file/write', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            filePath: filePath,
+            content: diff.newContent,
+          }),
+        })
+
+        const data = await response.json()
+
+        if (data.success) {
+          // 更新标签页内容
+          this.openTabs.set(filePath, {
+            fileName: filePath.split('/').pop(),
+            content: diff.newContent,
+          })
+          this.showSuccess('差异已应用并保存到文件')
+        } else {
+          this.showError(data.error || '保存文件失败')
+        }
+      } catch (error) {
+        this.showError('保存文件失败: ' + error.message)
+      }
+
       this.diffSuggestions.splice(diffId, 1)
       this.renderDiffList()
     }
@@ -1166,11 +1784,118 @@ class AIAgentManager {
   }
 
   // 接受所有差异
-  acceptAllDiffs() {
-    if (this.diffSuggestions.length > 0) {
-      const lastDiff = this.diffSuggestions[this.diffSuggestions.length - 1]
-      this.editor.setValue(lastDiff.newContent)
-      this.showSuccess('所有差异已应用')
+  async acceptAllDiffs() {
+    console.log('acceptAllDiffs 被调用')
+    console.log('diffSuggestions 长度:', this.diffSuggestions ? this.diffSuggestions.length : 0)
+    console.log('diffResults 长度:', this.diffResults ? this.diffResults.length : 0)
+
+    // 优先使用 diffResults（AI生成的修改建议）
+    if (this.diffResults && this.diffResults.length > 0) {
+      console.log('找到AI修改建议，数量:', this.diffResults.length)
+
+      // 准备批量写入的文件数据
+      const filesToWrite = this.diffResults.map((diff) => ({
+        path: diff.path,
+        content: diff.newContent,
+      }))
+
+      console.log(
+        '准备批量写入文件:',
+        filesToWrite.map((f) => f.path)
+      )
+
+      try {
+        // 使用批量写入接口
+        const response = await fetch('/api/file/batch-write', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ files: filesToWrite }),
+        })
+
+        const data = await response.json()
+
+        if (data.success) {
+          // 更新所有文件的标签页内容
+          filesToWrite.forEach((file) => {
+            this.openTabs.set(file.path, {
+              fileName: file.path.split('/').pop(),
+              content: file.content,
+            })
+          })
+
+          // 如果有多个文件，显示第一个文件在编辑器中
+          if (filesToWrite.length > 0) {
+            const firstFile = filesToWrite[0]
+            this.recreateNormalEditor(firstFile.content, firstFile.path)
+          }
+
+          this.showSuccess(`成功应用并保存了 ${filesToWrite.length} 个文件的修改`)
+        } else {
+          this.showError(data.error || '批量保存文件失败')
+        }
+      } catch (error) {
+        this.showError('批量保存文件失败: ' + error.message)
+      }
+
+      this.diffResults = []
+      return
+    }
+
+    // 如果没有AI修改建议，尝试使用搜索结果
+    if (this.diffSuggestions && this.diffSuggestions.length > 0) {
+      console.log('找到搜索结果差异，数量:', this.diffSuggestions.length)
+
+      // 准备批量写入的文件数据
+      const filesToWrite = this.diffSuggestions
+        .map((diff) => ({
+          path: diff.path || (diff.meta && diff.meta.filePath),
+          content: diff.newContent || (diff.meta && diff.meta.content),
+        }))
+        .filter((file) => file.path && file.content)
+
+      if (filesToWrite.length === 0) {
+        this.showError('无法获取文件路径或内容')
+        return
+      }
+
+      console.log(
+        '准备批量写入搜索结果文件:',
+        filesToWrite.map((f) => f.path)
+      )
+
+      try {
+        // 使用批量写入接口
+        const response = await fetch('/api/file/batch-write', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ files: filesToWrite }),
+        })
+
+        const data = await response.json()
+
+        if (data.success) {
+          // 更新所有文件的标签页内容
+          filesToWrite.forEach((file) => {
+            this.openTabs.set(file.path, {
+              fileName: file.path.split('/').pop(),
+              content: file.content,
+            })
+          })
+
+          // 如果有多个文件，显示第一个文件在编辑器中
+          if (filesToWrite.length > 0) {
+            const firstFile = filesToWrite[0]
+            this.recreateNormalEditor(firstFile.content, firstFile.path)
+          }
+
+          this.showSuccess(`成功应用并保存了 ${filesToWrite.length} 个文件的修改`)
+        } else {
+          this.showError(data.error || '批量保存文件失败')
+        }
+      } catch (error) {
+        this.showError('批量保存文件失败: ' + error.message)
+      }
+
       this.diffSuggestions = []
       this.renderDiffList()
     }
@@ -1219,9 +1944,17 @@ class AIAgentManager {
       tab.classList.remove('active')
     })
 
-    // 显示指定面板
-    document.getElementById(`${panelName}-panel`).classList.add('active')
-    document.querySelector(`[data-panel="${panelName}"]`).classList.add('active')
+    // 显示指定面板（添加空值检查）
+    const panelElement = document.getElementById(`${panelName}-panel`)
+    const tabElement = document.querySelector(`[data-panel="${panelName}"]`)
+
+    if (panelElement) {
+      panelElement.classList.add('active')
+    }
+
+    if (tabElement) {
+      tabElement.classList.add('active')
+    }
   }
 
   // 加载历史记录
@@ -1261,8 +1994,9 @@ class AIAgentManager {
           </div>
         </div>
         <div class="history-item-content">
-          <pre><code>${this.escapeHtml(history.content.substring(0, 200))}${history.content.length > 200 ? '...' : ''
-          }</code></pre>
+          <pre><code>${this.escapeHtml(history.content.substring(0, 200))}${
+          history.content.length > 200 ? '...' : ''
+        }</code></pre>
         </div>
       </div>
     `
@@ -2178,7 +2912,25 @@ class AIAgentManager {
       document.addEventListener('mousedown', hide)
     }, 0)
   }
+
+  // 重置终端状态
+  resetTerminalState() {
+    this.terminalTabCreated = false
+    console.log('终端状态已重置')
+  }
 }
 
 // 初始化应用
 const aiAgent = new AIAgentManager()
+
+// 添加到全局对象，供HTML事件处理使用
+window.aiAgent = aiAgent
+
+// 全局函数，用于其他地方调用
+window.sendTerminalCommand = function (command) {
+  if (aiAgent && aiAgent.sendCommandToTerminal) {
+    aiAgent.sendCommandToTerminal(command)
+  } else {
+    console.error('aiAgent未初始化或sendCommandToTerminal方法不存在')
+  }
+}

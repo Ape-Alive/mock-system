@@ -1,8 +1,18 @@
 const fs = require('fs')
 const path = require('path')
 const axios = require('axios')
-const { batchWriteFiles } = require('./fileBatchWriter')
-const { batchCodeCompletion } = require('./aiAgentService')
+
+// 提取JSON从markdown代码块中
+function extractJsonFromMarkdown(text) {
+  // 移除markdown代码块标记
+  const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/)
+  if (jsonMatch) {
+    return jsonMatch[1].trim()
+  }
+
+  // 如果没有代码块标记，尝试直接解析
+  return text.trim()
+}
 
 // 统一加载所有业务 prompt
 function loadPrompts() {
@@ -50,9 +60,38 @@ async function* batchCodeCompletionStream(parameters, files, messages) {
   const recentMessages = messages.slice(-10) // 最近10条消息（5轮对话）
 
   // 构建 prompt
-  const systemPrompt = `你是一个专业的代码助手。请根据用户需求对提供的文件进行智能修改。\n\n### 任务要求\n- 仔细分析用户需求和文件内容\n- 只修改必要的部分，保持代码风格一致\n- 如果不需要修改,无需返回任何内容\n- 返回格式必须是 JSON，包含修改结果\n\n### 输出格式\n{\n  \"files\": [\n    {\n      \"path\": \"文件路径\",\n      \"oldContent\": \"原内容\",\n      \"newContent\": \"新内容\", \n      \"diff\": \"diff格式的修改\",\n      \"reason\": \"修改原因\"\n    }\n  ]\n}\n\n### 文件内容\n${context}\n\n### 对话历史（最近5轮）\n${recentMessages
-    .map((msg, index) => `${msg.role === 'user' ? '用户' : 'AI'}: ${msg.content}`)
-    .join('\\n')}\n\n### 当前用户需求\n${JSON.stringify(parameters)}`
+  const systemPrompt = `你是一个专业的代码助手。请根据用户需求对提供的文件进行智能修改。
+
+### 任务要求
+- 仔细分析用户需求和文件内容
+- 只修改必要的部分，保持代码风格一致
+- 如果不需要修改，请说明原因
+- 如果需要修改，请严格按照JSON格式返回
+
+### 输出格式
+请严格按照以下JSON格式返回，不要包含任何其他文本：
+{
+  "files": [
+    {
+      "path": "文件路径",
+      "oldContent": "原内容",
+      "newContent": "新内容", 
+      "diff": "diff格式的修改",
+      "reason": "修改原因"
+    }
+  ]
+}
+
+### 文件内容
+${context}
+
+### 对话历史（最近5轮）
+${recentMessages.map((msg, index) => `${msg.role === 'user' ? '用户' : 'AI'}: ${msg.content}`).join('\n')}
+
+### 当前用户需求
+${JSON.stringify(parameters)}
+
+请直接返回JSON格式的修改结果，不要包含任何解释性文字。`
 
   const llmMessages = [
     { role: 'system', content: systemPrompt },
@@ -97,7 +136,9 @@ async function* batchCodeCompletionStream(parameters, files, messages) {
           if (data === '[DONE]') {
             // 流式传输完成，解析完整响应
             try {
-              const result = JSON.parse(fullResponse)
+              // 提取JSON从markdown代码块中
+              const cleanJson = extractJsonFromMarkdown(fullResponse)
+              const result = JSON.parse(cleanJson)
 
               // 处理每个文件的修改结果
               for (const fileResult of result.files || []) {
@@ -213,9 +254,15 @@ async function* handleIntentStream(intentResult, fileTree, afterHandlePaths, mes
     return
   }
   console.log('files', files)
+  yield {
+    type: 'action_start',
+    action: 'code_modification',
+    message: '开始修改项目代码...',
+  }
   // 2. 调用 LLM 批量补全/修改（流式版本）
   for await (const chunk of batchCodeCompletionStream(parameters, files, messages)) {
     console.log('chunk', chunk)
+
     switch (chunk.type) {
       case 'stream_chunk':
         // 流式传输的文本块，直接转发给前端
@@ -228,10 +275,11 @@ async function* handleIntentStream(intentResult, fileTree, afterHandlePaths, mes
       case 'file_modification':
         // 文件被修改
         yield {
-          type: 'code_modification',
+          type: 'file_modification',
           path: chunk.path,
-          diff: chunk.diff,
+          oldContent: chunk.oldContent,
           newContent: chunk.newContent,
+          diff: chunk.diff,
           reason: chunk.reason,
         }
         break
@@ -310,7 +358,9 @@ async function handleProjectCreation(params, fileTree) {
   )
   let commands = []
   try {
-    const parsed = JSON.parse(res.data.choices[0].message.content)
+    const content = res.data.choices[0].message.content
+    const cleanJson = extractJsonFromMarkdown(content)
+    const parsed = JSON.parse(cleanJson)
     console.log('uuuuu', parsed)
 
     if (Array.isArray(parsed)) {
@@ -346,7 +396,7 @@ async function* handleProjectCreationStream(params, fileTree) {
     { role: 'system', content: prompt },
     {
       role: 'user',
-      content: `请严格按照如下要求输出：\n\n1. 输出所有项目初始化和依赖安装命令，每条命令都单独输出一行JSON，格式为：{\"command\": \"xxx\", \"commandExplain\": \"xxx\"}\n2. 不要输出数组，不要输出多余解释，不要输出任何非JSON内容。\n3. 直到所有命令全部输出完毕为止。\n4. 必须覆盖：环境准备、目录创建、进入目录、项目初始化、依赖安装、启动命令等所有步骤。\n5. 例如：\n{\"command\": \"set -e\", \"commandExplain\": \"保证命令失败立即退出\"}\n{\"command\": \"mkdir -p \"/your/path\"\", \"commandExplain\": \"创建项目目录\"}\n{\"command\": \"cd \"/your/path\"\", \"commandExplain\": \"进入项目目录\"}\n{\"command\": \"npm init -y\", \"commandExplain\": \"初始化npm项目\"}\n{\"command\": \"npm install vue element-ui axios\", \"commandExplain\": \"安装核心依赖\"}\n{\"command\": \"npm run serve\", \"commandExplain\": \"启动开发服务器\"}\n6. 每条命令都要有简明中文解释（commandExplain），不要省略。\n7. 直到所有初始化和依赖安装命令全部输出完毕为止，最后一条一般是启动命令。`,
+      content: `请严格按照如下要求输出：\n\n1. 输出所有项目初始化和依赖安装命令，每条命令都单独输出一行JSON，格式为：{\"command\": \"xxx\", \"commandExplain\": \"xxx\"}\n2. 不要输出数组，不要输出多余解释，不要输出任何非JSON内容。\n3. 必须输出多个命令，至少包含6-8个命令，覆盖完整的项目创建流程。\n4. 必须覆盖：环境准备、目录创建、进入目录、项目初始化、依赖安装、启动命令等所有步骤。\n5. 不要提前结束，必须输出所有必要的命令。\n\n【重要】项目命名规则：\n- 将中文项目类型转换为英文\n- 使用小写字母和连字符(-)分隔单词\n- 避免特殊字符、空格、大写字母\n- 符合npm包命名规范\n- 名称要简洁明了，体现项目功能\n- 完整路径格式：${params.directory}/项目名称\n\n【必须输出的命令序列】\n{\"command\": \"set -e\", \"commandExplain\": \"保证命令失败立即退出\"}\n{\"command\": \"mkdir -p \"${params.directory}/vue-project\"\", \"commandExplain\": \"创建Vue2项目目录\"}\n{\"command\": \"cd \"${params.directory}/vue-project\"\", \"commandExplain\": \"进入项目目录\"}\n{\"command\": \"npx -p @vue/cli vue create . --preset default --force\", \"commandExplain\": \"初始化Vue2项目\"}\n{\"command\": \"npm install element-ui axios\", \"commandExplain\": \"安装UI组件库和HTTP客户端\"}\n{\"command\": \"npm run serve\", \"commandExplain\": \"启动开发服务器\"}\n\n【重要提醒】\n- 必须输出完整创建项目的命令，不能遗漏\n- 每条命令都要有简明中文解释（commandExplain）\n- 不要只输出一个命令就结束\n- 确保命令序列完整，能够成功创建和启动项目`,
     },
   ]
   // 调用 LLM 的流式接口
@@ -368,28 +418,35 @@ async function* handleProjectCreationStream(params, fileTree) {
   )
 
   let buffer = ''
+  let commandCount = 0
   for await (const chunk of response.data) {
     const str = chunk.toString('utf8')
+    console.log('收到chunk:', str)
     // DeepSeek/OpenAI SSE格式：data: {...}\n\n
     const lines = str.split('\n')
     for (const line of lines) {
       if (line.startsWith('data: ')) {
         const data = line.slice(6).trim()
-        if (data === '[DONE]') continue
+        if (data === '[DONE]') {
+          console.log('收到[DONE]信号，已处理命令数量:', commandCount)
+          continue
+        }
         try {
           const obj = JSON.parse(data)
           const content = obj.choices?.[0]?.delta?.content
           if (content) {
             buffer += content
-            // console.log('buffer:', JSON.stringify(buffer))
+            console.log('buffer累积:', JSON.stringify(buffer))
             // 检查是否拼出一行完整JSON
             if (buffer.endsWith('}\n') || buffer.endsWith('}\r\n')) {
               const jsonLine = buffer.trim()
               buffer = ''
               try {
-                const cmdObj = JSON.parse(jsonLine)
+                const cleanJson = extractJsonFromMarkdown(jsonLine)
+                const cmdObj = JSON.parse(cleanJson)
                 if (cmdObj.command) {
-                  console.log('yield:', cmdObj)
+                  commandCount++
+                  console.log('yield命令 #', commandCount, ':', cmdObj)
                   yield {
                     type: 'command_item',
                     action: 'project_creation',
@@ -398,11 +455,13 @@ async function* handleProjectCreationStream(params, fileTree) {
                   }
                 }
               } catch (e) {
+                console.log('JSON解析失败:', e.message, '原始内容:', jsonLine)
                 /* 不是完整JSON，忽略 */
               }
             }
           }
         } catch (e) {
+          console.log('解析chunk失败:', e.message)
           /* 不是合法JSON，忽略 */
         }
       }
@@ -411,9 +470,11 @@ async function* handleProjectCreationStream(params, fileTree) {
   // 处理最后一行
   if (buffer.trim()) {
     try {
-      const cmdObj = JSON.parse(buffer.trim())
+      const cleanJson = extractJsonFromMarkdown(buffer.trim())
+      const cmdObj = JSON.parse(cleanJson)
       if (cmdObj.command) {
-        console.log('yield:', cmdObj)
+        commandCount++
+        console.log('yield最后命令 #', commandCount, ':', cmdObj)
         yield {
           type: 'command_item',
           action: 'project_creation',
@@ -421,8 +482,11 @@ async function* handleProjectCreationStream(params, fileTree) {
           commandExplain: cmdObj.commandExplain,
         }
       }
-    } catch (e) { }
+    } catch (e) {
+      console.log('处理最后buffer失败:', e.message, '原始内容:', buffer.trim())
+    }
   }
+  console.log('流式处理完成，总共处理命令数量:', commandCount)
 }
 
 async function handleFeatureModification(params, fileTree) {

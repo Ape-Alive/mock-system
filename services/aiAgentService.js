@@ -76,20 +76,37 @@ async function* batchCodeCompletionStream(parameters, files, messages) {
 - 仔细分析用户需求和文件内容
 - 只修改必要的部分，保持代码风格一致
 - 如果不需要修改,无需返回任何内容
-- 返回格式必须是 JSON，包含修改结果
+- 返回格式必须是纯JSON对象，不要包含任何markdown标记
+- **重要：每个文件只能在一个对象内，不能分段处理**
+- **重要：oldContent必须包含完整的原始文件内容**
+- **重要：newContent必须包含完整的修改后文件内容**
+- **重要：不能将一个文件分成多个对象处理**
 
 ### 输出格式
 {
   "files": [
     {
       "path": "文件路径",
-      "oldContent": "原内容",
-      "newContent": "新内容",
+      "operation": "操作类型",
+      "oldContent": "完整的原始文件内容",
+      "newContent": "完整的修改后文件内容", 
       "diff": "diff格式的修改",
       "reason": "修改原因"
     }
   ]
 }
+
+### 重要规则
+- 每个文件只能有一个对象，不能重复
+- oldContent和newContent必须包含文件的完整内容
+- 不能将一个文件的内容分成多个对象
+- 如果修改多个文件，每个文件对应一个独立的对象
+
+### 操作类型说明
+- "edit": 修改现有文件
+- "add": 新增文件
+- "delete": 删除文件
+- "rename": 重命名文件
 
 ### 文件内容
 ${context}
@@ -108,7 +125,9 @@ ${JSON.stringify(messages[messages.length - 1].content)}`
     })),
     {
       role: 'user',
-      content: `请根据上述对话历史和需求修改文件：${JSON.stringify(messages[messages.length - 1].content)}`,
+      content: `请根据上述对话历史和需求修改文件。注意：每个文件只能在一个对象中，包含完整的文件内容：${JSON.stringify(
+        messages[messages.length - 1].content
+      )}`,
     },
   ]
   console.log('lllll', llmMessages)
@@ -145,10 +164,18 @@ ${JSON.stringify(messages[messages.length - 1].content)}`
           if (data === '[DONE]') {
             // 流式传输完成，解析完整响应
             try {
-              const result = JSON.parse(fullResponse)
+              // 提取JSON从markdown代码块中
+              const cleanJson = extractJsonFromMarkdown(fullResponse)
+              const result = JSON.parse(cleanJson)
+
+              // 去重处理：如果有重复的文件路径，只保留最后一个
+              const uniqueFiles = new Map()
+              for (const fileResult of result.files || []) {
+                uniqueFiles.set(fileResult.path, fileResult)
+              }
 
               // 处理每个文件的修改结果
-              for (const fileResult of result.files || []) {
+              for (const fileResult of uniqueFiles.values()) {
                 const originalFile = files.find((f) => f.path === fileResult.path)
                 if (originalFile) {
                   if (fileResult.oldContent !== fileResult.newContent) {
@@ -156,6 +183,7 @@ ${JSON.stringify(messages[messages.length - 1].content)}`
                     yield {
                       type: 'file_modification',
                       path: fileResult.path,
+                      operation: fileResult.operation || 'edit',
                       oldContent: fileResult.oldContent,
                       newContent: fileResult.newContent,
                       diff: fileResult.diff,
@@ -166,6 +194,7 @@ ${JSON.stringify(messages[messages.length - 1].content)}`
                     yield {
                       type: 'file_no_change',
                       path: fileResult.path,
+                      operation: fileResult.operation || 'edit',
                       reason: fileResult.reason || '无需修改',
                     }
                   }
@@ -173,7 +202,7 @@ ${JSON.stringify(messages[messages.length - 1].content)}`
               }
 
               // 如果没有文件被修改
-              const hasModifications = (result.files || []).some((f) => f.oldContent !== f.newContent)
+              const hasModifications = Array.from(uniqueFiles.values()).some((f) => f.oldContent !== f.newContent)
               if (!hasModifications) {
                 yield {
                   type: 'no_modifications',
@@ -224,6 +253,7 @@ async function batchCodeCompletion(prompt, files) {
   // 这里模拟返回每个文件的修改建议
   const results = files.map((file) => ({
     path: file.path,
+    operation: 'edit',
     oldContent: file.content,
     newContent: `// AI 修改后的内容\n${file.content}\n// 添加的注释`,
     diff: `+ // AI 修改后的内容\n${file.content}\n+ // 添加的注释`,
@@ -311,6 +341,18 @@ const ignoreList = [
   'go.sum',
 ]
 
+// 提取JSON从markdown代码块中
+function extractJsonFromMarkdown(text) {
+  // 移除markdown代码块标记
+  const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/)
+  if (jsonMatch) {
+    return jsonMatch[1].trim()
+  }
+
+  // 如果没有代码块标记，尝试直接解析
+  return text.trim()
+}
+
 // 递归获取文件树，排除 ignore
 function getProjectFileTree(rootDir, ignoreList) {
   function walk(dir) {
@@ -381,7 +423,9 @@ async function parseIntentWithDeepSeek(userInput, fileTree) {
     }
   )
   // 返回 JSON 字符串，需 parse
-  return JSON.parse(res.data.choices[0].message.content)
+  const content = res.data.choices[0].message.content
+  const cleanJson = extractJsonFromMarkdown(content)
+  return JSON.parse(cleanJson)
 }
 
 // chatWithAI 集成意图解析
