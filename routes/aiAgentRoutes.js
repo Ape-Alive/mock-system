@@ -340,7 +340,7 @@ router.post('/chat/stream', async (req, res) => {
     const { messages, editorFile, manualPaths, contextPaths } = req.body
 
     for await (const chunk of aiAgent.chatWithAIStream(messages, editorFile, manualPaths, contextPaths)) {
-      console.log('chunk:', chunk)
+    //   console.log('chunk:', chunk)
       // 为每个chunk添加时间戳
       const enhancedChunk = {
         ...chunk,

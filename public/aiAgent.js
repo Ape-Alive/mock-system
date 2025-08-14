@@ -29,6 +29,13 @@ class AIAgentManager {
       this.initResizeBar()
       this.initTerminalResizeBar() // 新增：初始化终端拖拽条
       this.renderPathList() // 初始化路径列表
+
+      // 确保终端面板初始状态为隐藏
+      const terminalPanel = document.getElementById('terminal-panel')
+      if (terminalPanel) {
+        terminalPanel.style.display = 'none'
+      }
+
       this.hideLoading()
     } catch (error) {
       console.error('初始化失败:', error)
@@ -43,19 +50,61 @@ class AIAgentManager {
     const editor = document.getElementById('monaco-editor')
     const terminalPanel = document.getElementById('terminal-panel')
     const iframeWrapper = document.getElementById('terminal-iframe-wrapper')
+    const editorContainer = document.querySelector('.editor-container')
     const dragMask = document.getElementById('iframe-drag-mask')
-    if (!resizeBar || !editor || !terminalPanel || !dragMask) return
+    if (!resizeBar || !editor || !terminalPanel || !dragMask || !editorContainer) return
 
     let dragging = false
     let startY = 0
-    let startEditorHeight = 0
     let startTerminalHeight = 0
+    let startEditorHeight = 0
+
+    // 计算编辑器容器的可用高度（减去header高度）
+    const getAvailableHeight = () => {
+      const headerHeight = editorContainer.querySelector('.editor-header').offsetHeight
+      return editorContainer.offsetHeight - headerHeight
+    }
+
+    // 调整编辑器高度，确保总和等于可用高度
+    const adjustEditorHeight = (terminalHeight) => {
+      const availableHeight = getAvailableHeight()
+      const newEditorHeight = availableHeight - terminalHeight
+
+      // 直接设置编辑器高度
+      editor.style.height = newEditorHeight + 'px'
+      editor.style.minHeight = newEditorHeight + 'px'
+      editor.style.maxHeight = newEditorHeight + 'px'
+
+      // 重新调整Monaco编辑器大小
+      if (window.monaco && window.monaco.editor) {
+        const editors = window.monaco.editor.getEditors()
+        for (let editorInstance of editors) {
+          if (editorInstance.getDomNode() === editor || editorInstance.getDomNode().contains(editor)) {
+            editorInstance.layout()
+            break
+          }
+        }
+      }
+
+      // 强制触发重新布局
+      setTimeout(() => {
+        if (window.monaco && window.monaco.editor) {
+          const editors = window.monaco.editor.getEditors()
+          for (let editorInstance of editors) {
+            if (editorInstance.getDomNode() === editor || editorInstance.getDomNode().contains(editor)) {
+              editorInstance.layout()
+              break
+            }
+          }
+        }
+      }, 10)
+    }
 
     resizeBar.addEventListener('mousedown', function (e) {
       dragging = true
       startY = e.clientY
-      startEditorHeight = editor.offsetHeight
       startTerminalHeight = terminalPanel.offsetHeight
+      startEditorHeight = editor.offsetHeight
       document.body.style.cursor = 'row-resize'
       document.body.style.userSelect = 'none'
       dragMask.style.display = 'block' // 显示遮罩
@@ -64,14 +113,26 @@ class AIAgentManager {
 
     document.addEventListener('mousemove', function (e) {
       if (!dragging) return
-      const dy = e.clientY - startY
-      const minEditorHeight = 100
+      const dy = startY - e.clientY // 向上拖拽增加终端高度
+      const availableHeight = getAvailableHeight()
       const minTerminalHeight = 80
-      let newEditorHeight = Math.max(minEditorHeight, startEditorHeight + dy)
-      let newTerminalHeight = Math.max(minTerminalHeight, startTerminalHeight - dy)
-      editor.style.height = newEditorHeight + 'px'
+      const maxTerminalHeight = availableHeight - 100 // 编辑器最小高度100px
+
+      let newTerminalHeight = Math.max(minTerminalHeight, Math.min(maxTerminalHeight, startTerminalHeight + dy))
+
+      // 调整终端面板高度（绝对定位）
       terminalPanel.style.height = newTerminalHeight + 'px'
       if (iframeWrapper) iframeWrapper.style.height = newTerminalHeight + 'px'
+
+      // 调整编辑器高度，确保总和等于可用高度
+      adjustEditorHeight(newTerminalHeight)
+
+      console.log('拖拽调整:', {
+        terminalHeight: newTerminalHeight + 'px',
+        editorHeight: availableHeight - newTerminalHeight + 'px',
+        totalHeight: availableHeight + 'px',
+        editorActualHeight: editor.offsetHeight + 'px',
+      })
     })
 
     document.addEventListener('mouseup', function () {
@@ -80,6 +141,17 @@ class AIAgentManager {
         document.body.style.cursor = ''
         document.body.style.userSelect = ''
         dragMask.style.display = 'none' // 隐藏遮罩
+
+        // 最终调整一次编辑器布局
+        if (window.monaco && window.monaco.editor) {
+          const editors = window.monaco.editor.getEditors()
+          for (let editorInstance of editors) {
+            if (editorInstance.getDomNode() === editor || editorInstance.getDomNode().contains(editor)) {
+              editorInstance.layout()
+              break
+            }
+          }
+        }
       }
     })
   }
@@ -2532,6 +2604,7 @@ class AIAgentManager {
     // 获取拖拽条和 ai-panel
     const resizeBar = document.getElementById('ai-panel-resize-bar')
     const aiPanel = document.querySelector('.ai-panel')
+    const terminalPanel = document.getElementById('terminal-panel')
     if (!resizeBar || !aiPanel) return
 
     // 拖拽逻辑
@@ -2547,12 +2620,19 @@ class AIAgentManager {
       document.body.style.cursor = 'ew-resize'
       e.preventDefault()
     })
+
     document.addEventListener('mousemove', function (e) {
       if (!dragging) return
       let delta = e.clientX - startX
       let newWidth = Math.max(200, Math.min(600, startWidth - delta))
       aiPanel.style.width = newWidth + 'px'
+
+      // 同时调整终端面板的右边距，使其宽度跟着变化
+      if (terminalPanel) {
+        terminalPanel.style.right = newWidth + 'px'
+      }
     })
+
     document.addEventListener('mouseup', function () {
       if (dragging) {
         dragging = false
@@ -2916,7 +2996,220 @@ class AIAgentManager {
   // 重置终端状态
   resetTerminalState() {
     this.terminalTabCreated = false
-    console.log('终端状态已重置')
+    const terminalPanel = document.getElementById('terminal-panel')
+    const resizeBar = document.getElementById('terminal-resize-bar')
+    const editor = document.getElementById('monaco-editor')
+    const editorContainer = document.querySelector('.editor-container')
+
+    if (terminalPanel) {
+      terminalPanel.style.display = 'none'
+    }
+    if (resizeBar) {
+      resizeBar.style.display = 'none'
+    }
+
+    // 重置终端iframe状态
+    const terminalIframe = document.getElementById('ai-terminal-iframe')
+    if (terminalIframe) {
+      // 清空iframe内容，但不重新加载，避免不必要的网络请求
+      terminalIframe.style.display = 'none'
+      setTimeout(() => {
+        terminalIframe.style.display = 'block'
+      }, 50)
+    }
+
+    // 恢复编辑器完整高度
+    if (editor && editorContainer) {
+      // 重新计算可用高度
+      const headerHeight = editorContainer.querySelector('.editor-header').offsetHeight
+      const containerHeight = editorContainer.offsetHeight
+      const availableHeight = containerHeight - headerHeight
+
+      console.log('关闭终端时的高度计算:', {
+        containerHeight: containerHeight + 'px',
+        headerHeight: headerHeight + 'px',
+        availableHeight: availableHeight + 'px',
+      })
+
+      // 清除所有高度限制，恢复完整高度
+      editor.style.height = availableHeight + 'px'
+      editor.style.minHeight = '' // 清除最小高度限制
+      editor.style.maxHeight = '' // 清除最大高度限制
+
+      // 重新调整Monaco编辑器大小
+      if (window.monaco && window.monaco.editor) {
+        const editors = window.monaco.editor.getEditors()
+        for (let editorInstance of editors) {
+          if (editorInstance.getDomNode() === editor || editorInstance.getDomNode().contains(editor)) {
+            editorInstance.layout()
+            break
+          }
+        }
+      }
+
+      // 强制触发重新布局
+      setTimeout(() => {
+        if (window.monaco && window.monaco.editor) {
+          const editors = window.monaco.editor.getEditors()
+          for (let editorInstance of editors) {
+            if (editorInstance.getDomNode() === editor || editorInstance.getDomNode().contains(editor)) {
+              editorInstance.layout()
+              break
+            }
+          }
+        }
+
+        // 再次确认高度设置
+        console.log('关闭终端后的编辑器高度:', {
+          setHeight: availableHeight + 'px',
+          actualHeight: editor.offsetHeight + 'px',
+          styleHeight: editor.style.height,
+        })
+      }, 100)
+
+      console.log('终端已关闭，编辑器恢复完整高度:', availableHeight + 'px')
+    }
+  }
+
+  // 打开终端
+  openTerminal() {
+    const terminalPanel = document.getElementById('terminal-panel')
+    const resizeBar = document.getElementById('terminal-resize-bar')
+    const editor = document.getElementById('monaco-editor')
+    const editorContainer = document.querySelector('.editor-container')
+    const aiPanel = document.querySelector('.ai-panel')
+
+    if (terminalPanel && editor && editorContainer) {
+      // 显示终端面板
+      terminalPanel.style.display = 'block'
+
+      // 获取当前AI面板的宽度，动态设置终端面板的右边距
+      const aiPanelWidth = aiPanel ? aiPanel.offsetWidth : 350
+      terminalPanel.style.right = aiPanelWidth + 'px'
+
+      // 计算红框框住的高度（编辑器容器的可用高度）
+      const headerHeight = editorContainer.querySelector('.editor-header').offsetHeight
+      const containerHeight = editorContainer.offsetHeight
+      const availableHeight = containerHeight - headerHeight
+
+      console.log('打开终端时的高度计算:', {
+        containerHeight: containerHeight + 'px',
+        headerHeight: headerHeight + 'px',
+        availableHeight: availableHeight + 'px',
+        aiPanelWidth: aiPanelWidth + 'px',
+      })
+
+      // 设置终端面板高度（默认320px，但不超过可用高度的70%）
+      const defaultTerminalHeight = Math.min(320, availableHeight * 0.7)
+      terminalPanel.style.height = defaultTerminalHeight + 'px'
+
+      // 调整编辑器高度，确保总和等于红框框住的高度
+      const newEditorHeight = availableHeight - defaultTerminalHeight
+
+      // 强制设置编辑器高度
+      editor.style.height = newEditorHeight + 'px'
+      editor.style.minHeight = newEditorHeight + 'px'
+      editor.style.maxHeight = newEditorHeight + 'px'
+
+      // 确保终端面板有合适的高度
+      const iframeWrapper = document.getElementById('terminal-iframe-wrapper')
+      if (iframeWrapper) {
+        iframeWrapper.style.height = defaultTerminalHeight + 'px'
+      }
+
+      // 重新初始化终端iframe
+      const terminalIframe = document.getElementById('ai-terminal-iframe')
+      if (terminalIframe) {
+        // 重新加载iframe以确保终端正常工作
+        const currentSrc = terminalIframe.src
+        terminalIframe.src = ''
+        setTimeout(() => {
+          terminalIframe.src = currentSrc
+          console.log('终端iframe已重新加载')
+        }, 100)
+      }
+
+      // 确保拖拽条可见
+      if (resizeBar) {
+        resizeBar.style.display = 'block'
+      }
+
+      // 立即重新调整Monaco编辑器大小
+      if (window.monaco && window.monaco.editor) {
+        const editors = window.monaco.editor.getEditors()
+        for (let editorInstance of editors) {
+          if (editorInstance.getDomNode() === editor || editorInstance.getDomNode().contains(editor)) {
+            editorInstance.layout()
+            break
+          }
+        }
+      }
+
+      // 强制触发重新布局并验证高度
+      setTimeout(() => {
+        // 再次强制设置编辑器高度
+        editor.style.height = newEditorHeight + 'px'
+        editor.style.minHeight = newEditorHeight + 'px'
+        editor.style.maxHeight = newEditorHeight + 'px'
+
+        if (window.monaco && window.monaco.editor) {
+          const editors = window.monaco.editor.getEditors()
+          for (let editorInstance of editors) {
+            if (editorInstance.getDomNode() === editor || editorInstance.getDomNode().contains(editor)) {
+              editorInstance.layout()
+              break
+            }
+          }
+        }
+
+        // 验证高度总和
+        const actualEditorHeight = editor.offsetHeight
+        const actualTerminalHeight = terminalPanel.offsetHeight
+        const totalHeight = actualEditorHeight + actualTerminalHeight
+
+        console.log('打开终端后的高度验证:', {
+          editorHeight: actualEditorHeight + 'px',
+          terminalHeight: actualTerminalHeight + 'px',
+          totalHeight: totalHeight + 'px',
+          availableHeight: availableHeight + 'px',
+          isEqual: totalHeight === availableHeight ? '✅ 正确' : '❌ 不匹配',
+        })
+
+        // 如果高度不匹配，强制调整
+        if (totalHeight !== availableHeight) {
+          console.log('高度不匹配，强制调整...')
+          const adjustedEditorHeight = availableHeight - actualTerminalHeight
+          editor.style.height = adjustedEditorHeight + 'px'
+          editor.style.minHeight = adjustedEditorHeight + 'px'
+          editor.style.maxHeight = adjustedEditorHeight + 'px'
+
+          if (window.monaco && window.monaco.editor) {
+            const editors = window.monaco.editor.getEditors()
+            for (let editorInstance of editors) {
+              if (editorInstance.getDomNode() === editor || editorInstance.getDomNode().contains(editor)) {
+                editorInstance.layout()
+                break
+              }
+            }
+          }
+        }
+      }, 150)
+
+      console.log('终端面板已打开:', {
+        terminalHeight: defaultTerminalHeight + 'px',
+        editorHeight: newEditorHeight + 'px',
+        totalHeight: availableHeight + 'px',
+      })
+    } else {
+      console.error('找不到终端面板或编辑器元素')
+    }
+  }
+
+  // 显示设置
+  showSettings() {
+    console.log('显示设置面板')
+    // 这里可以添加设置面板的逻辑
+    this.showToast('设置功能开发中...', 'info')
   }
 }
 

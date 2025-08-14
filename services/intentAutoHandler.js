@@ -208,12 +208,386 @@ ${JSON.stringify(parameters)}
   }
 }
 
+// 全栈开发AI Agent批量补全/修改（流式版本）
+async function* batchCodeAllCompletionStream(parameters, files, messages) {
+  console.log('=== 全栈AI Agent处理开始 ===')
+  console.log('参数:', JSON.stringify(parameters, null, 2))
+  console.log('文件数量:', files.length)
+  console.log(
+    '文件列表:',
+    files.map((f) => ({ path: f.path, contentLength: f.content.length }))
+  )
+  console.log('消息数量:', messages.length)
+  console.log(
+    '最近消息:',
+    messages.slice(-3).map((m) => ({ role: m.role, content: m.content.substring(0, 100) + '...' }))
+  )
+
+  // 组装多文件上下文
+  const context = files.map((f) => `文件: ${f.path}\n内容:\n${f.content}\n`).join('\n')
+
+  // 获取最近对话上下文
+  const recentMessages = messages.slice(-10)
+
+  // 使用新的全栈提示词
+  const prompt = `你是一个全栈开发 AI Agent（同时适用于前端、后端、数据库及基础设施改动）。收到用户的改动需求后，**必须**输出两个部分：
+A) machine-readable JSON（严格符合下面的 schema）
+B) human-readable Markdown 摘要（供 PR 描述 / Code review 使用）
+
+==== JSON Schema 要求（必须严格匹配） ====
+{
+  "schema_validation": "pass|fail",      // 必填
+  "schema_errors": ["string"],           // schema_validation=fail 时必填
+
+  "change": [
+    {
+      "change_id": "string",             // 必填，全局唯一 ID（建议 UUID）
+      "file_path": "string",             // 必填，可为代码文件、接口文件、数据库脚本、配置文件等
+      "operation": "MODIFY|DELETE|CREATE|RENAME", // 必填
+      "change_summary": "string",        // 必填，一句话描述改动
+      "new_path": "string|null",         // 可选，仅重命名使用
+      "oldContent": "string|null",       // 可选：修改前完整文件内容
+      "newContent": "string|null",       // 可选：修改后完整文件内容
+      "patch": "string|null",            // 可选：优先提供 unified diff
+      "how_to_test": ["string"],         // 必填：至少一条测试步骤（涵盖前端、后端、数据库的验证方法）
+      "rollback": ["string"],            // 可选：回滚步骤（必须可执行）
+      "risk_level": "low|medium|high",   // 必填：风险等级
+      "author": "string",                // 可选
+      "timestamp": "ISO8601 string",     // 必填
+      "issue_id": "string|null"          // 可选：关联的任务/缺陷 ID
+    }
+  ]
+}
+
+==== 编写要求 ====
+1. **前端改动**  
+   - 描述 UI 变更（新增按钮、样式调整、交互逻辑等）  
+   - 如果涉及 API 调用，说明接口地址、方法、请求/响应结构变化  
+   - Patch 尽量精简，仅保留必要上下文  
+
+2. **后端改动**  
+   - 说明修改的接口、控制器、服务、定时任务等  
+   - 如果有参数变更，明确列出新增、删除、修改的参数  
+   - 涉及性能优化需描述原有瓶颈与新方案  
+
+3. **数据库改动**  
+   - 标明是 DDL（结构变化）还是 DML（数据变化）  
+   - 列出受影响的表、字段、索引、约束  
+   - 给出验证 SQL  
+
+4. **基础设施/配置改动**  
+   - 说明配置文件变化、部署脚本调整、环境变量修改  
+   - 给出变更对系统启动、构建、部署的影响  
+
+5. **安全与合规**  
+   - 严禁包含任何机密信息（密码、API Key、证书、连接串等）  
+   - 对于用户传入的敏感信息，必须提示去敏感化处理  
+
+==== human-readable Markdown 输出（必须包含） ====
+- **操作摘要**（一句话说明目的与范围）
+- **详细操作列表**（按模块：前端 / 后端 / 数据库 / 配置）
+- **测试步骤**（覆盖 UI 操作、API 请求、数据库验证）
+- **回滚指引**（可直接执行的步骤）
+- **假设与注意事项**（如依赖接口、第三方服务、数据库状态）
+- **推荐的 PR 标题与描述**（简洁、直观）
+
+==== 错误与边界处理 ====
+- 目标文件/表不存在：返回 operation=CREATE，并在 how_to_test 中说明需人工确认  
+- 接口或函数名不确定：提供两个可选方案，并在假设中说明优劣  
+- 依赖未明确：在假设与注意事项中列出潜在依赖  
+- 跨模块改动：明确执行顺序及依赖关系  
+
+==== 文件内容 ====
+${context}
+
+==== 对话历史（最近10轮） ====
+${recentMessages.map((msg, index) => `${msg.role === 'user' ? '用户' : 'AI'}: ${msg.content}`).join('\n')}
+
+==== 当前用户需求 ====
+${JSON.stringify(parameters)}
+
+请严格按照上述要求输出，确保JSON部分严格匹配schema，Markdown部分完整覆盖所有要求。`
+
+  console.log('=== 构建的Prompt ===')
+  console.log('Prompt长度:', prompt.length)
+  console.log('Prompt前500字符:', prompt.substring(0, 500))
+  console.log('Prompt后500字符:', prompt.substring(prompt.length - 500))
+
+  const llmMessages = [
+    { role: 'system', content: prompt },
+    ...recentMessages.map((msg) => ({
+      role: msg.role === 'user' ? 'user' : 'assistant',
+      content: msg.content,
+    })),
+    { role: 'user', content: `请根据上述对话历史和需求进行全栈改动分析：${JSON.stringify(parameters)}` },
+  ]
+
+  console.log('=== 发送给LLM的消息 ===')
+  console.log('消息数量:', llmMessages.length)
+  console.log('系统消息长度:', llmMessages[0].content.length)
+  console.log('用户消息:', llmMessages[llmMessages.length - 1].content)
+
+  try {
+    const axios = require('axios')
+    const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk- '
+
+    console.log('=== 开始调用DeepSeek API ===')
+    console.log('API Key:', DEEPSEEK_API_KEY.substring(0, 10) + '...')
+    console.log('模型: deepseek-chat')
+    console.log('温度: 0.1')
+    console.log('最大Token: 6000')
+
+    // 流式调用 DeepSeek
+    const response = await axios.post(
+      'https://api.deepseek.com/v1/chat/completions',
+      {
+        model: 'deepseek-chat',
+        messages: llmMessages,
+        stream: true,
+        temperature: 0.1,
+        max_tokens: 6000, // 增加token限制以支持更详细的输出
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        responseType: 'stream',
+      }
+    )
+
+    console.log('=== DeepSeek API响应成功 ===')
+    console.log('响应状态:', response.status)
+    console.log('响应头:', response.headers)
+
+    let fullResponse = ''
+    let chunkCount = 0
+    let totalContentLength = 0
+
+    console.log('=== 开始处理流式响应 ===')
+
+    for await (const chunk of response.data) {
+      chunkCount++
+      const str = chunk.toString('utf8')
+      totalContentLength += str.length
+
+      if (chunkCount % 10 === 0) {
+        console.log(`已处理 ${chunkCount} 个chunk，累计内容长度: ${totalContentLength}`)
+      }
+
+      const lines = str.split('\n')
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6)
+
+          if (data === '[DONE]') {
+            console.log('=== 收到[DONE]信号，流式传输完成 ===')
+            console.log('总chunk数量:', chunkCount)
+            console.log('总内容长度:', totalContentLength)
+            console.log('完整响应长度:', fullResponse.length)
+            console.log('完整响应前500字符:', fullResponse.substring(0, 500))
+            console.log('完整响应后500字符:', fullResponse.substring(fullResponse.length - 500))
+
+            // 流式传输完成，解析完整响应
+            try {
+              console.log('=== 开始解析完整响应 ===')
+
+              // 提取JSON从markdown代码块中
+              const cleanJson = extractJsonFromMarkdown(fullResponse)
+              console.log('清理后的JSON长度:', cleanJson.length)
+              console.log('清理后的JSON前500字符:', cleanJson.substring(0, 500))
+              console.log('清理后的JSON后500字符:', cleanJson.substring(cleanJson.length - 500))
+
+              const result = JSON.parse(cleanJson)
+              console.log('=== JSON解析成功 ===')
+              console.log('解析结果:', JSON.stringify(result, null, 2))
+
+              // 验证schema
+              if (result.schema_validation === 'fail') {
+                console.log('=== Schema验证失败 ===')
+                console.log('错误信息:', result.schema_errors)
+                yield {
+                  type: 'schema_validation_error',
+                  errors: result.schema_errors || ['Schema验证失败'],
+                  rawResponse: fullResponse,
+                }
+                return
+              }
+
+              console.log('=== Schema验证通过 ===')
+              console.log('变更项数量:', result.change ? result.change.length : 0)
+
+              // 处理每个改动项
+              for (const changeItem of result.change || []) {
+                console.log('=== 处理变更项 ===')
+                console.log('变更ID:', changeItem.change_id)
+                console.log('文件路径:', changeItem.file_path)
+                console.log('操作类型:', changeItem.operation)
+                console.log('变更摘要:', changeItem.change_summary)
+                console.log('风险等级:', changeItem.risk_level)
+                console.log('时间戳:', changeItem.timestamp)
+
+                if (changeItem.how_to_test) {
+                  console.log('测试步骤数量:', changeItem.how_to_test.length)
+                  console.log('测试步骤:', changeItem.how_to_test)
+                }
+
+                if (changeItem.rollback) {
+                  console.log('回滚步骤数量:', changeItem.rollback.length)
+                  console.log('回滚步骤:', changeItem.rollback)
+                }
+
+                if (changeItem.operation === 'CREATE' || changeItem.operation === 'MODIFY') {
+                  // 有内容改动
+                  console.log('原内容长度:', changeItem.oldContent ? changeItem.oldContent.length : 0)
+                  console.log('新内容长度:', changeItem.newContent ? changeItem.newContent.length : 0)
+                  console.log('Patch长度:', changeItem.patch ? changeItem.patch.length : 0)
+
+                  yield {
+                    type: 'file_modification',
+                    path: changeItem.file_path,
+                    oldContent: changeItem.oldContent || '',
+                    newContent: changeItem.newContent || '',
+                    diff: changeItem.patch || '',
+                    reason: changeItem.change_summary,
+                    changeId: changeItem.change_id,
+                    operation: changeItem.operation,
+                    howToTest: changeItem.how_to_test,
+                    rollback: changeItem.rollback,
+                    riskLevel: changeItem.risk_level,
+                    timestamp: changeItem.timestamp,
+                  }
+                } else if (changeItem.operation === 'DELETE') {
+                  // 删除文件
+                  console.log('删除文件操作')
+                  yield {
+                    type: 'file_deletion',
+                    path: changeItem.file_path,
+                    reason: changeItem.change_summary,
+                    changeId: changeItem.change_id,
+                    howToTest: changeItem.how_to_test,
+                    rollback: changeItem.rollback,
+                    riskLevel: changeItem.risk_level,
+                    timestamp: changeItem.timestamp,
+                  }
+                } else if (changeItem.operation === 'RENAME') {
+                  // 重命名文件
+                  console.log('重命名文件操作')
+                  console.log('原路径:', changeItem.file_path)
+                  console.log('新路径:', changeItem.new_path)
+
+                  yield {
+                    type: 'file_rename',
+                    oldPath: changeItem.file_path,
+                    newPath: changeItem.new_path,
+                    reason: changeItem.change_summary,
+                    changeId: changeItem.change_id,
+                    howToTest: changeItem.how_to_test,
+                    rollback: changeItem.rollback,
+                    riskLevel: changeItem.risk_level,
+                    timestamp: changeItem.timestamp,
+                  }
+                }
+              }
+
+              // 如果没有改动项
+              if (!result.change || result.change.length === 0) {
+                console.log('=== 没有检测到改动项 ===')
+                yield {
+                  type: 'no_modifications',
+                  message: '未检测到需要改动的内容',
+                }
+              }
+
+              // 返回Markdown摘要
+              if (fullResponse.includes('**操作摘要**')) {
+                console.log('=== 检测到Markdown摘要 ===')
+                const markdownMatch = fullResponse.match(/\*\*操作摘要\*\*[\s\S]*$/)
+                if (markdownMatch) {
+                  console.log('Markdown摘要长度:', markdownMatch[0].length)
+                  console.log('Markdown摘要内容:', markdownMatch[0])
+
+                  yield {
+                    type: 'markdown_summary',
+                    content: markdownMatch[0],
+                  }
+                }
+              } else {
+                console.log('=== 未检测到Markdown摘要 ===')
+              }
+
+              console.log('=== 响应处理完成 ===')
+            } catch (parseError) {
+              console.log('=== JSON解析失败 ===')
+              console.log('解析错误:', parseError.message)
+              console.log('解析错误堆栈:', parseError.stack)
+              console.log('原始响应:', fullResponse)
+
+              yield {
+                type: 'error',
+                message: `解析响应失败: ${parseError.message}`,
+                rawResponse: fullResponse,
+              }
+            }
+            return
+          }
+
+          try {
+            const parsed = JSON.parse(data)
+            if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.content) {
+              const content = parsed.choices[0].delta.content
+              fullResponse += content
+
+              // 流式返回部分内容给前端
+              yield {
+                type: 'stream_chunk',
+                content: content,
+              }
+            }
+          } catch (e) {
+            // 忽略解析错误，继续处理
+            if (chunkCount % 50 === 0) {
+              console.log('解析chunk时忽略错误:', e.message)
+            }
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.log('=== 调用DeepSeek API失败 ===')
+    console.log('错误类型:', error.constructor.name)
+    console.log('错误消息:', error.message)
+    console.log('错误堆栈:', error.stack)
+
+    if (error.response) {
+      console.log('响应状态:', error.response.status)
+      console.log('响应头:', error.response.headers)
+      console.log('响应数据:', error.response.data)
+    }
+
+    yield {
+      type: 'error',
+      message: `调用 DeepSeek API 失败: ${error.message}`,
+    }
+  }
+
+  console.log('=== 全栈AI Agent处理结束 ===')
+}
+
 // 主入口：根据 intent 分发（流式 async generator 版本）
 async function* handleIntentStream(intentResult, fileTree, afterHandlePaths, messages) {
   const { intent, parameters } = intentResult
 
+  console.log('=== handleIntentStream 开始 ===')
+  console.log('意图类型:', intent)
+  console.log('参数:', JSON.stringify(parameters, null, 2))
+  console.log('文件树节点数量:', fileTree ? fileTree.length : 0)
+  console.log('处理路径数量:', afterHandlePaths ? afterHandlePaths.length : 0)
+  console.log('消息数量:', messages ? messages.length : 0)
+
   // project_creation 走原有逻辑
   if (intent === 'project_creation') {
+    console.log('=== 处理项目创建意图 ===')
     yield {
       type: 'action_start',
       action: 'project_creation',
@@ -225,20 +599,25 @@ async function* handleIntentStream(intentResult, fileTree, afterHandlePaths, mes
       action: 'project_creation',
       message: '项目创建命令生成完成',
     }
+    console.log('=== 项目创建意图处理完成 ===')
     return
   }
 
   // 其它类型统一处理
+  console.log('=== 处理其他意图类型，使用全栈AI Agent ===')
+
   // 1. 读取 afterHandlePaths 里的所有文件内容
   const fileList = (afterHandlePaths || []).map((item) => item.path).filter(Boolean)
-  //   console.log('fileList', fileList)
+  console.log('文件路径列表:', fileList)
 
   const files = []
   for (const filePath of fileList) {
     try {
       const content = fs.readFileSync(filePath, 'utf-8')
       files.push({ path: filePath, content })
+      console.log(`成功读取文件: ${filePath}, 内容长度: ${content.length}`)
     } catch (e) {
+      console.log(`读取文件失败: ${filePath}, 错误: ${e.message}`)
       yield {
         type: 'file_read_error',
         path: filePath,
@@ -246,26 +625,43 @@ async function* handleIntentStream(intentResult, fileTree, afterHandlePaths, mes
       }
     }
   }
+
   if (files.length === 0) {
+    console.log('=== 没有可处理的文件 ===')
     yield {
       type: 'no_files',
       message: '未找到可处理的文件路径',
     }
     return
   }
-  console.log('files', files)
+
+  console.log('=== 准备调用全栈AI Agent ===')
+  console.log('文件数量:', files.length)
+  console.log(
+    '文件路径:',
+    files.map((f) => f.path)
+  )
+
   yield {
     type: 'action_start',
     action: 'code_modification',
     message: '开始修改项目代码...',
   }
-  // 2. 调用 LLM 批量补全/修改（流式版本）
-  for await (const chunk of batchCodeCompletionStream(parameters, files, messages)) {
-    console.log('chunk', chunk)
+
+  // 2. 调用 LLM 批量补全/修改（全栈AI Agent流式版本）
+  console.log('=== 开始调用batchCodeAllCompletionStream ===')
+  let chunkCount = 0
+
+  for await (const chunk of batchCodeAllCompletionStream(parameters, files, messages)) {
+    chunkCount++
+    console.log(`=== 处理第 ${chunkCount} 个chunk ===`)
+    console.log('Chunk类型:', chunk.type)
+    console.log('Chunk内容:', JSON.stringify(chunk, null, 2))
 
     switch (chunk.type) {
       case 'stream_chunk':
         // 流式传输的文本块，直接转发给前端
+        console.log('转发流式文本块，长度:', chunk.content ? chunk.content.length : 0)
         yield {
           type: 'stream_chunk',
           content: chunk.content,
@@ -274,6 +670,7 @@ async function* handleIntentStream(intentResult, fileTree, afterHandlePaths, mes
 
       case 'file_modification':
         // 文件被修改
+        console.log('转发文件修改信息')
         yield {
           type: 'file_modification',
           path: chunk.path,
@@ -281,11 +678,49 @@ async function* handleIntentStream(intentResult, fileTree, afterHandlePaths, mes
           newContent: chunk.newContent,
           diff: chunk.diff,
           reason: chunk.reason,
+          changeId: chunk.changeId,
+          operation: chunk.operation,
+          howToTest: chunk.howToTest,
+          rollback: chunk.rollback,
+          riskLevel: chunk.riskLevel,
+          timestamp: chunk.timestamp,
+        }
+        break
+
+      case 'file_deletion':
+        // 文件被删除
+        console.log('转发文件删除信息')
+        yield {
+          type: 'file_deletion',
+          path: chunk.path,
+          reason: chunk.reason,
+          changeId: chunk.changeId,
+          howToTest: chunk.howToTest,
+          rollback: chunk.rollback,
+          riskLevel: chunk.riskLevel,
+          timestamp: chunk.timestamp,
+        }
+        break
+
+      case 'file_rename':
+        // 文件重命名
+        console.log('转发文件重命名信息')
+        yield {
+          type: 'file_rename',
+          oldPath: chunk.oldPath,
+          newPath: chunk.newPath,
+          reason: chunk.reason,
+          changeId: chunk.changeId,
+          howToTest: chunk.howToTest,
+          rollback: chunk.rollback,
+          riskLevel: chunk.riskLevel,
+          timestamp: chunk.timestamp,
         }
         break
 
       case 'file_no_change':
         // 文件无需修改
+        console.log('转发文件无变更信息')
         yield {
           type: 'file_no_change',
           path: chunk.path,
@@ -295,14 +730,35 @@ async function* handleIntentStream(intentResult, fileTree, afterHandlePaths, mes
 
       case 'no_modifications':
         // 整体无需修改
+        console.log('转发整体无变更信息')
         yield {
           type: 'no_modification',
           message: chunk.message,
         }
         break
 
+      case 'schema_validation_error':
+        // Schema验证失败
+        console.log('转发Schema验证错误信息')
+        yield {
+          type: 'error',
+          message: `Schema验证失败: ${chunk.errors.join(', ')}`,
+          rawResponse: chunk.rawResponse,
+        }
+        break
+
+      case 'markdown_summary':
+        // Markdown摘要
+        console.log('转发Markdown摘要信息')
+        yield {
+          type: 'markdown_summary',
+          content: chunk.content,
+        }
+        break
+
       case 'error':
         // 发生错误
+        console.log('转发错误信息')
         yield {
           type: 'error',
           message: chunk.message,
@@ -312,9 +768,14 @@ async function* handleIntentStream(intentResult, fileTree, afterHandlePaths, mes
 
       default:
         // 其他类型直接转发
+        console.log('转发未知类型chunk:', chunk.type)
         yield chunk
     }
   }
+
+  console.log('=== batchCodeAllCompletionStream 处理完成 ===')
+  console.log('总共处理chunk数量:', chunkCount)
+  console.log('=== handleIntentStream 结束 ===')
 }
 
 function interpolate(tpl, params) {
@@ -650,4 +1111,5 @@ module.exports = {
   handleIntent,
   handleIntentStream,
   handleProjectCreationStream,
+  batchCodeAllCompletionStream,
 }
