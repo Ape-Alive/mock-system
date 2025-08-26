@@ -1266,10 +1266,16 @@ class AIAgentManager {
 
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
-      let aiMessage = ''
       let isFirstChunk = true
       this.diffResults = [] // 每次发送消息前清空 diffResults
       this.modificationStatusShown = false // 重置修改状态显示标志
+      let hasMarkdownSummary = false // 标记是否已有Markdown摘要
+
+      // 创建AI消息容器
+      let aiMessageContainer = null
+
+      // 累积流式内容，用于检测完整的JSON代码块
+      let accumulatedContent = ''
 
       while (true) {
         const { done, value } = await reader.read()
@@ -1291,7 +1297,7 @@ class AIAgentManager {
               return
             }
             try {
-              const parsed = JSON.parse(data)
+              const parsed = this.safeJsonParse(data)
               console.log('收到数据:', parsed)
 
               if (parsed.type === 'file_read_error' || parsed.type === 'no_files' || parsed.type === 'error') {
@@ -1299,6 +1305,7 @@ class AIAgentManager {
                 continue
               }
 
+              // 处理全栈AI Agent的新输出类型
               if (parsed.type === 'file_modification') {
                 console.log('收到文件修改:', parsed)
                 this.diffResults.push(parsed)
@@ -1312,26 +1319,75 @@ class AIAgentManager {
                 continue
               }
 
+              if (parsed.type === 'file_deletion') {
+                console.log('收到文件删除:', parsed)
+                this.diffResults.push(parsed)
+                this.showDiffSuggestions(this.diffResults)
+
+                if (!this.modificationStatusShown) {
+                  this.addChatMessage('ai', '🗑️ 开始删除文件...')
+                  this.modificationStatusShown = true
+                }
+                continue
+              }
+
+              if (parsed.type === 'file_rename') {
+                console.log('收到文件重命名:', parsed)
+                this.diffResults.push(parsed)
+                this.showDiffSuggestions(this.diffResults)
+
+                if (!this.modificationStatusShown) {
+                  this.addChatMessage('ai', '📝 开始重命名文件...')
+                  this.modificationStatusShown = true
+                }
+                continue
+              }
+
+              if (parsed.type === 'schema_validation_error') {
+                console.log('收到Schema验证错误:', parsed)
+                if (isFirstChunk) {
+                  aiMessageContainer = this.createAIMessageContainer()
+                  isFirstChunk = false
+                }
+                this.appendToAIMessage(
+                  aiMessageContainer,
+                  `<div class="schema-error">❌ Schema验证失败: ${parsed.errors.join(', ')}</div>`
+                )
+                continue
+              }
+
+              if (parsed.type === 'markdown_summary') {
+                console.log('收到Markdown摘要:', parsed)
+                if (isFirstChunk) {
+                  aiMessageContainer = this.createAIMessageContainer()
+                  isFirstChunk = false
+                }
+
+                // 使用marked渲染Markdown
+                const markdownHtml = this.renderMarkdownWithMarked(parsed.content)
+                this.appendToAIMessage(aiMessageContainer, markdownHtml)
+                hasMarkdownSummary = true
+                continue
+              }
+
               // 处理项目创建相关的流式数据
               if (parsed.type === 'action_start') {
                 console.log('收到动作开始:', parsed)
                 if (isFirstChunk) {
-                  this.addChatMessage('ai', '')
+                  aiMessageContainer = this.createAIMessageContainer()
                   isFirstChunk = false
                 }
-                aiMessage += `<div class="action-start">🚀 ${parsed.message}</div>`
-                this.updateLastAIMessage(aiMessage)
+                this.appendToAIMessage(aiMessageContainer, `<div class="action-start">🚀 ${parsed.message}</div>`)
                 continue
               }
 
               if (parsed.type === 'command_item') {
                 console.log('收到命令项:', parsed)
-                console.log('命令:', parsed.command)
-                console.log('说明:', parsed.commandExplain)
                 if (isFirstChunk) {
-                  this.addChatMessage('ai', '')
+                  aiMessageContainer = this.createAIMessageContainer()
                   isFirstChunk = false
                 }
+
                 // 使用现有的 shell 命令渲染方法
                 const commandBlock = this.renderShellCommandBlock([
                   {
@@ -1339,9 +1395,8 @@ class AIAgentManager {
                     explain: parsed.commandExplain,
                   },
                 ])
-                console.log('生成的命令块HTML:', commandBlock)
-                aiMessage += commandBlock
-                this.updateLastAIMessage(aiMessage)
+                this.appendToAIMessage(aiMessageContainer, commandBlock)
+
                 // 绑定运行按钮事件
                 setTimeout(() => this.bindShellCmdBtnEvents(), 0)
                 continue
@@ -1350,21 +1405,32 @@ class AIAgentManager {
               if (parsed.type === 'action_complete') {
                 console.log('收到动作完成:', parsed)
                 if (isFirstChunk) {
-                  this.addChatMessage('ai', '')
+                  aiMessageContainer = this.createAIMessageContainer()
                   isFirstChunk = false
                 }
-                aiMessage += `<div class="action-complete">✅ ${parsed.message}</div>`
-                this.updateLastAIMessage(aiMessage)
+                this.appendToAIMessage(aiMessageContainer, `<div class="action-complete">✅ ${parsed.message}</div>`)
                 continue
               }
 
               if (parsed.type === 'stream_chunk' && parsed.content) {
                 if (isFirstChunk) {
-                  this.addChatMessage('ai', '')
+                  aiMessageContainer = this.createAIMessageContainer()
                   isFirstChunk = false
                 }
-                aiMessage += parsed.content
-                // this.updateLastAIMessage(aiMessage)
+
+                console.log('收到stream_chunk:', {
+                  type: parsed.type,
+                  content: parsed.content,
+                  contentLength: parsed.content.length,
+                  isFirstChunk: isFirstChunk,
+                })
+
+                // 累积内容
+                accumulatedContent += parsed.content
+                console.log('累积内容长度:', accumulatedContent.length)
+
+                // 实时处理并显示内容
+                this.processAndDisplayStreamContent(aiMessageContainer, accumulatedContent)
               }
             } catch (e) {
               console.error('解析流式数据失败:', e)
@@ -1550,21 +1616,87 @@ class AIAgentManager {
     // 清空现有内容
     diffPanel.innerHTML = ''
 
-    // 只创建文件列表，不创建 Diff Editor 容器
+    // 创建文件列表，支持新的全栈AI Agent输出格式
     const fileList = document.createElement('div')
     fileList.className = 'diff-file-list'
     fileList.innerHTML = results
-      .map(
-        (result, idx) => `
-      <div class="diff-item">
-        <div class="diff-item-header">
-          <span>${result.path}</span>
-          <span class="operation-badge ${result.operation || 'edit'}">${result.operation || 'edit'}</span>
-          <button class="btn secondary" onclick="aiAgent.showFileDiff(${idx})">对比</button>
-        </div>
-      </div>
-    `
-      )
+      .map((result, idx) => {
+        // 根据操作类型设置不同的样式和图标
+        let operationIcon = 'edit'
+        let operationClass = 'edit'
+        let operationText = '修改'
+
+        if (result.operation === 'CREATE') {
+          operationIcon = 'plus'
+          operationClass = 'add'
+          operationText = '创建'
+        } else if (result.operation === 'DELETE') {
+          operationIcon = 'trash'
+          operationClass = 'delete'
+          operationText = '删除'
+        } else if (result.operation === 'RENAME') {
+          operationIcon = 'edit'
+          operationClass = 'rename'
+          operationText = '重命名'
+        }
+
+        // 构建风险等级显示
+        let riskLevelHtml = ''
+        if (result.riskLevel) {
+          const riskColor =
+            result.riskLevel === 'high' ? 'danger' : result.riskLevel === 'medium' ? 'warning' : 'success'
+          riskLevelHtml = `<span class="risk-badge ${riskColor}">${result.riskLevel}</span>`
+        }
+
+        // 构建变更ID显示
+        let changeIdHtml = ''
+        if (result.changeId) {
+          changeIdHtml = `<span class="change-id-display">#${result.changeId}</span>`
+        }
+
+        // 构建测试步骤显示
+        let testStepsHtml = ''
+        if (result.howToTest && result.howToTest.length > 0) {
+          testStepsHtml = `
+              <div class="test-steps">
+                <strong>测试步骤:</strong>
+                <ul>${result.howToTest.map((step) => `<li>${step}</li>`).join('')}</ul>
+              </div>
+            `
+        }
+
+        // 构建回滚步骤显示
+        let rollbackStepsHtml = ''
+        if (result.rollback && result.rollback.length > 0) {
+          rollbackStepsHtml = `
+              <div class="rollback-steps">
+                <strong>回滚步骤:</strong>
+                <ul>${result.rollback.map((step) => `<li>${step}</li>`).join('')}</ul>
+              </div>
+            `
+        }
+
+        return `
+            <div class="diff-item">
+              <div class="diff-item-header">
+                <div class="diff-item-info">
+                  <span class="file-path">${result.path}</span>
+                  <span class="operation-badge ${operationClass}">${operationText}</span>
+                  ${riskLevelHtml}
+                  ${changeIdHtml}
+                </div>
+                <div class="diff-item-actions">
+                  <button class="btn secondary" onclick="aiAgent.showFileDiff(${idx})">对比</button>
+                </div>
+              </div>
+              <div class="diff-item-details">
+                <div class="change-reason">${result.reason || '无说明'}</div>
+                ${testStepsHtml}
+                ${rollbackStepsHtml}
+              </div>
+            </div>
+          `
+      })
       .join('')
 
     // 只添加文件列表到面板
@@ -1573,7 +1705,7 @@ class AIAgentManager {
     this.switchPanel('diff-view')
     this.diffResults = results
 
-    console.log('Diff 面板已更新，只显示文件列表')
+    console.log('Diff 面板已更新，显示全栈AI Agent输出格式')
   }
 
   async showFileDiff(idx) {
@@ -1729,27 +1861,77 @@ class AIAgentManager {
       this.showError('无法获取文件路径')
       return
     }
-    // 1. 切换回普通编辑器
-    this.recreateNormalEditor(newContent, filePath)
-    // 2. 保存到文件
-    try {
-      const response = await fetch('/api/file/write', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filePath, content: newContent }),
-      })
-      const data = await response.json()
-      if (data.success) {
-        this.openTabs.set(filePath, {
-          fileName: filePath.split('/').pop(),
-          content: newContent,
-        })
-        this.showSuccess('AI建议已应用并保存到文件')
-      } else {
-        this.showError(data.error || '保存文件失败')
+    // 获取操作类型
+    let operation = 'MODIFY'
+    if (this.diffResults && this.diffResults.length > 0) {
+      const tabTitle = currentTab.querySelector('span').textContent
+      const fileName = tabTitle.replace('对比: ', '')
+      const diffResult = this.diffResults.find((result) => result.path.split('/').pop() === fileName)
+      if (diffResult) {
+        operation = diffResult.operation || 'MODIFY'
       }
+    }
+
+    console.log('应用更改，文件路径:', filePath, '操作类型:', operation)
+
+    // 根据操作类型调用不同的接口
+    try {
+      let response
+      let data
+
+      if (operation === 'CREATE') {
+        // 创建新文件
+        console.log('调用创建文件接口:', '/api/file/create')
+        response = await fetch('/api/file/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filePath,
+            content: newContent,
+          }),
+        })
+        data = await response.json()
+
+        if (data.success) {
+          this.showSuccess('新文件创建成功')
+          // 创建成功后，切换到新创建的文件
+          this.openTab(filePath, filePath.split('/').pop(), newContent)
+        } else {
+          this.showError(data.error || '创建文件失败')
+          return
+        }
+      } else {
+        // 修改现有文件
+        console.log('调用修改文件接口:', '/api/file/write')
+        response = await fetch('/api/file/write', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filePath,
+            content: newContent,
+          }),
+        })
+        data = await response.json()
+
+        if (data.success) {
+          this.showSuccess('AI建议已应用并保存到文件')
+          // 更新标签页内容
+          this.openTabs.set(filePath, {
+            fileName: filePath.split('/').pop(),
+            content: newContent,
+          })
+        } else {
+          this.showError(data.error || '保存文件失败')
+          return
+        }
+      }
+
+      // 1. 切换回普通编辑器
+      this.recreateNormalEditor(newContent, filePath)
     } catch (error) {
-      this.showError('保存文件失败: ' + error.message)
+      console.error('应用更改失败:', error)
+      this.showError('应用更改失败: ' + error.message)
+      return
     }
     // 关闭当前对比 tab
     this.closeCurrentTab()
@@ -1865,48 +2047,88 @@ class AIAgentManager {
     if (this.diffResults && this.diffResults.length > 0) {
       console.log('找到AI修改建议，数量:', this.diffResults.length)
 
-      // 准备批量写入的文件数据
-      const filesToWrite = this.diffResults.map((diff) => ({
-        path: diff.path,
-        content: diff.newContent,
-      }))
+      // 准备批量写入的文件数据，区分CREATE和MODIFY操作
+      const filesToCreate = []
+      const filesToModify = []
+
+      this.diffResults.forEach((diff) => {
+        if (diff.operation === 'CREATE') {
+          filesToCreate.push({
+            path: diff.path,
+            content: diff.newContent,
+          })
+        } else {
+          filesToModify.push({
+            path: diff.path,
+            content: diff.newContent,
+          })
+        }
+      })
 
       console.log(
-        '准备批量写入文件:',
-        filesToWrite.map((f) => f.path)
+        '准备创建文件:',
+        filesToCreate.map((f) => f.path)
+      )
+      console.log(
+        '准备修改文件:',
+        filesToModify.map((f) => f.path)
       )
 
       try {
-        // 使用批量写入接口
-        const response = await fetch('/api/file/batch-write', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ files: filesToWrite }),
-        })
-
-        const data = await response.json()
-
-        if (data.success) {
-          // 更新所有文件的标签页内容
-          filesToWrite.forEach((file) => {
-            this.openTabs.set(file.path, {
-              fileName: file.path.split('/').pop(),
-              content: file.content,
-            })
+        // 先处理创建文件
+        if (filesToCreate.length > 0) {
+          console.log('调用批量创建文件接口:', '/api/file/batch-create')
+          const createResponse = await fetch('/api/file/batch-create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ files: filesToCreate }),
           })
 
-          // 如果有多个文件，显示第一个文件在编辑器中
-          if (filesToWrite.length > 0) {
-            const firstFile = filesToWrite[0]
-            this.recreateNormalEditor(firstFile.content, firstFile.path)
+          const createData = await createResponse.json()
+          if (!createData.success) {
+            this.showError('批量创建文件失败: ' + (createData.error || '未知错误'))
+            return
           }
-
-          this.showSuccess(`成功应用并保存了 ${filesToWrite.length} 个文件的修改`)
-        } else {
-          this.showError(data.error || '批量保存文件失败')
+          console.log('批量创建文件成功')
         }
+
+        // 再处理修改文件
+        if (filesToModify.length > 0) {
+          console.log('调用批量修改文件接口:', '/api/file/batch-write')
+          const modifyResponse = await fetch('/api/file/batch-write', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ files: filesToModify }),
+          })
+
+          const modifyData = await modifyResponse.json()
+          if (!modifyData.success) {
+            this.showError('批量修改文件失败: ' + (modifyData.error || '未知错误'))
+            return
+          }
+          console.log('批量修改文件成功')
+        }
+
+        // 更新所有文件的标签页内容
+        const allFiles = [...filesToCreate, ...filesToModify]
+        allFiles.forEach((file) => {
+          this.openTabs.set(file.path, {
+            fileName: file.path.split('/').pop(),
+            content: file.content,
+          })
+        })
+
+        // 如果有多个文件，显示第一个文件在编辑器中
+        if (allFiles.length > 0) {
+          const firstFile = allFiles[0]
+          this.recreateNormalEditor(firstFile.content, firstFile.path)
+        }
+
+        this.showSuccess(`成功应用并保存了 ${allFiles.length} 个文件的修改`)
       } catch (error) {
-        this.showError('批量保存文件失败: ' + error.message)
+        console.error('批量操作失败:', error)
+        this.showError('批量操作失败: ' + error.message)
+        return
       }
 
       this.diffResults = []
@@ -3210,6 +3432,1291 @@ class AIAgentManager {
     console.log('显示设置面板')
     // 这里可以添加设置面板的逻辑
     this.showToast('设置功能开发中...', 'info')
+  }
+
+  // 渲染Markdown摘要
+  renderMarkdownSummary(content) {
+    // 将Markdown转换为HTML
+    let html = content
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // 粗体
+      .replace(/\*(.*?)\*/g, '<em>$1</em>') // 斜体
+      .replace(/`(.*?)`/g, '<code>$1</code>') // 行内代码
+      .replace(/\n/g, '<br>') // 换行
+      .replace(/^### (.*$)/gim, '<h3>$1</h3>') // 三级标题
+      .replace(/^## (.*$)/gim, '<h2>$1</h2>') // 二级标题
+      .replace(/^# (.*$)/gim, '<h1>$1</h1>') // 一级标题
+      .replace(/^- (.*$)/gim, '<li>$1</li>') // 列表项
+      .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>') // 列表包装
+
+    return `<div class="markdown-summary">${html}</div>`
+  }
+
+  // 创建AI消息容器
+  createAIMessageContainer() {
+    const chatMessages = document.querySelector('.chat-messages')
+    const message = document.createElement('div')
+    message.className = 'message ai'
+    message.innerHTML = `
+      <div class="message-content">
+        <i class="fas fa-robot"></i>
+        <div class="text"></div>
+      </div>
+    `
+    chatMessages.appendChild(message)
+    chatMessages.scrollTop = chatMessages.scrollHeight
+    return message.querySelector('.text')
+  }
+
+  // 追加内容到AI消息
+  appendToAIMessage(container, content) {
+    if (!container) return
+
+    // 创建临时容器来解析HTML
+    const tempDiv = document.createElement('div')
+    tempDiv.innerHTML = content
+
+    // 将内容追加到容器
+    container.appendChild(tempDiv.firstElementChild || tempDiv)
+
+    // 滚动到底部
+    const chatMessages = document.querySelector('.chat-messages')
+    chatMessages.scrollTop = chatMessages.scrollHeight
+
+    // 对新添加的代码块应用Prism.js高亮
+    this.highlightCodeBlocks(container)
+  }
+
+  // 使用marked渲染Markdown
+  renderMarkdownWithMarked(content) {
+    if (typeof marked === 'undefined') {
+      console.warn('marked库未加载，使用备用渲染方法')
+      return this.renderMarkdownSummary(content)
+    }
+
+    try {
+      // 创建自定义渲染器
+      const renderer = new marked.Renderer()
+
+      // 改进代码块渲染
+      renderer.code = function (code, language) {
+        const lang = language || 'text'
+        return `<pre><code class="language-${lang}">${code}</code></pre>`
+      }
+
+      // 改进段落渲染
+      renderer.paragraph = function (text) {
+        return `<p>${text}</p>`
+      }
+
+      // 改进列表渲染
+      renderer.list = function (body, ordered) {
+        const type = ordered ? 'ol' : 'ul'
+        return `<${type}>${body}</${type}>`
+      }
+
+      // 配置marked选项
+      marked.setOptions({
+        breaks: true, // 支持换行
+        gfm: true, // 支持GitHub风格Markdown
+        sanitize: false, // 允许HTML标签
+        renderer: renderer, // 使用自定义渲染器
+        highlight: function (code, lang) {
+          if (typeof Prism !== 'undefined' && Prism.languages[lang]) {
+            return Prism.highlight(code, Prism.languages[lang], lang)
+          }
+          return code
+        },
+      })
+
+      // 渲染Markdown
+      const html = marked.parse(content)
+      console.log('Markdown渲染成功，HTML长度:', html.length)
+      return `<div class="markdown-summary">${html}</div>`
+    } catch (e) {
+      console.error('Markdown渲染失败:', e)
+      // 如果Markdown渲染失败，使用备用渲染
+      return this.renderMarkdownSummary(content)
+    }
+  }
+
+  // 检查是否有未闭合的JSON代码块
+  checkUnclosedJsonBlocks(content) {
+    // 检查是否有开始但没有结束的代码块
+    const codeBlockStart = content.match(/```(?:json)?\s*\{/g)
+    const codeBlockEnd = content.match(/```\s*$/g)
+
+    if (codeBlockStart && codeBlockEnd) {
+      // 如果开始和结束的数量不匹配，说明有未闭合的
+      if (codeBlockStart.length > codeBlockEnd.length) {
+        // 但如果内容足够长，允许显示
+        if (content.length > 500) {
+          console.log('JSON代码块未闭合，但内容足够长，允许显示')
+          return false
+        }
+        return true
+      }
+    }
+
+    // 检查是否有开始但没有结束的JSON对象
+    const openBraces = (content.match(/\{/g) || []).length
+    const closeBraces = (content.match(/\}/g) || []).length
+
+    // 如果大括号不匹配，说明JSON不完整
+    if (openBraces !== closeBraces) {
+      // 但如果内容足够长，允许显示
+      if (content.length > 500) {
+        console.log('JSON大括号不匹配，但内容足够长，允许显示')
+        return false
+      }
+      return true
+    }
+
+    // 检查是否有未闭合的引号
+    const quotes = content.match(/"/g) || []
+    if (quotes.length % 2 !== 0) {
+      // 但如果内容足够长，允许显示
+      if (content.length > 500) {
+        console.log('JSON引号不匹配，但内容足够长，允许显示')
+        return false
+      }
+      return true
+    }
+
+    return false
+  }
+
+  // 检查是否有未闭合的代码块
+  checkUnclosedCodeBlocks(content) {
+    // 检查是否有开始但没有结束的代码块
+    const codeBlockStarts = content.match(/```/g) || []
+    const codeBlockEnds = content.match(/```/g) || []
+
+    // 如果代码块标记数量是奇数，说明有未闭合的
+    if (codeBlockStarts.length % 2 !== 0) {
+      return true
+    }
+
+    // 检查是否有未闭合的代码块语言标记
+    const languageBlocks = content.match(/```(\w+)/g) || []
+    const closingBlocks = content.match(/```\s*$/gm) || []
+
+    if (languageBlocks.length > closingBlocks.length) {
+      return true
+    }
+
+    return false
+  }
+
+  // 检查是否有完整的JSON代码块
+  hasCompleteJsonBlock(content) {
+    // 检查是否有完整的代码块标记
+    const codeBlockStarts = content.match(/```(?:json)?\s*\{/g) || []
+    const codeBlockEnds = content.match(/```\s*$/gm) || []
+
+    if (codeBlockStarts.length === 0) {
+      // 没有JSON代码块开始标记，检查是否有其他内容
+      if (content.length > 50) {
+        // 如果有足够的内容，允许显示
+        return true
+      }
+      return false
+    }
+
+    if (codeBlockStarts.length !== codeBlockEnds.length) {
+      // 代码块标记不匹配，但如果有足够的内容，允许显示
+      if (content.length > 200) {
+        console.log('代码块标记不匹配，但内容足够长，允许显示')
+        return true
+      }
+      return false
+    }
+
+    // 检查是否有完整的JSON对象
+    const jsonRegex = /```(?:json)?\s*(\{[\s\S]*?\})\s*```/g
+    let match
+    let hasValidJson = false
+
+    while ((match = jsonRegex.exec(content)) !== null) {
+      try {
+        const jsonContent = match[1]
+        // 尝试解析JSON
+        JSON.parse(jsonContent)
+        hasValidJson = true
+        break
+      } catch (e) {
+        // JSON解析失败，继续检查下一个
+        continue
+      }
+    }
+
+    // 如果有有效的JSON，或者内容足够长，允许显示
+    if (hasValidJson || content.length > 300) {
+      return true
+    }
+
+    return false
+  }
+
+  // 修复常见的JSON格式问题
+  fixCommonJsonIssues(jsonContent) {
+    let fixed = jsonContent
+
+    // 1. 修复属性名缺少双引号的问题
+    fixed = fixed.replace(/(\s*)(\w+)(\s*):/g, '$1"$2"$3:')
+
+    // 2. 修复字符串值缺少双引号的问题
+    fixed = fixed.replace(/:\s*([^"][^,\s{}[\]]+[^,\s{}[\]])\s*([,}\s])/g, ': "$1"$2')
+
+    // 3. 修复未闭合的字符串
+    const lines = fixed.split('\n')
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      const quoteCount = (line.match(/"/g) || []).length
+
+      // 如果行中有奇数个引号，尝试修复
+      if (quoteCount % 2 !== 0) {
+        // 查找最后一个引号的位置
+        const lastQuoteIndex = line.lastIndexOf('"')
+        if (lastQuoteIndex !== -1) {
+          // 检查引号后面是否有逗号或其他字符
+          const afterQuote = line.substring(lastQuoteIndex + 1).trim()
+          if (afterQuote && !afterQuote.startsWith(',') && !afterQuote.startsWith('}') && !afterQuote.startsWith(']')) {
+            // 在行末添加引号闭合
+            lines[i] = line + '"'
+          }
+        }
+      }
+    }
+
+    fixed = lines.join('\n')
+
+    // 4. 修复未闭合的对象和数组
+    let braceCount = 0
+    let bracketCount = 0
+
+    for (const char of fixed) {
+      if (char === '{') braceCount++
+      if (char === '}') braceCount--
+      if (char === '[') bracketCount++
+      if (char === ']') bracketCount--
+    }
+
+    // 添加缺失的闭合括号
+    while (braceCount > 0) {
+      fixed += '}'
+      braceCount--
+    }
+
+    while (bracketCount > 0) {
+      fixed += ']'
+      bracketCount--
+    }
+
+    // 5. 修复常见的语法错误
+    fixed = fixed
+      .replace(/,\s*}/g, '}') // 移除对象末尾的逗号
+      .replace(/,\s*]/g, ']') // 移除数组末尾的逗号
+      .replace(/,\s*$/gm, '') // 移除行末的逗号
+      .replace(/:\s*,\s*/g, ': ""') // 修复空值
+      .replace(/:\s*}\s*}/g, ': "}"}') // 修复嵌套对象问题
+
+    return fixed
+  }
+
+  // 创建JSON占位符
+  createJsonPlaceholder(originalContent) {
+    return `
+      <div class="json-placeholder">
+        <div class="json-placeholder-header">
+          <i class="fas fa-clock"></i>
+          <span>JSON内容加载中...</span>
+        </div>
+        <div class="json-placeholder-content">
+          <code>${this.escapeHtml(originalContent.substring(0, 200))}...</code>
+        </div>
+      </div>
+    `
+  }
+
+  // 处理流式内容，检测并处理JSON代码块
+  processStreamContentWithMarked(content) {
+    console.log('=== 开始处理流式内容 ===')
+    console.log('原始内容长度:', content.length)
+    console.log('原始内容预览:', content.substring(0, 300) + '...')
+
+    // 分析内容结构
+    const codeBlockCount = (content.match(/```/g) || []).length
+    const jsonBlockCount = (content.match(/```(?:json)?\s*\{/g) || []).length
+    const markdownHeaders = content.match(/^#{1,6}\s+.+$/gm) || []
+
+    console.log('内容分析:', {
+      codeBlockCount,
+      jsonBlockCount,
+      markdownHeaders: markdownHeaders.length,
+      hasMarkdown:
+        markdownHeaders.length > 0 || content.includes('**') || content.includes('*') || content.includes('`'),
+    })
+
+    // 改进JSON代码块检测 - 更准确地匹配完整的JSON代码块
+    const jsonBlockRegex = /```(?:json)?\s*(\{[\s\S]*?\})\s*```/g
+    let processedContent = content
+    let match
+    let hasJsonBlock = false
+    let jsonBlocks = []
+
+    // 先收集所有JSON代码块
+    while ((match = jsonBlockRegex.exec(content)) !== null) {
+      try {
+        const jsonContent = match[1]
+        console.log('检测到JSON代码块:', jsonContent)
+
+        // 尝试清理JSON内容，移除可能的尾随字符
+        let cleanJsonContent = jsonContent.trim()
+
+        // 如果JSON以逗号结尾，尝试移除
+        if (cleanJsonContent.endsWith(',')) {
+          cleanJsonContent = cleanJsonContent.slice(0, -1)
+        }
+
+        // 如果JSON以...结尾，尝试移除
+        if (cleanJsonContent.endsWith('...')) {
+          cleanJsonContent = cleanJsonContent.slice(0, -3)
+        }
+
+        // 尝试修复常见的JSON格式问题
+        cleanJsonContent = this.fixCommonJsonIssues(cleanJsonContent)
+
+        console.log('清理后的JSON内容:', cleanJsonContent.substring(0, 200) + '...')
+
+        const parsed = this.safeJsonParse(cleanJsonContent)
+        console.log('JSON解析成功:', parsed)
+
+        // 放宽验证条件：只要有change字段或者schema_validation字段就认为是有效的
+        if (
+          (parsed.change && Array.isArray(parsed.change)) ||
+          (parsed.schema_validation && parsed.schema_validation === 'pass') ||
+          parsed.change_id ||
+          parsed.file_path ||
+          parsed.operation
+        ) {
+          console.log('JSON验证通过，创建可折叠组件')
+          hasJsonBlock = true
+
+          // 创建可折叠的JSON显示
+          const jsonId = 'json-' + Math.random().toString(36).slice(2)
+          const jsonHtml = this.createCollapsibleJson(jsonId, parsed)
+
+          // 记录JSON块信息，用于后续替换
+          jsonBlocks.push({
+            original: match[0],
+            replacement: jsonHtml,
+          })
+        } else {
+          console.log('JSON结构不符合预期，跳过处理')
+        }
+      } catch (e) {
+        // 如果JSON解析失败，记录详细信息并尝试部分处理
+        console.log('JSON解析失败，可能是代码块不完整:', e.message)
+        console.log('原始JSON内容:', match[1])
+
+        // 尝试检测是否是部分JSON，如果是，可以标记为待处理
+        const partialContent = match[1]
+        if (
+          partialContent.includes('"change"') ||
+          partialContent.includes('"schema_validation"') ||
+          partialContent.includes('"change_id"')
+        ) {
+          console.log('检测到部分JSON内容，可能需要等待更多数据')
+
+          // 尝试创建一个占位符，等待完整数据
+          const placeholderHtml = this.createJsonPlaceholder(match[0])
+          jsonBlocks.push({
+            original: match[0],
+            replacement: placeholderHtml,
+          })
+        }
+      }
+    }
+
+    // 如果没有找到JSON代码块，尝试查找其他格式的JSON
+    if (jsonBlocks.length === 0) {
+      console.log('未找到标准JSON代码块，尝试查找其他格式...')
+
+      // 尝试查找没有代码块标记的JSON内容
+      const looseJsonRegex = /(\{[^{}]*"schema_validation"[^{}]*\})/g
+      let looseMatch
+
+      while ((looseMatch = looseJsonRegex.exec(content)) !== null) {
+        try {
+          const jsonContent = looseMatch[1]
+          console.log('检测到松散格式JSON:', jsonContent)
+
+          const parsed = this.safeJsonParse(jsonContent)
+          if (parsed.schema_validation === 'pass') {
+            console.log('松散格式JSON验证通过，创建可折叠组件')
+            hasJsonBlock = true
+
+            const jsonId = 'json-' + Math.random().toString(36).slice(2)
+            const jsonHtml = this.createCollapsibleJson(jsonId, parsed)
+
+            jsonBlocks.push({
+              original: looseMatch[0],
+              replacement: jsonHtml,
+            })
+          }
+        } catch (e) {
+          console.log('松散格式JSON解析失败:', e.message)
+        }
+      }
+    }
+
+    // 检查是否有Markdown内容（非JSON部分）
+    let hasMarkdownContent = false
+    let markdownContent = content
+
+    if (jsonBlocks.length > 0) {
+      // 移除JSON代码块，检查剩余内容
+      jsonBlocks.forEach((block) => {
+        markdownContent = markdownContent.replace(block.original, '')
+      })
+
+      // 清理并检查Markdown内容
+      markdownContent = markdownContent.trim()
+      hasMarkdownContent = markdownContent.length > 0
+
+      console.log('检测到Markdown内容:', hasMarkdownContent)
+      if (hasMarkdownContent) {
+        console.log('Markdown内容预览:', markdownContent.substring(0, 200) + '...')
+      }
+    } else {
+      // 没有JSON代码块，整个内容都是Markdown
+      hasMarkdownContent = true
+      console.log('整个内容作为Markdown处理')
+    }
+
+    // 替换所有JSON代码块
+    jsonBlocks.forEach((block) => {
+      processedContent = processedContent.replace(block.original, block.replacement)
+    })
+
+    // 使用marked渲染剩余的Markdown内容
+    if (typeof marked !== 'undefined') {
+      try {
+        // 使用检测到的Markdown内容进行渲染
+        if (hasMarkdownContent && markdownContent) {
+          console.log('准备渲染Markdown内容:', markdownContent.substring(0, 200) + '...')
+          const markdownHtml = marked.parse(markdownContent)
+          console.log('Markdown渲染结果:', markdownHtml.substring(0, 200) + '...')
+
+          // 将Markdown HTML插入到JSON组件之前
+          if (markdownHtml.trim()) {
+            processedContent = markdownHtml + processedContent
+          }
+        } else if (hasJsonBlock) {
+          // 只有JSON，没有Markdown内容
+          console.log('只有JSON内容，没有Markdown需要渲染')
+        } else {
+          // 没有JSON代码块，整个内容都是Markdown
+          console.log('整个内容作为Markdown渲染')
+          processedContent = marked.parse(processedContent)
+        }
+        console.log('Markdown渲染完成，最终结果长度:', processedContent.length)
+        console.log('最终结果预览:', processedContent.substring(0, 300) + '...')
+      } catch (e) {
+        console.error('Markdown渲染失败:', e)
+        // 如果Markdown渲染失败，至少确保换行符被正确处理
+        processedContent = content.replace(/\n/g, '<br>')
+      }
+    } else {
+      console.warn('marked库未加载，使用备用渲染')
+      // 备用渲染：处理换行符和基本格式
+      processedContent = content
+        .replace(/\n/g, '<br>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+    }
+
+    return processedContent
+  }
+
+  // 高亮代码块
+  highlightCodeBlocks(container) {
+    if (typeof Prism === 'undefined') return
+
+    // 查找所有pre标签
+    const preElements = container.querySelectorAll('pre')
+    preElements.forEach((pre) => {
+      // 查找code标签
+      const codeElement = pre.querySelector('code')
+      if (codeElement) {
+        // 获取语言类型
+        const className = codeElement.className
+        const langMatch = className.match(/language-(\w+)/)
+        const language = langMatch ? langMatch[1] : 'text'
+
+        // 应用Prism.js高亮
+        if (Prism.languages[language]) {
+          codeElement.innerHTML = Prism.highlight(codeElement.textContent, Prism.languages[language], language)
+        }
+      }
+    })
+  }
+
+  // 创建可折叠的JSON显示
+  createCollapsibleJson(id, jsonData) {
+    console.log('创建可折叠JSON组件，数据:', jsonData)
+
+    // 处理不同类型的JSON结构
+    let changes = []
+    let changeCount = 0
+    let riskLevels = []
+
+    if (jsonData.change && Array.isArray(jsonData.change)) {
+      // 标准格式：change数组
+      changes = jsonData.change
+      changeCount = changes.length
+      riskLevels = [...new Set(changes.map((c) => c.risk_level || 'unknown'))]
+    } else if (jsonData.change_id || jsonData.file_path) {
+      // 单个改动项格式
+      changes = [jsonData]
+      changeCount = 1
+      riskLevels = [jsonData.risk_level || 'unknown']
+    } else {
+      // 其他格式，尝试提取有用信息
+      changes = []
+      changeCount = 0
+      riskLevels = []
+    }
+
+    let riskBadges = ''
+    riskLevels.forEach((level) => {
+      if (level && level !== 'unknown') {
+        const color = level === 'high' ? 'danger' : level === 'medium' ? 'warning' : 'success'
+        riskBadges += `<span class="risk-badge ${color}">${level}</span>`
+      }
+    })
+
+    // 如果没有风险等级，显示默认的
+    if (!riskBadges) {
+      riskBadges = '<span class="risk-badge success">low</span>'
+    }
+
+    // 检查schema验证状态
+    const schemaStatus = jsonData.schema_validation === 'pass' ? 'success' : 'error'
+    const schemaText = jsonData.schema_validation === 'pass' ? '✓ Schema验证通过' : '✗ Schema验证失败'
+
+    return `
+      <div class="json-collapsible" id="${id}">
+        <div class="json-header" onclick="aiAgent.toggleJsonCollapse('${id}')">
+          <div class="json-header-left">
+            <i class="fas fa-chevron-right json-toggle-icon"></i>
+            <span class="json-title">AI改动方案 (${changeCount} 项)</span>
+            ${riskBadges}
+          </div>
+          <div class="json-header-right">
+            <span class="json-status ${schemaStatus}">${schemaText}</span>
+          </div>
+        </div>
+        <div class="json-content" style="display: none;">
+          <div class="json-summary">
+            <div class="json-summary-item">
+              <strong>验证状态:</strong> 
+              <span class="status-badge ${schemaStatus}">${jsonData.schema_validation || 'unknown'}</span>
+            </div>
+            <div class="json-summary-item">
+              <strong>改动数量:</strong> ${changeCount}
+            </div>
+            <div class="json-summary-item">
+              <strong>风险等级:</strong> ${riskLevels.filter((l) => l && l !== 'unknown').join(', ') || 'low'}
+            </div>
+          </div>
+          <div class="json-changes">
+            ${this.renderJsonChanges(changes)}
+          </div>
+        </div>
+      </div>
+    `
+  }
+
+  // 渲染JSON改动项
+  renderJsonChanges(changes) {
+    if (!Array.isArray(changes) || changes.length === 0) {
+      return '<div class="no-changes">暂无改动详情</div>'
+    }
+
+    return changes
+      .map((change, index) => {
+        // 安全地获取字段值，提供默认值
+        const changeId = change.change_id || change.id || `change-${index + 1}`
+        const operation = change.operation || 'UNKNOWN'
+        const filePath = change.file_path || change.path || '未知文件'
+        const riskLevel = change.risk_level || 'low'
+        const changeSummary = change.change_summary || change.summary || '无说明'
+        const howToTest = change.how_to_test || change.test_steps || []
+        const rollback = change.rollback || change.rollback_steps || []
+
+        const operationColor =
+          {
+            CREATE: 'success',
+            MODIFY: 'primary',
+            DELETE: 'danger',
+            RENAME: 'warning',
+            UPDATE: 'info',
+            ADD: 'success',
+          }[operation.toUpperCase()] || 'secondary'
+
+        return `
+        <div class="json-change-item">
+          <div class="change-header">
+            <span class="change-id">#${changeId}</span>
+            <span class="operation-badge ${operationColor}">${operation}</span>
+            <span class="file-path" title="${filePath}">${filePath}</span>
+            <span class="risk-level ${riskLevel}">${riskLevel}</span>
+          </div>
+          <div class="change-content">
+            <div class="change-summary">${changeSummary}</div>
+            ${
+              Array.isArray(howToTest) && howToTest.length > 0
+                ? `
+              <div class="change-test">
+                <strong>测试步骤:</strong>
+                <ul>${howToTest.map((step) => `<li>${step}</li>`).join('')}</ul>
+              </div>
+            `
+                : ''
+            }
+            ${
+              Array.isArray(rollback) && rollback.length > 0
+                ? `
+              <div class="change-rollback">
+                <strong>回滚步骤:</strong>
+                <ul>${rollback.map((step) => `<li>${step}</li>`).join('')}</ul>
+              </div>
+            `
+                : ''
+            }
+            ${
+              change.author
+                ? `
+              <div class="change-author">
+                <strong>作者:</strong> ${change.author}
+              </div>
+            `
+                : ''
+            }
+            ${
+              change.timestamp
+                ? `
+              <div class="change-timestamp">
+                <strong>时间:</strong> ${new Date(change.timestamp).toLocaleString()}
+              </div>
+            `
+                : ''
+            }
+          </div>
+        </div>
+      `
+      })
+      .join('')
+  }
+
+  // 切换JSON折叠状态
+  toggleJsonCollapse(id) {
+    const container = document.getElementById(id)
+    if (!container) return
+
+    const content = container.querySelector('.json-content')
+    const icon = container.querySelector('.json-toggle-icon')
+
+    if (content.style.display === 'none') {
+      content.style.display = 'block'
+      icon.classList.remove('fa-chevron-right')
+      icon.classList.add('fa-chevron-down')
+    } else {
+      content.style.display = 'none'
+      icon.classList.remove('fa-chevron-down')
+      icon.classList.add('fa-chevron-right')
+    }
+  }
+
+  // 实时处理并显示流式内容
+  processAndDisplayStreamContent(container, content) {
+    console.log('开始处理流式内容，长度:', content.length)
+
+    // 分析内容结构
+    const analysis = this.analyzeContent(content)
+    console.log('内容分析结果:', analysis)
+
+    // 智能更新内容，保持Markdown内容不变
+    this.smartUpdateContent(container, analysis)
+  }
+
+  // 智能更新内容，保持Markdown内容不变
+  smartUpdateContent(container, analysis) {
+    console.log('智能更新内容，分析结果:', analysis)
+
+    // 如果容器为空，直接渲染所有内容
+    if (!container.innerHTML.trim()) {
+      this.renderFullContent(container, analysis)
+      return
+    }
+
+    // 智能累积更新：保持现有内容，添加新的Markdown，更新JSON状态
+    this.smartAccumulateContent(container, analysis)
+  }
+
+  // 智能累积内容更新
+  smartAccumulateContent(container, analysis) {
+    console.log('智能累积内容更新')
+
+    // 1. 智能处理Markdown内容（避免重复追加）
+    if (analysis.markdownContent) {
+      const existingMarkdown = container.querySelector('.markdown-summary')
+      if (existingMarkdown) {
+        // 检查是否已有相同内容，避免重复
+        const existingText = existingMarkdown.textContent || ''
+        const newText = analysis.markdownContent
+
+        // 如果新内容是现有内容的扩展，则更新；否则替换
+        if (newText.length > existingText.length && newText.startsWith(existingText)) {
+          // 内容扩展，只添加新增部分
+          const additionalContent = newText.substring(existingText.length)
+          if (additionalContent.trim()) {
+            const additionalHtml = this.renderMarkdownWithMarked(additionalContent)
+            existingMarkdown.insertAdjacentHTML('beforeend', additionalHtml)
+          }
+        } else if (newText !== existingText) {
+          // 内容不同，完全替换
+          const newMarkdownHtml = this.renderMarkdownWithMarked(analysis.markdownContent)
+          existingMarkdown.outerHTML = newMarkdownHtml
+        }
+      } else {
+        // 如果没有Markdown内容，创建新的
+        const markdownHtml = this.renderMarkdownWithMarked(analysis.markdownContent)
+        container.insertAdjacentHTML('beforeend', markdownHtml)
+      }
+    }
+
+    // 清理重复的Markdown内容
+    this.cleanupDuplicateMarkdown(container)
+
+    // 清理重复的JSON组件
+    this.cleanupDuplicateJsonComponents(container)
+
+    // 2. 处理JSON代码块
+    if (analysis.jsonBlocks.length > 0) {
+      analysis.jsonBlocks.forEach((block, index) => {
+        if (block.isComplete) {
+          // 完整的JSON代码块，转换为可折叠组件
+          console.log('JSON代码块完整，创建可折叠组件')
+          try {
+            const parsed = this.safeJsonParse(block.content)
+
+            // 检查是否已存在相同的JSON组件，避免重复
+            const existingJson = this.findExistingJsonComponent(container, parsed)
+            if (existingJson) {
+              console.log('发现重复的JSON组件，跳过创建')
+              return
+            }
+
+            const jsonId = 'json-' + Math.random().toString(36).slice(2)
+            const jsonHtml = this.createCollapsibleJson(jsonId, parsed)
+
+            // 查找对应的处理提示元素并替换
+            const processingElement = container.querySelector(`[data-block-index="${index}"]`)
+            if (processingElement) {
+              processingElement.outerHTML = jsonHtml
+            } else {
+              // 如果没有找到对应的处理提示，直接添加到末尾
+              container.insertAdjacentHTML('beforeend', jsonHtml)
+            }
+          } catch (e) {
+            console.error('JSON解析失败:', e)
+          }
+        } else {
+          // 不完整的JSON代码块，检查是否已有处理提示
+          const existingProcessing = container.querySelector(`[data-block-index="${index}"]`)
+          if (!existingProcessing) {
+            // 如果没有处理提示，添加新的
+            const processingHtml = `
+              <div class="json-processing" data-block-index="${index}">
+                <div class="json-processing-header">
+                  <i class="fas fa-cog fa-spin"></i>
+                  <span>正在处理代码...</span>
+                </div>
+                <div class="json-content">
+                  <code>代码内容正在加载中...</code>
+                </div>
+              </div>
+            `
+            container.insertAdjacentHTML('beforeend', processingHtml)
+          }
+        }
+      })
+    }
+
+    // 3. 处理未完成的JSON状态
+    if (analysis.hasIncompleteJson) {
+      const existingProcessing = container.querySelector('.json-processing:not([data-block-index])')
+      if (!existingProcessing) {
+        // 添加通用的处理提示
+        const processingHtml = `
+          <div class="json-processing">
+            <div class="json-processing-header">
+              <i class="fas fa-cog fa-spin"></i>
+              <span>正在处理代码...</span>
+            </div>
+            <div class="json-processing-content">
+              <code>检测到代码内容，正在等待完整数据...</code>
+            </div>
+          </div>
+        `
+        container.insertAdjacentHTML('beforeend', processingHtml)
+      }
+    } else {
+      // 如果没有未完成的JSON，移除通用处理提示
+      const generalProcessing = container.querySelector('.json-processing:not([data-block-index])')
+      if (generalProcessing) {
+        generalProcessing.remove()
+      }
+    }
+
+    // 应用代码高亮
+    this.highlightCodeBlocks(container)
+
+    // 滚动到底部
+    const chatMessages = document.querySelector('.chat-messages')
+    chatMessages.scrollTop = chatMessages.scrollHeight
+  }
+
+  // 渲染完整内容
+  renderFullContent(container, analysis) {
+    let displayContent = ''
+
+    // 处理Markdown内容（非JSON部分）
+    if (analysis.markdownContent) {
+      console.log('渲染Markdown内容:', analysis.markdownContent.substring(0, 100) + '...')
+      const markdownHtml = this.renderMarkdownWithMarked(analysis.markdownContent)
+      displayContent += markdownHtml
+    }
+
+    // 处理JSON代码块
+    if (analysis.jsonBlocks.length > 0) {
+      console.log('渲染JSON代码块，数量:', analysis.jsonBlocks.length)
+
+      analysis.jsonBlocks.forEach((block, index) => {
+        if (block.isComplete) {
+          // 完整的JSON代码块，转换为可折叠组件
+          console.log('JSON代码块完整，创建可折叠组件')
+          try {
+            const parsed = this.safeJsonParse(block.content)
+            const jsonId = 'json-' + Math.random().toString(36).slice(2)
+            const jsonHtml = this.createCollapsibleJson(jsonId, parsed)
+            displayContent += jsonHtml
+          } catch (e) {
+            console.error('JSON解析失败:', e)
+            // 如果解析失败，显示原始内容
+            displayContent += `<pre><code class="language-json">${this.escapeHtml(block.content)}</code></pre>`
+          }
+        } else {
+          // 不完整的JSON代码块，显示处理中提示
+          console.log('JSON代码块不完整，显示处理中提示')
+          const processingHtml = `
+            <div class="json-processing" data-block-index="${index}">
+              <div class="json-processing-header">
+                <i class="fas fa-cog fa-spin"></i>
+                <span>正在处理代码...</span>
+              </div>
+              <div class="json-processing-content">
+                <code>代码内容正在加载中...</code>
+              </div>
+            </div>
+          `
+          displayContent += processingHtml
+        }
+      })
+    }
+
+    // 如果有未完成的JSON代码块，显示处理中提示
+    if (analysis.hasIncompleteJson) {
+      if (!container.querySelector('.json-processing')) {
+        const processingHtml = `
+          <div class="json-processing">
+            <div class="json-processing-header">
+              <i class="fas fa-cog fa-spin"></i>
+              <span>正在处理代码...</span>
+            </div>
+            <div class="json-processing-content">
+              <code>检测到代码内容，正在等待完整数据...</code>
+            </div>
+          </div>
+        `
+        displayContent += processingHtml
+      }
+    }
+
+    // 更新容器内容
+    if (displayContent) {
+      container.innerHTML = displayContent
+
+      // 应用代码高亮
+      this.highlightCodeBlocks(container)
+
+      // 滚动到底部
+      const chatMessages = document.querySelector('.chat-messages')
+      chatMessages.scrollTop = chatMessages.scrollHeight
+    }
+  }
+
+  // 分析内容结构
+  analyzeContent(content) {
+    const result = {
+      markdownContent: '',
+      jsonBlocks: [],
+      hasIncompleteJson: false,
+    }
+
+    // 查找所有代码块
+    const codeBlockRegex = /```(?:json)?\s*([\s\S]*?)```/g
+    let match
+    let lastIndex = 0
+
+    while ((match = codeBlockRegex.exec(content)) !== null) {
+      const blockStart = match.index
+      const blockEnd = match.index + match[0].length
+
+      // 提取代码块之前的Markdown内容
+      if (blockStart > lastIndex) {
+        const markdownPart = content.substring(lastIndex, blockStart).trim()
+        if (markdownPart) {
+          result.markdownContent += markdownPart + '\n\n'
+        }
+      }
+
+      // 处理代码块
+      const blockContent = match[1].trim()
+      const isJsonBlock = match[0].includes('```json') || blockContent.startsWith('{')
+
+      if (isJsonBlock) {
+        // 检查JSON代码块是否完整
+        const isComplete = this.isJsonBlockComplete(blockContent)
+        result.jsonBlocks.push({
+          content: blockContent,
+          isComplete: isComplete,
+          fullMatch: match[0],
+          startIndex: blockStart,
+          endIndex: blockEnd,
+        })
+
+        if (!isComplete) {
+          result.hasIncompleteJson = true
+        }
+      } else {
+        // 非JSON代码块，添加到Markdown内容
+        result.markdownContent += match[0] + '\n\n'
+      }
+
+      lastIndex = blockEnd
+    }
+
+    // 添加剩余的Markdown内容（JSON代码块后面的内容）
+    if (lastIndex < content.length) {
+      const remainingContent = content.substring(lastIndex).trim()
+      if (remainingContent) {
+        // 检查剩余内容是否包含未闭合的JSON代码块
+        if (this.hasUnclosedJsonInContent(remainingContent)) {
+          result.hasIncompleteJson = true
+          // 不添加到Markdown内容，等待JSON完整
+        } else {
+          result.markdownContent += remainingContent
+        }
+      }
+    }
+
+    // 检查是否有未闭合的JSON代码块
+    if (content.includes('```json') || content.includes('```{')) {
+      const openBlocks = (content.match(/```(?:json)?\s*\{/g) || []).length
+      const closeBlocks = (content.match(/```\s*$/gm) || []).length
+
+      if (openBlocks > closeBlocks) {
+        result.hasIncompleteJson = true
+      }
+    }
+
+    return result
+  }
+
+  // 检查JSON代码块是否完整
+  isJsonBlockComplete(content) {
+    try {
+      // 尝试解析JSON
+      JSON.parse(content)
+      return true
+    } catch (e) {
+      // 尝试修复后再次解析
+      try {
+        const fixedContent = this.fixCommonJsonIssues(content)
+        JSON.parse(fixedContent)
+        return true
+      } catch (e2) {
+        // 检查是否有明显的未闭合标记
+        const openBraces = (content.match(/\{/g) || []).length
+        const closeBraces = (content.match(/\}/g) || []).length
+        const openBrackets = (content.match(/\[/g) || []).length
+        const closeBrackets = (content.match(/\]/g) || []).length
+        const quotes = (content.match(/"/g) || []).length
+
+        // 如果括号和引号都匹配，可能是有效的JSON
+        if (openBraces === closeBraces && openBrackets === closeBrackets && quotes % 2 === 0) {
+          return true
+        }
+
+        return false
+      }
+    }
+  }
+
+  // 安全的JSON解析方法
+  safeJsonParse(content) {
+    try {
+      // 首先尝试直接解析
+      return JSON.parse(content)
+    } catch (e) {
+      console.log('JSON解析失败，尝试修复格式:', e.message)
+
+      try {
+        // 尝试修复常见问题后再次解析
+        const fixedContent = this.fixCommonJsonIssues(content)
+        return JSON.parse(fixedContent)
+      } catch (e2) {
+        console.log('修复后JSON解析仍然失败:', e2.message)
+
+        // 最后尝试更激进的修复
+        try {
+          const aggressiveFixed = this.aggressiveJsonFix(content)
+          return JSON.parse(aggressiveFixed)
+        } catch (e3) {
+          console.error('所有JSON修复尝试都失败了:', e3.message)
+          throw new Error(`JSON解析失败: ${e.message}`)
+        }
+      }
+    }
+  }
+
+  // 激进的JSON修复方法
+  aggressiveJsonFix(content) {
+    let fixed = content
+
+    // 1. 修复所有属性名缺少双引号的问题
+    fixed = fixed.replace(/(\s*)([a-zA-Z_][a-zA-Z0-9_]*)(\s*):/g, '$1"$2"$3:')
+
+    // 2. 修复所有字符串值缺少双引号的问题
+    fixed = fixed.replace(/:\s*([^"][^,\s{}[\]]+[^,\s{}[\]]*)\s*([,}\s])/g, ': "$1"$2')
+
+    // 3. 修复布尔值和数字
+    fixed = fixed.replace(/:\s*(true|false|null)\s*([,}\s])/g, ': $1$2')
+    fixed = fixed.replace(/:\s*(\d+\.?\d*)\s*([,}\s])/g, ': $1$2')
+
+    // 4. 修复数组中的值
+    fixed = fixed.replace(/\[\s*([^"][^,\s[\]]+[^,\s[\]]*)\s*([,]\s*|$)/g, '["$1"$2')
+
+    // 5. 修复嵌套对象
+    fixed = fixed.replace(/:\s*{\s*([^}]*)\s*}/g, (match, inner) => {
+      const fixedInner = inner.replace(/(\w+):/g, '"$1":')
+      return `: {${fixedInner}}`
+    })
+
+    return fixed
+  }
+
+  // 清理重复的Markdown内容
+  cleanupDuplicateMarkdown(container) {
+    const markdownElements = container.querySelectorAll('.markdown-summary')
+    if (markdownElements.length <= 1) return
+
+    console.log('检测到重复的Markdown元素，开始清理...')
+
+    // 保留第一个，移除其他的
+    for (let i = 1; i < markdownElements.length; i++) {
+      markdownElements[i].remove()
+    }
+
+    console.log('重复Markdown元素清理完成')
+  }
+
+  // 查找已存在的JSON组件，避免重复
+  findExistingJsonComponent(container, parsedJson) {
+    const existingComponents = container.querySelectorAll('.json-collapsible')
+
+    for (const component of existingComponents) {
+      try {
+        // 提取组件中的关键信息进行比较
+        const titleElement = component.querySelector('.json-title')
+        if (titleElement) {
+          const title = titleElement.textContent
+
+          // 比较关键字段
+          if (this.isSameJsonContent(parsedJson, title)) {
+            return component
+          }
+        }
+      } catch (e) {
+        console.error('检查JSON组件时出错:', e)
+      }
+    }
+
+    return null
+  }
+
+  // 比较JSON内容是否相同
+  isSameJsonContent(newJson, existingTitle) {
+    try {
+      // 从标题中提取改动数量
+      const titleMatch = existingTitle.match(/AI改动方案\s*\((\d+)\s*项\)/)
+      if (titleMatch) {
+        const existingCount = parseInt(titleMatch[1])
+        const newCount = newJson.change ? newJson.change.length : 1
+
+        // 如果改动数量相同，进一步比较内容
+        if (existingCount === newCount) {
+          // 比较关键字段
+          if (newJson.change && Array.isArray(newJson.change)) {
+            const newSummary = newJson.change[0]?.change_summary || ''
+            const newFilePath = newJson.change[0]?.file_path || ''
+
+            // 更精确的比较：检查文件路径和摘要
+            const hasSameFile = existingTitle.includes(newFilePath.split('/').pop() || '')
+            const hasSameSummary = existingTitle.includes(newSummary.substring(0, 30))
+
+            return hasSameFile && hasSameSummary
+          }
+        }
+      }
+
+      return false
+    } catch (e) {
+      console.error('比较JSON内容时出错:', e)
+      return false
+    }
+  }
+
+  // 清理重复的JSON组件
+  cleanupDuplicateJsonComponents(container) {
+    const jsonComponents = container.querySelectorAll('.json-collapsible')
+    if (jsonComponents.length <= 1) return
+
+    console.log('检测到重复的JSON组件，开始清理...')
+
+    // 使用更精确的内容比较来检测重复
+    const toRemove = []
+
+    for (let i = 0; i < jsonComponents.length; i++) {
+      for (let j = i + 1; j < jsonComponents.length; j++) {
+        const component1 = jsonComponents[i]
+        const component2 = jsonComponents[j]
+
+        if (this.areJsonComponentsIdentical(component1, component2)) {
+          console.log(`发现重复组件: 组件 ${i} 和组件 ${j} 内容相同`)
+          toRemove.push(component2)
+        }
+      }
+    }
+
+    // 移除重复的组件
+    toRemove.forEach((component) => {
+      component.remove()
+      console.log('移除重复的JSON组件')
+    })
+
+    console.log(`重复JSON组件清理完成，移除了 ${toRemove.length} 个重复组件`)
+  }
+
+  // 检查两个JSON组件是否完全相同
+  areJsonComponentsIdentical(component1, component2) {
+    try {
+      const title1 = component1.querySelector('.json-title')?.textContent || ''
+      const title2 = component2.querySelector('.json-title')?.textContent || ''
+
+      // 比较标题
+      if (title1 !== title2) return false
+
+      // 比较风险等级
+      const risk1 = component1.querySelector('.risk-badge')?.textContent || ''
+      const risk2 = component2.querySelector('.risk-badge')?.textContent || ''
+      if (risk1 !== risk2) return false
+
+      // 比较验证状态
+      const status1 = component1.querySelector('.json-status')?.textContent || ''
+      const status2 = component2.querySelector('.json-status')?.textContent || ''
+      if (status1 !== status2) return false
+
+      // 如果所有关键信息都相同，认为是重复组件
+      return true
+    } catch (e) {
+      console.error('比较JSON组件时出错:', e)
+      return false
+    }
+  }
+
+  // 生成JSON内容的关键标识
+  generateJsonContentKey(title) {
+    // 提取标题中的关键信息作为标识
+    const match = title.match(/AI改动方案\s*\((\d+)\s*项\)/)
+    if (match) {
+      return `changes_${match[1]}`
+    }
+    return title
+  }
+
+  // 生成更精确的JSON内容标识
+  generateDetailedJsonKey(jsonData) {
+    try {
+      if (jsonData.change && Array.isArray(jsonData.change)) {
+        const firstChange = jsonData.change[0]
+        const filePath = firstChange.file_path || ''
+        const summary = firstChange.change_summary || ''
+        const operation = firstChange.operation || ''
+
+        // 基于文件路径、操作类型和摘要生成唯一标识
+        const fileName = filePath.split('/').pop() || ''
+        const summaryHash = summary.substring(0, 50).replace(/\s+/g, '_')
+
+        return `${operation}_${fileName}_${summaryHash}`
+      }
+
+      // 如果没有change数组，使用其他字段
+      if (jsonData.file_path) {
+        const fileName = jsonData.file_path.split('/').pop() || ''
+        const operation = jsonData.operation || 'UNKNOWN'
+        return `${operation}_${fileName}`
+      }
+
+      return `json_${Date.now()}`
+    } catch (e) {
+      console.error('生成详细JSON标识时出错:', e)
+      return `json_${Date.now()}`
+    }
+  }
+
+  // 检查内容中是否有未闭合的JSON
+  hasUnclosedJsonInContent(content) {
+    // 检查是否有开始但没有结束的JSON代码块
+    const hasJsonStart = content.includes('```json') || content.includes('```{')
+    const hasJsonEnd = content.includes('```')
+
+    if (hasJsonStart && !hasJsonEnd) {
+      return true
+    }
+
+    // 检查是否有未闭合的大括号或引号
+    const openBraces = (content.match(/\{/g) || []).length
+    const closeBraces = (content.match(/\}/g) || []).length
+    const openBrackets = (content.match(/\[/g) || []).length
+    const closeBrackets = (content.match(/\]/g) || []).length
+    const quotes = (content.match(/"/g) || []).length
+
+    return openBraces !== closeBraces || openBrackets !== closeBrackets || quotes % 2 !== 0
   }
 }
 

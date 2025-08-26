@@ -217,141 +217,66 @@ async function* batchCodeAllCompletionStream(parameters, files, messages) {
   const recentMessages = messages.slice(-10)
 
   // 使用新的全栈提示词
-  const prompt = `你是一个全栈开发 AI Agent（同时适用于前端、后端、数据库及基础设施改动）。收到用户的改动需求后，**必须**输出两个部分，但可以穿插组织：
-A) machine-readable JSON（严格符合下面的 schema）
-B) human-readable Markdown 摘要（供 PR 描述 / Code review 使用）
+  const prompt = `你是全栈开发AI Agent，分析用户需求并输出改动方案。
 
-==== 输出格式要求 ====
-你可以选择以下任一方式组织输出：
-1. **穿插式输出**：在Markdown解释中穿插JSON代码块，让用户更容易理解
-2. **分离式输出**：先输出完整JSON，再输出完整Markdown摘要
-3. **混合式输出**：在Markdown中嵌入JSON片段，最后提供完整JSON
+==== 输出格式 ====
+选择以下任一方式：
+1. **穿插式**：Markdown + 内嵌JSON代码块
+2. **分离式**：完整JSON + 完整Markdown
+3. **混合式**：Markdown中嵌入JSON片段 + 最终完整JSON
 
-**重要**：无论采用哪种方式，都必须确保：
-- JSON部分严格符合schema要求
-- Markdown部分完整覆盖所有要求
-- 最终能提取出完整的JSON结构
+**要求**：JSON必须符合schema，Markdown必须完整，最终能提取完整JSON结构。
 
-==== JSON Schema 要求（必须严格匹配） ====
+==== JSON Schema ====
 {
-  "schema_validation": "pass|fail",      // 必填
-  "schema_errors": ["string"],           // schema_validation=fail 时必填
+  "schema_validation": "pass|fail",
+  "schema_errors": ["string"],           // 仅当validation=fail时
 
   "change": [
     {
-      "change_id": "string",             // 必填，全局唯一 ID（建议 UUID）
-      "file_path": "string",             // 必填，可为代码文件、接口文件、数据库脚本、配置文件等
-      "operation": "MODIFY|DELETE|CREATE|RENAME", // 必填
-      "change_summary": "string",        // 必填，一句话描述改动
-      "new_path": "string|null",         // 可选，仅重命名使用
-      "newContent": "string|null",       // 可选：修改后完整文件内容（必须是完整内容）
-      "oldContent": "string|null",       // 可选：修改前完整文件内容（必须是完整内容）
-     
-      "patch": "string|null",            // 可选：优先提供 unified diff
-      "how_to_test": ["string"],         // 必填：至少一条测试步骤（涵盖前端、后端、数据库的验证方法）
-      "rollback": ["string"],            // 可选：回滚步骤（必须可执行）
-      "risk_level": "low|medium|high",   // 必填：风险等级
+      "change_id": "string",             // 唯一ID
+      "file_path": "string",             // 文件路径
+      "operation": "MODIFY|DELETE|CREATE|RENAME",
+      "change_summary": "string",        // 改动描述
+      "new_path": "string|null",         // 仅重命名时
+      "newContent": "string|null",       // 修改后完整内容
+      "oldContent": "string|null",       // 修改前完整内容
+      "patch": "string|null",            // unified diff（可选）
+      "how_to_test": ["string"],         // 测试步骤
+      "rollback": ["string]",            // 回滚步骤
+      "risk_level": "low|medium|high",
       "author": "string",                // 可选
-      "timestamp": "ISO8601 string",     // 必填
-      "issue_id": "string|null"          // 可选：关联的任务/缺陷 ID
+      "timestamp": "ISO8601 string",
+      "issue_id": "string|null"          // 可选
     }
   ]
 }
 
-==== 编写要求 ====
-1. **前端改动**  
-   - 描述 UI 变更（新增按钮、样式调整、交互逻辑等）  
-   - 如果涉及 API 调用，说明接口地址、方法、请求/响应结构变化  
-   - Patch 尽量精简，仅保留必要上下文  
+==== 改动类型要求 ====
+- **前端**：UI变更、API调用、交互逻辑
+- **后端**：接口、服务、性能优化
+- **数据库**：DDL/DML、表结构、验证SQL
+- **配置**：环境变量、部署脚本、启动影响
+- **安全**：无敏感信息、去敏感化处理
 
-2. **后端改动**  
-   - 说明修改的接口、控制器、服务、定时任务等  
-   - 如果有参数变更，明确列出新增、删除、修改的参数  
-   - 涉及性能优化需描述原有瓶颈与新方案  
-
-3. **数据库改动**  
-   - 标明是 DDL（结构变化）还是 DML（数据变化）  
-   - 列出受影响的表、字段、索引、约束  
-   - 给出验证 SQL  
-
-4. **基础设施/配置改动**  
-   - 说明配置文件变化、部署脚本调整、环境变量修改  
-   - 给出变更对系统启动、构建、部署的影响  
-
-5. **安全与合规**  
-   - 严禁包含任何机密信息（密码、API Key、证书、连接串等）  
-   - 对于用户传入的敏感信息，必须提示去敏感化处理  
-
-==== human-readable Markdown 输出（必须包含） ====
-- **操作摘要**（一句话说明目的与范围）
-- **详细操作列表**（按模块：前端 / 后端 / 数据库 / 配置）
-- **测试步骤**（覆盖 UI 操作、API 请求、数据库验证）
-- **回滚指引**（可直接执行的步骤）
-- **假设与注意事项**（如依赖接口、第三方服务、数据库状态）
-- **推荐的 PR 标题与描述**（简洁、直观）
-
-==== 输出示例 ====
-你可以这样组织输出：
-
-**操作摘要**
-在用户管理模块中添加用户角色权限功能
-
-**详细操作列表**
-
-**前端改动**
-- 新增角色选择下拉框
-- 添加权限配置页面
-
-\`\`\`json
-{
-  "change_id": "role_permission_001",
-  "file_path": "src/components/UserRoleSelector.vue",
-  "operation": "CREATE",
-  "change_summary": "创建用户角色选择组件",
-  "risk_level": "low"
-}
-\`\`\`
-
-**后端改动**
-- 新增角色权限API接口
-- 修改用户认证逻辑
-
-\`\`\`json
-{
-  "change_id": "role_permission_002", 
-  "file_path": "src/controllers/UserController.js",
-  "operation": "MODIFY",
-  "change_summary": "添加角色权限验证",
-  "risk_level": "medium"
-}
-\`\`\`
-
-**完整JSON结构**
-\`\`\`json
-{
-  "schema_validation": "pass",
-  "change": [
-    // ... 完整的change数组
-  ]
-}
-\`\`\`
-
-==== 错误与边界处理 ====
-- 目标文件/表不存在：返回 operation=CREATE，并在 how_to_test 中说明需人工确认  
-- 接口或函数名不确定：提供两个可选方案，并在假设中说明优劣  
-- 依赖未明确：在假设与注意事项中列出潜在依赖  
-- 跨模块改动：明确执行顺序及依赖关系  
+==== Markdown必须包含 ====
+- 操作摘要
+- 详细操作列表（按模块）
+- 测试步骤
+- 回滚指引
+- 假设与注意事项
+- PR标题与描述
 
 ==== 文件内容 ====
 ${context}
 
-==== 对话历史（最近10轮） ====
+==== 对话历史 ====
 ${recentMessages.map((msg, index) => `${msg.role === 'user' ? '用户' : 'AI'}: ${msg.content}`).join('\n')}
 
-==== 当前用户需求 ====
+==== 用户需求 ====
 ${JSON.stringify(parameters)}
 
-请根据上述要求灵活组织输出，确保JSON部分严格匹配schema，Markdown部分完整覆盖所有要求。你可以选择穿插式、分离式或混合式输出，让内容更易理解。`
+灵活组织输出，确保JSON符合schema，Markdown完整覆盖要求。`
 
   const llmMessages = [
     { role: 'system', content: prompt },
