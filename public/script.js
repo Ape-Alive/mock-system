@@ -41,6 +41,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const responseHeadersTextarea = document.getElementById('responseHeaders')
   const groupInput = document.getElementById('group-input')
   let currentGroup = { id: 0, name: '全部', fileNames: null }
+
+  // 同步到全局变量，供AI代码生成器使用
+  window.currentGroup = currentGroup
+
   const groupTreeList = document.getElementById('group-tree-list')
   const addGroupBtn = document.getElementById('add-group-btn')
   let selectedFiles = new Set()
@@ -154,99 +158,151 @@ document.addEventListener('DOMContentLoaded', () => {
   // 初始化
   init()
 
-  // 事件监听
-  themeToggle.addEventListener('click', toggleTheme)
-  addMockBtn.addEventListener('click', () => openMockModal())
-  searchInput.addEventListener('input', filterMockList)
-  mockForm.addEventListener('submit', handleFormSubmit)
-  pathContentTextarea.addEventListener('input', updateJsonPreview)
-  closeButtons.forEach((btn) => btn.addEventListener('click', closeAllModals))
-  confirmCancelBtn.addEventListener('click', () => confirmModal.classList.remove('active'))
-  confirmActionBtn.addEventListener('click', handleConfirmAction)
-  refreshPreviewBtn.addEventListener('click', updateJsonPreview)
-  toggleTableModeBtn.addEventListener('click', () => {
-    isTableMode = !isTableMode
-    if (isTableMode) {
-      mockList.style.display = 'none'
-      mockTableContainer.style.display = ''
-      toggleTableModeBtn.innerHTML = '<i class="fas fa-th-large"></i>'
-    } else {
-      mockList.style.display = ''
-      mockTableContainer.style.display = 'none'
-      toggleTableModeBtn.innerHTML = '<i class="fas fa-table"></i>'
-    }
-    filterMockList() // 切换模式时始终用当前分组过滤
-  })
+  // 事件监听 - 安全地绑定事件，检查元素是否存在
+  if (themeToggle) {
+    themeToggle.addEventListener('click', toggleTheme)
+  }
+
+  if (addMockBtn) {
+    addMockBtn.addEventListener('click', () => openMockModal())
+  }
+
+  if (searchInput) {
+    searchInput.addEventListener('input', filterMockList)
+  }
+
+  if (mockForm) {
+    mockForm.addEventListener('submit', handleFormSubmit)
+  }
+
+  if (pathContentTextarea) {
+    pathContentTextarea.addEventListener('input', updateJsonPreview)
+  }
+
+  if (closeButtons && closeButtons.length > 0) {
+    closeButtons.forEach((btn) => btn.addEventListener('click', closeAllModals))
+  }
+
+  if (confirmCancelBtn) {
+    confirmCancelBtn.addEventListener('click', () => {
+      confirmModal.classList.remove('show')
+      confirmModal.style.display = 'none'
+    })
+  }
+
+  if (confirmActionBtn) {
+    confirmActionBtn.addEventListener('click', handleConfirmAction)
+  }
+
+  if (refreshPreviewBtn) {
+    refreshPreviewBtn.addEventListener('click', updateJsonPreview)
+  }
+
+  if (toggleTableModeBtn) {
+    toggleTableModeBtn.addEventListener('click', () => {
+      isTableMode = !isTableMode
+      if (isTableMode) {
+        mockList.style.display = 'none'
+        mockTableContainer.style.display = ''
+        toggleTableModeBtn.innerHTML = '<i class="fas fa-th-large"></i>'
+      } else {
+        mockList.style.display = ''
+        mockTableContainer.style.display = 'none'
+        toggleTableModeBtn.innerHTML = '<i class="fas fa-table"></i>'
+      }
+      filterMockList() // 切换模式时始终用当前分组过滤
+    })
+  }
   updateJsonPreview
   // 打开导入模态框
-  importOpenapiBtn.addEventListener('click', () => {
-    importModal.classList.add('active')
-  })
-  // 关闭导入模态框
-  importModal.querySelectorAll('.close').forEach((btn) =>
-    btn.addEventListener('click', () => {
-      importModal.classList.remove('active')
+  if (importOpenapiBtn && importModal) {
+    importOpenapiBtn.addEventListener('click', () => {
+      importModal.style.display = 'flex'
     })
-  )
-  // 提交导入表单
-  importForm.addEventListener('submit', async (e) => {
-    e.preventDefault()
-    const file = importFileInput.files[0]
-    if (!file) {
-      alert('请选择要上传的文件')
-      return
-    }
-    const formData = new FormData()
-    formData.append('file', file)
-    // 新增：传递当前分组
-    if (
-      currentGroup &&
-      currentGroup.id !== 0 &&
-      currentGroup.id !== -1 &&
-      currentGroup.name !== '全部' &&
-      currentGroup.name !== '未分组'
-    ) {
-      formData.append('group', currentGroup.name)
-    } else {
-      formData.append('group', '')
-    }
-    showLoading()
-    try {
-      const response = await fetch('/import-openapi', {
-        method: 'POST',
-        body: formData,
+
+    // 关闭导入模态框 - 使用新的ID选择器
+    const importCloseBtn = document.getElementById('import-modal-close')
+    const importCancelBtn = document.getElementById('import-modal-cancel')
+
+    if (importCloseBtn) {
+      importCloseBtn.addEventListener('click', () => {
+        importModal.style.display = 'none'
       })
-      if (!response.ok) {
-        const errText = await response.text()
-        throw new Error(errText || '导入失败')
-      }
-      importModal.classList.remove('active')
-      await loadMockList()
-      await loadGroupTree()
-      alert('导入成功')
-    } catch (err) {
-      showError('导入失败: ' + err.message)
-    } finally {
-      hideLoading()
     }
-  })
+
+    if (importCancelBtn) {
+      importCancelBtn.addEventListener('click', () => {
+        importModal.style.display = 'none'
+      })
+    }
+  }
+
+  // 提交导入表单
+  if (importForm) {
+    importForm.addEventListener('submit', async (e) => {
+      e.preventDefault()
+      const file = importFileInput.files[0]
+      if (!file) {
+        alert('请选择要上传的文件')
+        return
+      }
+      const formData = new FormData()
+      formData.append('file', file)
+      // 新增：传递当前分组
+      if (
+        currentGroup &&
+        currentGroup.id !== 0 &&
+        currentGroup.id !== -1 &&
+        currentGroup.name !== '全部' &&
+        currentGroup.name !== '未分组'
+      ) {
+        formData.append('group', currentGroup.name)
+      } else {
+        formData.append('group', '')
+      }
+      showLoading()
+      try {
+        const response = await fetch('/import-openapi', {
+          method: 'POST',
+          body: formData,
+        })
+        if (!response.ok) {
+          const errText = await response.text()
+          throw new Error(errText || '导入失败')
+        }
+        importModal.style.display = 'none'
+        await loadMockList()
+        await loadGroupTree()
+        alert('导入成功')
+      } catch (err) {
+        showError('导入失败: ' + err.message)
+      } finally {
+        hideLoading()
+      }
+    })
+  }
 
   // 控制body参数输入框显示
   function updateBodyGroup() {
-    const method = pathTypeSelect.value
-    const bodyGroupDesc = document.getElementById('body-group-desc')
-    if (['POST', 'PUT', 'DELETE'].includes(method)) {
-      bodyGroup.style.display = ''
-      if (bodyGroupDesc) bodyGroupDesc.style.display = ''
-    } else {
-      bodyGroup.style.display = 'none'
-      bodyParamsTextarea.value = ''
-      if (bodyGroupDesc) bodyGroupDesc.style.display = 'none'
+    if (pathTypeSelect && bodyGroup) {
+      const method = pathTypeSelect.value
+      const bodyGroupDesc = document.getElementById('body-group-desc')
+      if (['POST', 'PUT', 'DELETE'].includes(method)) {
+        bodyGroup.style.display = ''
+        if (bodyGroupDesc) bodyGroupDesc.style.display = ''
+      } else {
+        bodyGroup.style.display = 'none'
+        if (bodyParamsTextarea) bodyParamsTextarea.value = ''
+        if (bodyGroupDesc) bodyGroupDesc.style.display = 'none'
+      }
     }
   }
-  pathTypeSelect.addEventListener('change', updateBodyGroup)
-  // 初始化时也调用
-  updateBodyGroup()
+
+  if (pathTypeSelect) {
+    pathTypeSelect.addEventListener('change', updateBodyGroup)
+    // 初始化时也调用
+    updateBodyGroup()
+  }
 
   // 初始化函数
   function init() {
@@ -450,14 +506,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // 打开mock模态框
   async function openMockModal(filename = null) {
     // 重置表单
-    mockForm.reset()
+    if (mockForm) {
+      mockForm.reset()
+    } else {
+      console.error('mockForm 元素不存在')
+      return
+    }
     currentEditFilename = filename
     if (filename) {
-      modalTitle.textContent = '编辑接口'
+      if (modalTitle) modalTitle.textContent = '编辑接口'
       await loadMockData(filename)
     } else {
-      modalTitle.textContent = '创建新接口'
-      filenameInput.value = ''
+      if (modalTitle) modalTitle.textContent = '创建新接口'
+      if (filenameInput) filenameInput.value = ''
       // 新建接口时自动归组
       if (
         currentGroup &&
@@ -466,28 +527,46 @@ document.addEventListener('DOMContentLoaded', () => {
         currentGroup.name !== '全部' &&
         currentGroup.name !== '未分组'
       ) {
-        groupInput.value = currentGroup.name
+        if (groupInput) groupInput.value = currentGroup.name
       } else {
-        groupInput.value = ''
+        if (groupInput) groupInput.value = ''
       }
     }
     // 初始化模板提示
     let mockTip = document.getElementById('mockjs-tip')
-    if (mockTypeSelect.value === 'mockjsTemplate') {
+    if (mockTypeSelect && mockTypeSelect.value === 'mockjsTemplate') {
       if (!mockTip) {
         mockTip = document.createElement('div')
         mockTip.id = 'mockjs-tip'
         mockTip.className = 'mock-template-tip'
         mockTip.innerHTML = '<i class="fas fa-lightbulb"></i> 使用Mock.js模板语法，如: "@cname", "age|18-60": 1'
-        pathContentTextarea.parentElement.appendChild(mockTip)
+        if (pathContentTextarea && pathContentTextarea.parentElement) {
+          pathContentTextarea.parentElement.appendChild(mockTip)
+        }
       }
     } else if (mockTip) {
       mockTip.remove()
     }
-    updateJsonPreview()
-    updateBodyGroup()
-    mockModal.classList.add('active')
-    groupInput.value = groupInput.value || (window.lastLoadedMockData && window.lastLoadedMockData.group) || ''
+
+    if (typeof updateJsonPreview === 'function') {
+      updateJsonPreview()
+    }
+    if (typeof updateBodyGroup === 'function') {
+      updateBodyGroup()
+    }
+
+    if (mockModal) {
+      // 强制显示模态框，覆盖任何可能的内联样式
+      mockModal.style.display = 'flex'
+      mockModal.classList.add('show')
+    } else {
+      console.error('mockModal 元素不存在，无法显示模态框')
+      return
+    }
+
+    if (groupInput) {
+      groupInput.value = groupInput.value || (window.lastLoadedMockData && window.lastLoadedMockData.group) || ''
+    }
   }
 
   // 加载mock数据
@@ -677,7 +756,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    confirmModal.classList.add('active')
+    confirmModal.style.display = 'flex'
+    confirmModal.classList.add('show')
   }
 
   // 处理确认操作
@@ -686,7 +766,8 @@ document.addEventListener('DOMContentLoaded', () => {
       deleteCallback()
       deleteCallback = null
     }
-    confirmModal.classList.remove('active')
+    confirmModal.classList.remove('show')
+    confirmModal.style.display = 'none'
   }
 
   // 过滤mock列表
@@ -715,6 +796,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // 新增：同步给AI代码生成器弹窗
     window.currentFilteredMockItems = filtered
+
+    // 同步当前分组到全局变量
+    window.currentGroup = currentGroup
+
     if (isTableMode) {
       renderMockTable(filtered)
     } else {
@@ -783,10 +868,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 关闭所有模态框
   function closeAllModals() {
-    mockModal.classList.remove('active')
-    confirmModal.classList.remove('active')
-    document.getElementById('test-modal').classList.remove('active')
-    if (importModal) importModal.classList.remove('active')
+    if (mockModal) {
+      mockModal.classList.remove('show')
+      mockModal.style.display = 'none' // 确保完全隐藏
+    }
+    if (confirmModal) {
+      confirmModal.classList.remove('show')
+      confirmModal.style.display = 'none' // 确保完全隐藏
+    }
+    const testModal = document.getElementById('test-modal')
+    if (testModal) testModal.classList.remove('show')
+    if (importModal) importModal.style.display = 'none'
   }
 
   // 显示加载指示器
@@ -887,10 +979,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // 获取响应数据
       let responseData
+      const responseText = await testResponse.text()
+
       try {
-        responseData = await testResponse.json()
+        responseData = JSON.parse(responseText)
       } catch {
-        responseData = await testResponse.text()
+        responseData = responseText
       }
 
       // 获取响应头
@@ -918,68 +1012,104 @@ document.addEventListener('DOMContentLoaded', () => {
   // 显示测试结果函数
   function showTestResults(results) {
     const testModal = document.getElementById('test-modal')
-    const testMethod = testModal.querySelector('.test-method')
-    const testUrl = testModal.querySelector('.test-url')
-    const testStatus = testModal.querySelector('.test-status')
-    const responseBody = testModal.querySelector('.response-body')
-    const responseHeaders = testModal.querySelector('.response-headers')
-    const requestHeaders = testModal.querySelector('.request-headers')
-    const requestQuery = testModal.querySelector('.request-query')
-    const requestBody = testModal.querySelector('.request-body')
+    if (!testModal) {
+      console.error('找不到测试模态框元素')
+      return
+    }
+
+    const testMethod = testModal.querySelector('.mock-test-method')
+    const testUrl = testModal.querySelector('.mock-test-url')
+    const testStatus = testModal.querySelector('.mock-test-status')
+    const responseBody = testModal.querySelector('.mock-response-body')
+    const responseHeaders = testModal.querySelector('.mock-response-headers')
+    const requestHeaders = testModal.querySelector('.mock-request-headers')
+    const requestQuery = testModal.querySelector('.mock-request-query')
+    const requestBody = testModal.querySelector('.mock-request-body')
     const requestBodySection = document.getElementById('request-body-section')
 
+    // 检查所有必需的元素是否存在（调试用）
+    if (!testMethod) console.warn('找不到 .mock-test-method 元素')
+    if (!testUrl) console.warn('找不到 .mock-test-url 元素')
+    if (!testStatus) console.warn('找不到 .mock-test-status 元素')
+    if (!responseBody) console.warn('找不到 .mock-response-body 元素')
+    if (!responseHeaders) console.warn('找不到 .mock-response-headers 元素')
+    if (!requestHeaders) console.warn('找不到 .mock-request-headers 元素')
+    if (!requestQuery) console.warn('找不到 .mock-request-query 元素')
+    if (!requestBody) console.warn('找不到 .mock-request-body 元素')
+    if (!requestBodySection) console.warn('找不到 #request-body-section 元素')
+
     // 设置基本信息
-    testMethod.textContent = results.request.method
-    testMethod.className = `test-method method ${results.request.method.toLowerCase()}`
-    testUrl.textContent = results.request.url
-    testStatus.textContent = `状态码: ${results.status} ${results.statusText} | 耗时: ${results.responseTime}ms`
-    testStatus.className = `test-status ${results.status >= 200 && results.status < 300 ? 'status-success' : 'status-error'
+    if (testMethod) {
+      testMethod.textContent = results.request.method
+      testMethod.className = `mock-test-method method ${results.request.method.toLowerCase()}`
+    }
+    if (testUrl) {
+      testUrl.textContent = results.request.url
+    }
+    if (testStatus) {
+      testStatus.textContent = `状态码: ${results.status} ${results.statusText} | 耗时: ${results.responseTime}ms`
+      testStatus.className = `mock-test-status ${
+        results.status >= 200 && results.status < 300 ? 'status-success' : 'status-error'
       }`
+    }
 
     // 设置响应内容
-    responseBody.textContent =
-      typeof results.responseData === 'string' ? results.responseData : JSON.stringify(results.responseData, null, 2)
+    if (responseBody) {
+      responseBody.textContent =
+        typeof results.responseData === 'string' ? results.responseData : JSON.stringify(results.responseData, null, 2)
+    }
 
     // 设置响应头
-    responseHeaders.textContent = Object.entries(results.responseHeaders)
-      .map(([key, value]) => `${key}: ${value}`)
-      .join('\n')
+    if (responseHeaders) {
+      responseHeaders.textContent = Object.entries(results.responseHeaders)
+        .map(([key, value]) => `${key}: ${value}`)
+        .join('\n')
+    }
 
     // 设置请求详情
-    requestHeaders.textContent = Object.entries(results.request.headers)
-      .map(([key, value]) => `${key}: ${value}`)
-      .join('\n')
+    if (requestHeaders) {
+      requestHeaders.textContent = Object.entries(results.request.headers)
+        .map(([key, value]) => `${key}: ${value}`)
+        .join('\n')
+    }
 
-    requestQuery.textContent = Object.entries(results.request.queryParams)
-      .map(([key, value]) => `${key}=${value}`)
-      .join('\n')
+    if (requestQuery) {
+      requestQuery.textContent = Object.entries(results.request.queryParams)
+        .map(([key, value]) => `${key}=${value}`)
+        .join('\n')
+    }
 
     // 设置请求体（如果有）
-    if (results.request.body) {
-      requestBody.textContent = JSON.stringify(results.request.body, null, 2)
-      requestBodySection.style.display = 'block'
-    } else {
-      requestBodySection.style.display = 'none'
+    if (requestBody) {
+      if (results.request.body) {
+        requestBody.textContent = JSON.stringify(results.request.body, null, 2)
+        if (requestBodySection) requestBodySection.style.display = 'block'
+      } else {
+        if (requestBodySection) requestBodySection.style.display = 'none'
+      }
     }
 
     // 激活第一个标签页
-    testModal.querySelector('.tab').classList.add('active')
-    testModal.querySelector('.tab-pane').classList.add('active')
+    const firstTab = testModal.querySelector('.mock-tab')
+    const firstTabPane = testModal.querySelector('.mock-tab-pane')
+    if (firstTab) firstTab.classList.add('active')
+    if (firstTabPane) firstTabPane.classList.add('active')
 
     // 显示模态框
-    testModal.classList.add('active')
+    testModal.classList.add('show')
 
     // 添加标签页切换事件
-    testModal.querySelectorAll('.tab').forEach((tab) => {
+    testModal.querySelectorAll('.mock-tab').forEach((tab) => {
       tab.addEventListener('click', () => {
         // 移除所有激活状态
-        testModal.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'))
-        testModal.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'))
+        testModal.querySelectorAll('.mock-tab').forEach((t) => t.classList.remove('active'))
+        testModal.querySelectorAll('.mock-tab-pane').forEach((p) => p.classList.remove('active'))
 
         // 激活当前标签
         tab.classList.add('active')
         const tabId = tab.getAttribute('data-tab')
-        document.getElementById(tabId).classList.add('active')
+        const targetPane = document.getElementById(tabId)
+        if (targetPane) targetPane.classList.add('active')
       })
     })
   }
@@ -1015,6 +1145,10 @@ document.addEventListener('DOMContentLoaded', () => {
     allLi.className = currentGroup.name === '全部' ? 'active' : ''
     allLi.addEventListener('click', () => {
       currentGroup = { id: 0, name: '全部', fileNames: null }
+
+      // 同步到全局变量
+      window.currentGroup = currentGroup
+
       filterMockList()
     })
     groupTreeList.appendChild(allLi)
@@ -1029,6 +1163,10 @@ document.addEventListener('DOMContentLoaded', () => {
         li.addEventListener('click', (e) => {
           e.stopPropagation()
           currentGroup = { id: Number(key), name: key, fileNames: null }
+
+          // 同步到全局变量
+          window.currentGroup = currentGroup
+
           filterMockList()
         })
         // 子节点
@@ -1133,6 +1271,10 @@ document.addEventListener('DOMContentLoaded', () => {
           name: data.node.text,
           fileNames: data.node.data && data.node.data.files ? data.node.data.files : null,
         }
+
+        // 同步到全局变量，供AI代码生成器使用
+        window.currentGroup = currentGroup
+
         // 每次切换分组都刷新mockItems
         await loadMockList()
         filterMockList()
@@ -1296,13 +1438,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('confirm-action').textContent = '确定'
     // 解绑旧事件，绑定关闭
     document.getElementById('confirm-action').onclick = function () {
-      confirmModal.classList.remove('active')
+      confirmModal.classList.remove('show')
       // 恢复按钮
       document.getElementById('confirm-cancel').style.display = ''
       document.getElementById('confirm-action').textContent = '确认'
       document.getElementById('confirm-action').onclick = handleConfirmAction
     }
-    confirmModal.classList.add('active')
+    confirmModal.style.display = 'flex'
+    confirmModal.classList.add('show')
   }
 
   // ====== 自动生成字段说明/类型 ======
@@ -1339,11 +1482,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isMockTemplate && window.Mock) {
           try {
             val = Mock.mock(val)
-          } catch { }
+          } catch {}
         }
         const descObj = genDescObj(val)
         descInput.value = JSON.stringify(descObj, null, 2)
-      } catch { }
+      } catch {}
     })
   }
   autoGenDesc('queryParams', 'queryParamsDesc', true)
@@ -1352,11 +1495,14 @@ document.addEventListener('DOMContentLoaded', () => {
   autoGenDesc('pathContent', 'pathContentDesc', true)
 
   // 文件操作按钮
-  document.getElementById('file-manager-btn').addEventListener('click', () => {
-    if (window.fileManager) {
-      window.fileManager.showFileOperationModal()
-    }
-  })
+  const fileManagerBtn = document.getElementById('file-manager-btn')
+  if (fileManagerBtn) {
+    fileManagerBtn.addEventListener('click', () => {
+      if (window.fileManager) {
+        window.fileManager.showFileOperationModal()
+      }
+    })
+  }
 
   // ====== 清空本地目录按钮事件绑定 ======
   const clearLocalDirBtn = document.getElementById('clear-local-directory-btn')

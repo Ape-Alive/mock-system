@@ -13,13 +13,22 @@ class CodeGenerator {
     this.allMockItems = []
     this.filteredMockItems = []
     this.currentGroup = window.currentGroup || { id: 0, name: '全部', fileNames: null }
-    // 绑定代码预览模态框关闭按钮事件
+
+    // 确保弹窗初始状态为隐藏
     setTimeout(() => {
+      if (this.modal) {
+        this.modal.style.display = 'none'
+      }
+      if (this.previewModal) {
+        this.previewModal.style.display = 'none'
+      }
+
+      // 绑定代码预览模态框关闭按钮事件
       const previewCloseButtons = document.querySelectorAll('#code-preview-modal .close')
-      previewCloseButtons.forEach(btn => {
+      previewCloseButtons.forEach((btn) => {
         btn.onclick = () => this.closePreviewModal()
       })
-    }, 0)
+    }, 100)
   }
 
   initElements() {
@@ -37,7 +46,7 @@ class CodeGenerator {
     this.generatedCode = document.getElementById('generated-code')
     this.previewFrame = document.getElementById('code-preview-frame')
     this.downloadBtn = document.getElementById('download-code')
-    this.closeButtons = document.querySelectorAll('#code-generator-modal .close')
+    this.closeButtons = document.querySelectorAll('#code-generator-modal .modal-close')
     this.previewCloseButtons = document.querySelectorAll('#code-preview-modal .close')
 
     // 新增元素
@@ -483,42 +492,78 @@ class CodeGenerator {
   }
 
   bindEvents() {
-    document.getElementById('code-generator-btn').addEventListener('click', async () => {
-      // 1. 检查是否有初始工作目录
-      const res = await fetch('/api/file/directory')
-      const data = await res.json()
-      if (!data.success || !data.data.directory) {
-        // 没有设置目录，弹出选择目录弹窗
-        this.showSelectDirectoryModal()
-        return
-      }
-      // 有目录，正常打开生成器弹窗
-      this.openModal()
-    })
+    // 程序坞中的代码生成器按钮事件由 dock.js 处理
+    // 这里只处理弹窗内部的事件
+
+    // 检查是否有代码生成器按钮（可能不存在）
+    const codeGeneratorBtn = document.getElementById('code-generator-btn')
+    if (codeGeneratorBtn) {
+      codeGeneratorBtn.addEventListener('click', async () => {
+        // 1. 检查是否有初始工作目录
+        const res = await fetch('/api/file/directory')
+        const data = await res.json()
+        if (!data.success || !data.data.directory) {
+          // 没有设置目录，弹出选择目录弹窗
+          this.showSelectDirectoryModal()
+          return
+        }
+        // 有目录，正常打开生成器弹窗
+        this.openModal()
+      })
+    }
 
     // 绑定代码生成模态框的关闭按钮
-    this.closeButtons.forEach((btn) => {
-      btn.addEventListener('click', () => this.closeModal())
+    console.log('绑定关闭按钮，数量:', this.closeButtons.length)
+    this.closeButtons.forEach((btn, index) => {
+      console.log(`绑定关闭按钮 ${index}:`, btn)
+      btn.addEventListener('click', () => {
+        console.log(`关闭按钮 ${index} 被点击`)
+        this.closeModal()
+      })
     })
+
+    // 绑定取消按钮
+    const cancelBtn = document.getElementById('code-generator-cancel')
+    if (cancelBtn) {
+      console.log('绑定取消按钮:', cancelBtn)
+      cancelBtn.addEventListener('click', () => {
+        console.log('取消按钮被点击')
+        this.closeModal()
+      })
+    } else {
+      console.error('找不到取消按钮')
+    }
 
     // 绑定代码预览模态框的关闭按钮
     this.previewCloseButtons.forEach((btn) => {
       btn.addEventListener('click', () => this.closePreviewModal())
     })
 
-    this.techStackSelect.addEventListener('change', () => {
-      this.onTechStackChange()
-    })
-    this.uiLibrarySelect.addEventListener('change', () => {
-      this.onUILibraryChange()
-    })
-    this.form.addEventListener('submit', (e) => {
-      e.preventDefault()
-      this.generateCode()
-    })
-    this.downloadBtn.addEventListener('click', () => {
-      this.downloadCode()
-    })
+    // 安全地绑定事件，检查元素是否存在
+    if (this.techStackSelect) {
+      this.techStackSelect.addEventListener('change', () => {
+        this.onTechStackChange()
+      })
+    }
+
+    if (this.uiLibrarySelect) {
+      this.uiLibrarySelect.addEventListener('change', () => {
+        this.onUILibraryChange()
+      })
+    }
+
+    if (this.form) {
+      this.form.addEventListener('submit', (e) => {
+        e.preventDefault()
+        this.generateCode()
+      })
+    }
+
+    if (this.downloadBtn) {
+      this.downloadBtn.addEventListener('click', () => {
+        this.downloadCode()
+      })
+    }
 
     // 绑定新的预览功能事件
     this.bindPreviewEvents()
@@ -653,18 +698,33 @@ class CodeGenerator {
     await this.loadInterfaceList()
     this.bindInterfaceSearch()
     setTimeout(() => this.syncSelectAllCheckbox(), 0)
-    this.modal.classList.add('active')
+
+    // 显示当前分组信息
+    this.showCurrentGroupInfo()
+
+    if (this.modal) {
+      this.modal.style.display = 'flex'
+      console.log('代码生成器弹窗已打开')
+    } else {
+      console.error('找不到弹窗元素，无法打开')
+    }
     this.addInsertButtonToCodeBlocks()
   }
 
   closeModal() {
-    this.modal.classList.remove('active')
+    console.log('关闭弹窗被调用')
+    if (this.modal) {
+      this.modal.style.display = 'none'
+      console.log('弹窗已隐藏')
+    } else {
+      console.error('找不到弹窗元素')
+    }
     this.form.reset()
     this.customLibraryGroup.style.display = 'none'
   }
 
   closePreviewModal() {
-    this.previewModal.classList.remove('active')
+    this.previewModal.style.display = 'none'
     this.previewModal.classList.remove('fullscreen') // 修复：关闭时移除全屏状态
     // 还原全屏按钮图标
     if (this.fullscreenToggleBtn) {
@@ -676,7 +736,7 @@ class CodeGenerator {
   }
 
   openPreviewModal() {
-    this.previewModal.classList.add('active')
+    this.previewModal.style.display = 'flex'
     // 默认最大化（全屏）
     if (!this.previewModal.classList.contains('fullscreen')) {
       this.previewModal.classList.add('fullscreen')
@@ -717,30 +777,95 @@ class CodeGenerator {
   }
 
   async loadInterfaceList() {
-    // 直接用主页传递的接口列表，保证和主页一致
-    const mockItems = window.currentFilteredMockItems || []
+    // 优先使用主页传递的接口列表，如果没有则重新获取
+    let mockItems = window.currentFilteredMockItems || []
+
+    // 如果全局变量为空，尝试从主页获取当前分组信息
+    if (mockItems.length === 0 && window.currentGroup) {
+      try {
+        // 获取所有接口列表
+        const response = await fetch('/api/mock-list')
+        if (response.ok) {
+          const allMockItems = await response.json()
+
+          // 根据当前分组过滤接口
+          if (window.currentGroup.id === 0) {
+            // 全部
+            mockItems = allMockItems
+          } else if (window.currentGroup.id === -1) {
+            // 未分组
+            mockItems = allMockItems.filter((item) => !item.group && !item.pathName)
+          } else if (Array.isArray(window.currentGroup.fileNames)) {
+            // 特定分组
+            mockItems = allMockItems.filter((item) => window.currentGroup.fileNames.includes(item.fileName))
+          } else {
+            mockItems = allMockItems
+          }
+        }
+      } catch (error) {
+        console.error('AI代码生成器：获取接口列表失败:', error)
+      }
+    }
+
     this.allMockItems = mockItems
     this.filteredMockItems = mockItems
     this.renderInterfaceList(mockItems)
+
+    // 更新全局变量，确保同步
+    window.currentFilteredMockItems = mockItems
+  }
+
+  // 显示当前分组信息
+  showCurrentGroupInfo() {
+    if (window.currentGroup) {
+      const groupName = window.currentGroup.name || '全部'
+      const interfaceCount = this.filteredMockItems.length
+
+      // 在接口选择器上方显示分组信息
+      const groupInfoElement = document.getElementById('interface-group-info')
+      if (groupInfoElement) {
+        groupInfoElement.textContent = `当前分组：${groupName} (${interfaceCount}个接口)`
+        groupInfoElement.style.display = 'block'
+      }
+    }
   }
 
   renderInterfaceList(list) {
     this.interfaceSelector.innerHTML = ''
+
+    if (list.length === 0) {
+      // 如果没有接口，显示提示信息
+      const noDataDiv = document.createElement('div')
+      noDataDiv.className = 'interface-no-data'
+      noDataDiv.innerHTML = `
+        <div style="text-align: center; padding: 20px; color: var(--text-secondary);">
+          <i class="fas fa-info-circle" style="font-size: 24px; margin-bottom: 8px;"></i>
+          <div>当前分组下暂无接口</div>
+          <div style="font-size: 12px; margin-top: 4px;">请先在左侧选择其他分组或创建接口</div>
+        </div>
+      `
+      this.interfaceSelector.appendChild(noDataDiv)
+      return
+    }
+
     list.forEach((item) => {
       const div = document.createElement('div')
       div.className = 'interface-item'
       div.innerHTML = `
-                    <label class="interface-checkbox">
-                        <input type="checkbox" value="${item.fileName}">
-                        <span class="interface-info">
-                            <span class="interface-name">${item.pathName}</span>
-                            <span class="interface-path">${item.path}</span>
-                            <span class="interface-method ${item.pathType.toLowerCase()}">${item.pathType}</span>
-                        </span>
-                    </label>
-                `
+        <label class="interface-checkbox">
+          <input type="checkbox" value="${item.fileName || item.name || ''}">
+          <span class="interface-info">
+            <span class="interface-name">${item.pathName || item.name || '未命名接口'}</span>
+            <span class="interface-path">${item.path || item.endpoint || ''}</span>
+            <span class="interface-method ${(item.pathType || item.method || 'GET').toLowerCase()}">${
+        item.pathType || item.method || 'GET'
+      }</span>
+          </span>
+        </label>
+      `
       this.interfaceSelector.appendChild(div)
     })
+
     // 渲染后自动同步全选状态
     setTimeout(() => this.syncSelectAllCheckbox(), 0)
     // 绑定全选事件
@@ -750,16 +875,33 @@ class CodeGenerator {
   bindInterfaceSearch() {
     const searchInput = document.getElementById('interface-search')
     if (!searchInput) return
-    searchInput.addEventListener('input', (e) => {
+
+    // 移除之前的事件监听器，避免重复绑定
+    searchInput.removeEventListener('input', this._searchHandler)
+
+    // 创建新的搜索处理函数
+    this._searchHandler = (e) => {
       const keyword = e.target.value.trim().toLowerCase()
-      const filtered = this.filteredMockItems.filter(
+
+      if (!keyword) {
+        // 如果搜索关键词为空，显示所有接口
+        this.renderInterfaceList(this.filteredMockItems)
+        return
+      }
+
+      // 在当前分组的所有接口中搜索
+      const filtered = this.allMockItems.filter(
         (item) =>
-          item.pathName.toLowerCase().includes(keyword) ||
-          item.path.toLowerCase().includes(keyword) ||
+          (item.pathName && item.pathName.toLowerCase().includes(keyword)) ||
+          (item.path && item.path.toLowerCase().includes(keyword)) ||
           (item.pathType && item.pathType.toLowerCase().includes(keyword))
       )
+
       this.renderInterfaceList(filtered)
-    })
+    }
+
+    // 绑定搜索事件
+    searchInput.addEventListener('input', this._searchHandler)
   }
 
   async generateCode() {
@@ -794,7 +936,7 @@ class CodeGenerator {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
-        signal: this.streamingController.signal
+        signal: this.streamingController.signal,
       })
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
       const reader = response.body.getReader()
@@ -822,7 +964,7 @@ class CodeGenerator {
                 fullContent += parsed.content
                 this.updateStreamingContent(fullContent)
               }
-            } catch (e) { }
+            } catch (e) {}
           }
         }
       }
@@ -2209,7 +2351,7 @@ class CodeGenerator {
 
   async insertCodeToLocal(dir, fileName, code) {
     // 修复：根目录时不要多加斜杠
-    const filePath = (!dir || dir === '') ? fileName : (dir.endsWith('/') ? dir + fileName : dir + '/' + fileName)
+    const filePath = !dir || dir === '' ? fileName : dir.endsWith('/') ? dir + fileName : dir + '/' + fileName
     try {
       const res = await fetch('/api/file/write', {
         method: 'POST',

@@ -159,7 +159,7 @@ class AIAgentManager {
   // 初始化Monaco编辑器
   async initMonacoEditor() {
     return new Promise((resolve) => {
-      require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } })
+      require.config({ paths: { vs: 'https://unpkg.com/monaco-editor@0.44.0/min/vs' } })
       require(['vs/editor/editor.main'], () => {
         this.editor = monaco.editor.create(document.getElementById('monaco-editor'), {
           value: '// 欢迎使用AI Agent代码管理\n// 请选择左侧文件开始编辑',
@@ -305,6 +305,9 @@ class AIAgentManager {
 
     // 初始化时设置 AI 面板高度
     this.adjustAiPanelHeight()
+
+    // 初始化模式切换器
+    this.initModeSwitcher()
 
     // 其他事件
     document.getElementById('open-terminal-btn').addEventListener('click', () => this.openTerminal())
@@ -684,15 +687,59 @@ class AIAgentManager {
     if (tabData) {
       this.currentFile = filePath
 
-      // 如果是对比 tab，重新创建 Diff Editor
-      if (tabData.isDiff && tabData.diffData) {
+      // 如果是iframe tab，特殊处理（只显示/隐藏）
+      if (tabData.isIframe && tabData.iframeSrc) {
+        console.log('切换到iframe tab:', tabData.fileName)
+
+        // 添加调试信息
+        this.debugIframeState(filePath)
+
+        // 直接调用iframe编辑器方法，它会处理显示/隐藏
+        this.createOrUpdateIframeEditor(filePath, tabData.iframeSrc, tabData.iframeOptions, false)
+      } else if (tabData.isDiff && tabData.diffData) {
+        // 如果是对比 tab，重新创建 Diff Editor
+        console.log('切换到diff tab:', tabData.fileName)
         this.recreateDiffEditor(tabData.diffData)
       } else {
         // 普通文件 tab - 需要确保是普通编辑器
+        console.log('切换到普通文件tab:', tabData.fileName)
+        this.clearEditorContainer()
         this.recreateNormalEditor(tabData.content, filePath)
       }
     } else {
       console.error('找不到 tab 数据:', filePath)
+    }
+  }
+
+  // 清理编辑器容器
+  clearEditorContainer() {
+    console.log('清理编辑器容器')
+
+    const editorContainer = document.getElementById('monaco-editor')
+    if (!editorContainer) return
+
+    // 清除可能存在的按钮容器
+    const existingButtons = editorContainer.querySelector('div[style*="position: absolute"]')
+    if (existingButtons) {
+      existingButtons.remove()
+    }
+
+    // 隐藏所有iframe，保持状态（使用visibility）
+    this.hideAllIframes()
+
+    // 清理编辑器容器内的内容，但保留iframe和Monaco编辑器相关元素
+    const allElements = editorContainer.children
+    for (let i = allElements.length - 1; i >= 0; i--) {
+      const element = allElements[i]
+      // 保留iframe、iframe-loading元素，以及Monaco编辑器相关的元素
+      if (
+        element.tagName !== 'IFRAME' &&
+        !element.classList.contains('iframe-loading') &&
+        !element.classList.contains('monaco-editor') &&
+        !element.classList.contains('overflow-guard')
+      ) {
+        element.remove()
+      }
     }
   }
 
@@ -701,11 +748,19 @@ class AIAgentManager {
     if (typeof require !== 'undefined') {
       require.config({ paths: { vs: 'https://unpkg.com/monaco-editor@0.44.0/min/vs' } })
       require(['vs/editor/editor.main'], () => {
-        console.log('重新创建 Monaco Diff Editor')
+        console.log('重新创建 Monaco Diff Editor:', diffData.path)
 
         // 销毁当前编辑器
         if (this.editor) {
           this.editor.dispose()
+          this.editor = null
+        }
+
+        // 获取编辑器容器
+        const editorContainer = document.getElementById('monaco-editor')
+        if (!editorContainer) {
+          console.error('找不到编辑器容器')
+          return
         }
 
         // 根据文件扩展名设置语言
@@ -716,7 +771,7 @@ class AIAgentManager {
         const modifiedModel = monaco.editor.createModel(diffData.newContent || '', language)
 
         // 创建 Diff Editor
-        this.editor = monaco.editor.createDiffEditor(document.getElementById('monaco-editor'), {
+        this.editor = monaco.editor.createDiffEditor(editorContainer, {
           theme: 'vs-dark',
           readOnly: true,
           automaticLayout: true,
@@ -739,7 +794,6 @@ class AIAgentManager {
         })
 
         // 添加应用和拒绝按钮到编辑器容器
-        const editorContainer = document.getElementById('monaco-editor')
         const buttonContainer = document.createElement('div')
         buttonContainer.style.cssText = `
           position: absolute;
@@ -804,31 +858,42 @@ class AIAgentManager {
 
   // 重新创建普通编辑器
   recreateNormalEditor(content, filePath) {
+    console.log('开始重新创建普通编辑器，文件:', filePath)
+    console.log('require可用性:', typeof require !== 'undefined')
+    console.log('monaco可用性:', typeof monaco !== 'undefined')
+
     if (typeof require !== 'undefined') {
       require.config({ paths: { vs: 'https://unpkg.com/monaco-editor@0.44.0/min/vs' } })
       require(['vs/editor/editor.main'], () => {
-        console.log('重新创建普通 Monaco Editor')
+        console.log('重新创建普通 Monaco Editor:', filePath)
 
         // 销毁当前编辑器
         if (this.editor) {
           this.editor.dispose()
+          this.editor = null
         }
 
-        // 清除可能存在的按钮容器
+        // 获取编辑器容器
         const editorContainer = document.getElementById('monaco-editor')
-        const existingButtons = editorContainer.querySelector('div[style*="position: absolute"]')
-        if (existingButtons) {
-          existingButtons.remove()
+        if (!editorContainer) {
+          console.error('找不到编辑器容器')
+          return
         }
+
+        // 清空编辑器容器，但保留iframe
+        this.clearEditorContainer()
 
         // 根据文件扩展名设置语言
         const fileExt = filePath.split('.').pop().toLowerCase()
         const language = this.getMonacoLanguage(fileExt)
 
         // 创建普通编辑器
-        this.editor = monaco.editor.create(document.getElementById('monaco-editor'), {
+        console.log('准备创建Monaco编辑器，容器:', editorContainer)
+        console.log('容器内容:', editorContainer.innerHTML)
+
+        this.editor = monaco.editor.create(editorContainer, {
           value: content,
-          language: language,
+          language,
           theme: 'vs-dark',
           automaticLayout: true,
           minimap: { enabled: true },
@@ -842,7 +907,7 @@ class AIAgentManager {
           },
         })
 
-        console.log('普通 Editor 重新创建成功')
+        console.log('普通 Editor 重新创建成功，编辑器实例:', this.editor)
       })
     }
   }
@@ -853,6 +918,16 @@ class AIAgentManager {
 
     const tab = document.querySelector(`[data-file="${filePath}"]`)
     if (tab) {
+      // 如果是iframe tab，清理iframe引用
+      const tabData = this.openTabs.get(filePath)
+      if (tabData && tabData.isIframe) {
+        console.log('清理iframe tab引用:', filePath)
+
+        // 清理iframe和加载指示器的引用
+        tabData.iframeElement = null
+        tabData.loadingElement = null
+      }
+
       tab.remove()
       this.openTabs.delete(filePath)
 
@@ -1677,8 +1752,8 @@ class AIAgentManager {
         }
 
         return `
-            <div class="diff-item">
-              <div class="diff-item-header">
+      <div class="diff-item">
+        <div class="diff-item-header">
                 <div class="diff-item-info">
                   <span class="file-path">${result.path}</span>
                   <span class="operation-badge ${operationClass}">${operationText}</span>
@@ -1686,16 +1761,16 @@ class AIAgentManager {
                   ${changeIdHtml}
                 </div>
                 <div class="diff-item-actions">
-                  <button class="btn secondary" onclick="aiAgent.showFileDiff(${idx})">对比</button>
+          <button class="btn secondary" onclick="aiAgent.showFileDiff(${idx})">对比</button>
                 </div>
               </div>
               <div class="diff-item-details">
                 <div class="change-reason">${result.reason || '无说明'}</div>
                 ${testStepsHtml}
                 ${rollbackStepsHtml}
-              </div>
-            </div>
-          `
+        </div>
+      </div>
+    `
       })
       .join('')
 
@@ -3434,6 +3509,152 @@ class AIAgentManager {
     this.showToast('设置功能开发中...', 'info')
   }
 
+  // 初始化模式切换器
+  initModeSwitcher() {
+    console.log('初始化模式切换器')
+
+    // 设置默认模式
+    this.currentMode = localStorage.getItem('aiAgentMode') || 'mock' // 默认改为mock模式
+    this.updateModeDisplay()
+
+    // 绑定模式选项点击事件
+    const modeOptions = document.querySelectorAll('.mode-option')
+    modeOptions.forEach((option) => {
+      option.addEventListener('click', () => {
+        const mode = option.dataset.mode
+        this.switchMode(mode)
+      })
+    })
+
+    // 绑定开关点击事件
+    const switchTrack = document.querySelector('.switch-track')
+    if (switchTrack) {
+      switchTrack.addEventListener('click', () => {
+        const newMode = this.currentMode === 'pure' ? 'mock' : 'pure'
+        this.switchMode(newMode)
+      })
+    }
+
+    // 初始化时应用当前模式
+    this.applyCurrentMode()
+  }
+
+  // 应用当前模式
+  applyCurrentMode() {
+    console.log('应用当前模式:', this.currentMode)
+
+    if (this.currentMode === 'mock') {
+      this.enableMockCodingMode()
+    } else {
+      this.enablePureCodingMode()
+    }
+  }
+
+  // 切换模式
+  switchMode(mode) {
+    console.log('切换模式:', mode)
+
+    if (this.currentMode === mode) return
+
+    this.currentMode = mode
+    localStorage.setItem('aiAgentMode', mode)
+
+    this.updateModeDisplay()
+    this.onModeChanged(mode)
+  }
+
+  // 更新模式显示
+  updateModeDisplay() {
+    const modeOptions = document.querySelectorAll('.mode-option')
+    const switchTrack = document.querySelector('.switch-track')
+
+    // 更新模式选项状态
+    modeOptions.forEach((option) => {
+      option.classList.toggle('active', option.dataset.mode === this.currentMode)
+    })
+
+    // 更新开关状态
+    if (switchTrack) {
+      switchTrack.classList.toggle('active', this.currentMode === 'mock')
+    }
+
+    // 更新标题显示
+    const modeTitle = document.querySelector('.mode-title')
+    if (modeTitle) {
+      const modeText = this.currentMode === 'pure' ? '纯编码模式' : 'Mock编码模式'
+      modeTitle.textContent = `AI Agent ${modeText}`
+    }
+  }
+
+  // 模式改变时的处理
+  onModeChanged(mode) {
+    console.log('模式已切换到:', mode)
+
+    if (mode === 'pure') {
+      // 纯编码模式：显示代码编辑相关功能
+      this.showToast('已切换到纯编码模式', 'success')
+      this.enablePureCodingMode()
+    } else {
+      // Mock编码模式：显示Mock数据相关功能
+      this.showToast('已切换到Mock编码模式', 'success')
+      this.enableMockCodingMode()
+    }
+  }
+
+  // 启用纯编码模式
+  enablePureCodingMode() {
+    // 显示代码编辑相关功能
+    const codeFeatures = document.querySelectorAll('.code-feature')
+    codeFeatures.forEach((feature) => {
+      feature.style.display = 'block'
+    })
+
+    // 隐藏Mock相关功能
+    const mockFeatures = document.querySelectorAll('.mock-feature')
+    mockFeatures.forEach((feature) => {
+      feature.style.display = 'none'
+    })
+
+    // 关闭Mock管理tab（如果存在）
+    this.closeIframeTab('mock-management')
+
+    // 更新AI助手的提示
+    this.updateAIAssistantPrompt('pure')
+  }
+
+  // 启用Mock编码模式
+  enableMockCodingMode() {
+    // 隐藏代码编辑相关功能
+    const codeFeatures = document.querySelectorAll('.code-feature')
+    codeFeatures.forEach((feature) => {
+      feature.style.display = 'none'
+    })
+
+    // 显示Mock相关功能
+    const mockFeatures = document.querySelectorAll('.mock-feature')
+    mockFeatures.forEach((feature) => {
+      feature.style.display = 'block'
+    })
+
+    // 自动创建Mock管理tab
+    this.createIframeTab('mock-management', 'Mock管理', 'http://localhost:3400/')
+
+    // 更新AI助手的提示
+    this.updateAIAssistantPrompt('mock')
+  }
+
+  // 更新AI助手提示
+  updateAIAssistantPrompt(mode) {
+    const aiInput = document.getElementById('user-input')
+    if (aiInput) {
+      if (mode === 'pure') {
+        aiInput.placeholder = '输入代码相关问题或需求...'
+      } else {
+        aiInput.placeholder = '输入Mock数据需求或API设计问题...'
+      }
+    }
+  }
+
   // 渲染Markdown摘要
   renderMarkdownSummary(content) {
     // 将Markdown转换为HTML
@@ -4717,6 +4938,298 @@ class AIAgentManager {
     const quotes = (content.match(/"/g) || []).length
 
     return openBraces !== closeBraces || openBrackets !== closeBrackets || quotes % 2 !== 0
+  }
+
+  // ==================== IFRAME TAB 管理方法 ====================
+
+  /**
+   * 创建iframe类型的tab
+   * @param {string} tabId - tab的唯一标识
+   * @param {string} tabName - tab显示名称
+   * @param {string} iframeSrc - iframe的源地址
+   * @param {Object} options - 可选配置项
+   */
+  createIframeTab(tabId, tabName, iframeSrc, options = {}) {
+    console.log(`创建iframe tab: ${tabName} (${tabId})`)
+
+    // 检查是否已经存在该tab
+    if (this.openTabs.has(tabId)) {
+      this.switchTab(tabId)
+      return
+    }
+
+    // 默认配置
+    const defaultOptions = {
+      width: '100%',
+      height: '100%',
+      allowFullscreen: true,
+      sandbox: 'allow-same-origin allow-scripts allow-forms allow-popups allow-modals',
+      ...options,
+    }
+
+    // 创建新标签页
+    const tabsContainer = document.querySelector('.editor-tabs')
+    const tab = document.createElement('div')
+    tab.className = 'tab'
+    tab.setAttribute('data-file', tabId)
+    tab.innerHTML = `
+      <span class="tab-name">${tabName}</span>
+      <button class="close-tab" data-file="${tabId}">
+        <i class="fas fa-times"></i>
+      </button>
+    `
+
+    // 绑定关闭事件
+    tab.querySelector('.close-tab').addEventListener('click', (e) => {
+      e.stopPropagation()
+      this.closeIframeTab(tabId)
+    })
+
+    // 绑定切换事件
+    tab.addEventListener('click', () => this.switchTab(tabId))
+
+    // 绑定双击事件 - 刷新iframe内容
+    tab.addEventListener('dblclick', (e) => {
+      e.stopPropagation()
+      console.log(`双击刷新iframe tab: ${tabName}`)
+      this.refreshIframeTab(tabId)
+    })
+
+    tabsContainer.appendChild(tab)
+
+    // 保存tab信息
+    this.openTabs.set(tabId, {
+      fileName: tabName,
+      content: '',
+      isIframe: true,
+      iframeSrc: iframeSrc,
+      iframeOptions: defaultOptions,
+      iframeElement: null, // 保存iframe元素引用
+      loadingElement: null, // 保存加载指示器引用
+    })
+
+    // 切换到新标签页
+    this.switchTab(tabId)
+  }
+
+  /**
+   * 关闭iframe类型的tab
+   * @param {string} tabId - tab的唯一标识
+   */
+  closeIframeTab(tabId) {
+    console.log(`关闭iframe tab: ${tabId}`)
+    this.closeTab(tabId)
+  }
+
+  /**
+   * 刷新iframe tab内容（双击时调用）
+   * @param {string} tabId - tab的唯一标识
+   */
+  refreshIframeTab(tabId) {
+    console.log(`刷新iframe tab: ${tabId}`)
+
+    const tabData = this.openTabs.get(tabId)
+    if (!tabData || !tabData.isIframe) {
+      console.error('找不到iframe tab数据:', tabId)
+      return
+    }
+
+    // 强制重新加载iframe
+    this.createOrUpdateIframeEditor(tabId, tabData.iframeSrc, tabData.iframeOptions, true)
+
+    // 显示刷新提示
+    this.showToast('Mock管理页面已刷新', 'success')
+  }
+
+  /**
+   * 隐藏所有iframe
+   */
+  hideAllIframes() {
+    const editorContainer = document.getElementById('monaco-editor')
+    if (!editorContainer) return
+
+    // 在编辑器容器中查找iframe
+    const iframes = editorContainer.querySelectorAll('iframe')
+    iframes.forEach((iframe) => {
+      iframe.style.visibility = 'hidden'
+    })
+
+    // 隐藏所有加载指示器
+    const loadingElements = editorContainer.querySelectorAll('.iframe-loading')
+    loadingElements.forEach((loading) => {
+      loading.style.visibility = 'hidden'
+    })
+
+    console.log('所有iframe已隐藏，数量:', iframes.length)
+  }
+
+  /**
+   * 调试iframe状态
+   * @param {string} tabId - tab的唯一标识
+   */
+  debugIframeState(tabId) {
+    const tabData = this.openTabs.get(tabId)
+    if (!tabData) {
+      console.log('找不到tab数据:', tabId)
+      return
+    }
+
+    console.log('=== iframe状态调试信息 ===')
+    console.log('Tab ID:', tabId)
+    console.log('Tab数据:', tabData)
+    console.log('iframe元素:', tabData.iframeElement)
+    console.log('加载指示器:', tabData.loadingElement)
+
+    if (tabData.iframeElement) {
+      console.log('iframe src:', tabData.iframeElement.src)
+      console.log('iframe visibility:', tabData.iframeElement.style.visibility)
+      console.log('iframe contentWindow:', tabData.iframeElement.contentWindow)
+      console.log('iframe contentDocument:', tabData.iframeElement.contentDocument)
+      console.log('iframe在容器中:', document.getElementById('monaco-editor').contains(tabData.iframeElement))
+    }
+
+    const editorContainer = document.getElementById('monaco-editor')
+    if (editorContainer) {
+      const iframes = editorContainer.querySelectorAll('iframe')
+      console.log('容器中的iframe数量:', iframes.length)
+      iframes.forEach((iframe, index) => {
+        console.log(`iframe ${index}:`, iframe)
+        console.log(`iframe ${index} visibility:`, iframe.style.visibility)
+        console.log(`iframe ${index} src:`, iframe.src)
+        console.log(`iframe ${index} 是否匹配当前tab:`, iframe === tabData.iframeElement)
+      })
+    }
+
+    console.log('=== 调试信息结束 ===')
+  }
+
+  /**
+   * 创建或更新iframe编辑器（支持缓存，避免重复加载）
+   * @param {string} tabId - tab的唯一标识
+   * @param {string} iframeSrc - iframe的源地址
+   * @param {Object} options - iframe配置选项
+   * @param {boolean} forceReload - 是否强制重新加载
+   */
+  createOrUpdateIframeEditor(tabId, iframeSrc, options = {}, forceReload = false) {
+    console.log(`创建或更新iframe编辑器: ${tabId}, 强制重载: ${forceReload}`)
+
+    // 销毁当前编辑器
+    if (this.editor) {
+      this.editor.dispose()
+      this.editor = null
+    }
+
+    // 获取编辑器容器
+    const editorContainer = document.getElementById('monaco-editor')
+    if (!editorContainer) {
+      console.error('找不到编辑器容器')
+      return
+    }
+
+    // 获取tab数据
+    const tabData = this.openTabs.get(tabId)
+    if (!tabData) {
+      console.error('找不到tab数据:', tabId)
+      return
+    }
+
+    // 如果已有iframe且不需要强制重载，直接显示
+    if (!forceReload && tabData.iframeElement) {
+      console.log('使用现有iframe，直接显示')
+
+      // 检查iframe是否在编辑器容器中
+      if (!editorContainer.contains(tabData.iframeElement)) {
+        console.log('iframe不在编辑器容器中，重新添加')
+        editorContainer.appendChild(tabData.iframeElement)
+        if (tabData.loadingElement) {
+          editorContainer.appendChild(tabData.loadingElement)
+        }
+      }
+
+      // 隐藏所有其他iframe
+      this.hideAllIframes()
+
+      // 显示当前iframe
+      tabData.iframeElement.style.visibility = 'visible'
+
+      if (tabData.loadingElement) {
+        tabData.loadingElement.style.visibility = 'hidden'
+      }
+
+      console.log('iframe已显示:', tabData.iframeElement.style.visibility)
+      return
+    }
+
+    // 需要创建新iframe或强制重载
+    if (forceReload && tabData.iframeElement) {
+      console.log('强制重载，移除旧iframe')
+      tabData.iframeElement.remove()
+      tabData.iframeElement = null
+      if (tabData.loadingElement) {
+        tabData.loadingElement.remove()
+        tabData.loadingElement = null
+      }
+    }
+
+    // 隐藏所有现有iframe
+    this.hideAllIframes()
+
+    // 创建新iframe
+    const iframe = document.createElement('iframe')
+    iframe.src = iframeSrc
+    iframe.style.width = options.width || '100%'
+    iframe.style.height = options.height || '100%'
+    iframe.style.border = 'none'
+    iframe.style.borderRadius = '4px'
+    iframe.style.position = 'absolute'
+    iframe.style.top = '0'
+    iframe.style.left = '0'
+    iframe.style.zIndex = '10'
+    iframe.allowFullscreen = options.allowFullscreen !== false
+    iframe.sandbox = options.sandbox || 'allow-same-origin allow-scripts allow-forms allow-popups allow-modals'
+
+    // 确保iframe相对于编辑器容器定位
+    if (editorContainer) {
+      editorContainer.style.position = 'relative'
+    }
+
+    // 创建加载指示器
+    const loadingDiv = document.createElement('div')
+    loadingDiv.className = 'iframe-loading'
+    loadingDiv.innerHTML = `
+      <div class="loading-spinner"></div>
+      <div>正在加载 ${iframeSrc}...</div>
+    `
+    loadingDiv.style.cssText = `
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: var(--text-secondary);
+      z-index: 20;
+    `
+
+    // 将iframe添加到编辑器容器内，使用绝对定位覆盖编辑器
+    editorContainer.appendChild(loadingDiv)
+    editorContainer.appendChild(iframe)
+
+    // 保存引用
+    tabData.iframeElement = iframe
+    tabData.loadingElement = loadingDiv
+
+    // 确保iframe可见
+    iframe.style.visibility = 'visible'
+
+    // iframe加载完成
+    iframe.onload = () => {
+      loadingDiv.style.visibility = 'hidden'
+      console.log('iframe加载完成:', iframeSrc)
+    }
+
+    // 设置编辑器引用为null
+    this.editor = null
+    console.log('iframe编辑器创建成功')
   }
 }
 

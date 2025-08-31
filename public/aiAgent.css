@@ -1,28 +1,28 @@
 /* CSS变量定义 */
 :root {
   /* 主题色彩 */
-  --primary-color: #3182ce;
-  --primary-hover: #2b6cb0;
-  --success-color: #48bb78;
-  --warning-color: #f6ad55;
-  --danger-color: #f56565;
-  --info-color: #38b2ac;
-  --muted-color: #a0aec0;
+  --primary-color: #007acc;
+  --primary-hover: #005a9e;
+  --success-color: #28a745;
+  --warning-color: #ffc107;
+  --danger-color: #dc3545;
+  --info-color: #17a2b8;
+  --muted-color: #858585;
 
   /* 背景色 */
-  --bg-primary: #1a202c;
-  --bg-secondary: #2d3748;
-  --bg-tertiary: #4a5568;
+  --bg-primary: #2d2d30;
+  --bg-secondary: #3c3c3c;
+  --bg-tertiary: #4a4a4a;
 
   /* 文字色 */
-  --text-primary: #ffffff;
-  --text-secondary: #e2e8f0;
-  --text-muted: #a0aec0;
-  --text-disabled: #718096;
+  --text-primary: #d4d4d4;
+  --text-secondary: #bdbdbd;
+  --text-muted: #858585;
+  --text-disabled: #5a5a5a;
 
   /* 边框色 */
-  --border-color: #2d3748;
-  --border-light: #4a5568;
+  --border-color: #3e3e42;
+  --border-light: #4a4a4a;
 
   /* 阴影 */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
@@ -78,6 +78,97 @@ body {
 .toolbar-left h1 i {
   margin-right: 8px;
   color: #007acc;
+}
+
+/* 模式切换器样式 */
+.mode-switcher {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.mode-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #d4d4d4;
+}
+
+.mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #2d2d30;
+  border: 1px solid #3e3e42;
+  border-radius: 20px;
+  padding: 4px;
+  position: relative;
+}
+
+.mode-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 12px;
+  font-weight: 500;
+  color: #858585;
+  min-width: 60px;
+  justify-content: center;
+}
+
+.mode-option.active {
+  background: #007acc;
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 122, 204, 0.3);
+}
+
+.mode-option:hover:not(.active) {
+  color: #bdbdbd;
+  background: #3c3c3c;
+}
+
+.mode-option i {
+  font-size: 14px;
+}
+
+.mode-switch {
+  position: relative;
+  width: 40px;
+  height: 20px;
+}
+
+.switch-track {
+  width: 100%;
+  height: 100%;
+  background: #3e3e42;
+  border-radius: 10px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.switch-track.active {
+  background: #007acc;
+}
+
+.switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.switch-track.active .switch-thumb {
+  transform: translateX(20px);
 }
 
 .toolbar-center {
@@ -337,6 +428,94 @@ body {
   color: var(--success-color);
 }
 
+/* 改进的文件树样式 */
+.file-tree::-webkit-scrollbar {
+  width: 8px;
+}
+
+.file-tree::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+.file-tree::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+.file-tree::-webkit-scrollbar-thumb:hover {
+  background: var(--border-light);
+}
+
+/* 确保文件树节点在深色背景下有足够的对比度 */
+.file-tree-node {
+  border: 1px solid transparent;
+}
+
+.file-tree-node:hover {
+  border-color: var(--border-light);
+}
+
+.file-tree-node.selected {
+  border-color: var(--primary-color);
+}
+
+/* 空文件树状态 */
+.no-files {
+  color: var(--text-muted);
+  text-align: center;
+  padding: var(--spacing-xl);
+  font-style: italic;
+}
+
+/* iframe加载状态样式 */
+.iframe-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 32px;
+  background: var(--bg-primary);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+/* iframe tab双击提示样式 */
+.tab[data-file*='mock'] {
+  cursor: pointer;
+}
+
+.tab[data-file*='mock']:hover::after {
+  content: '双击刷新';
+  position: absolute;
+  top: -25px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 1000;
+  opacity: 0.9;
+}
+
+.iframe-loading .loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border-color);
+  border-top: 3px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.iframe-loading div:last-child {
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+}
+
 .node-icon.text-muted {
   color: var(--muted-color);
 }
@@ -439,7 +618,7 @@ body {
   padding: 0 16px;
   background: #2d2d30;
   border-bottom: 1px solid #3e3e42;
-  min-height: 40px;
+  min-height: 50px;
 }
 
 .editor-tabs {
@@ -929,7 +1108,7 @@ body {
 }
 
 .modal {
-  background: #2d2d30;
+  background: #2a2a2a75;
   border: 1px solid #3e3e42;
   border-radius: 8px;
   min-width: 400px;
@@ -1110,7 +1289,7 @@ body {
   padding: 0 16px;
   background: #2d2d30;
   border-bottom: 1px solid #3e3e42;
-  min-height: 40px;
+  min-height: 50px;
 }
 
 .editor-tabs {

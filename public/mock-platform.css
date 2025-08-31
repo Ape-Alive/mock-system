@@ -1,0 +1,854 @@
+/* Mock接口管理平台样式 - 与主系统风格保持一致 */
+
+/* 导入主系统的CSS变量 */
+@import url('style.css');
+
+/* Mock平台主容器 */
+.mock-main-container {
+  display: flex;
+  /* gap: 24px; */
+  align-items: flex-start;
+  min-height: 100vh;
+  background-color: var(--dark-bg);
+  color: var(--dark-text);
+  /* padding: 20px; */
+}
+
+/* 侧边栏样式 */
+.mock-sidebar {
+  min-width: 300px;
+  max-width: 350px;
+  background-color: var(--dark-card);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--dark-border);
+}
+
+.mock-sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid var(--dark-border);
+}
+
+.mock-sidebar-title {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--dark-text);
+  margin: 0;
+}
+
+.mock-sidebar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.mock-btn-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: none;
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--dark-text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  font-size: 14px;
+}
+
+.mock-btn-icon:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.mock-btn-icon:active {
+  transform: translateY(0);
+}
+
+.mock-tree-container {
+  background-color: transparent;
+  border: none;
+  color: var(--dark-text);
+}
+
+/* 内容区域样式 */
+.mock-content-section {
+  flex: 1;
+  background-color: var(--dark-card);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--dark-border);
+  height: 100vh;
+}
+
+.mock-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid var(--dark-border);
+}
+
+.mock-section-title {
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: var(--dark-text);
+  margin: 0;
+}
+
+.mock-section-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* 搜索框样式 */
+.mock-search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.mock-search-box input {
+  width: 250px;
+  padding: 10px 40px 10px 12px;
+  border: 1px solid var(--dark-border);
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--dark-text);
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.mock-search-box input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  background-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+}
+
+.mock-search-box input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.mock-search-box i {
+  position: absolute;
+  right: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+}
+
+/* 按钮样式 */
+.mock-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.mock-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.mock-btn:active {
+  transform: translateY(0);
+}
+
+.mock-btn.primary {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.mock-btn.primary:hover {
+  background-color: var(--primary-dark);
+}
+
+.mock-btn.secondary {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--dark-text);
+  border: 1px solid var(--dark-border);
+}
+
+.mock-btn.secondary:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.mock-btn.danger {
+  background-color: var(--danger-color);
+  color: white;
+}
+
+.mock-btn.danger:hover {
+  background-color: #d63384;
+}
+
+/* 网格容器 */
+.mock-grid-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0);
+  border-radius: 16px;
+  /* border: 1px solid rgba(255, 255, 255, 0.05); */
+  height: calc(100vh - 200px);
+  overflow-y: auto;
+  /* max-width: 1400px; */
+  margin-left: auto;
+  margin-right: auto;
+  justify-content: center;
+}
+
+body.dark-theme .mock-grid-container {
+  /* background: rgba(255, 255, 255, 0.03); */
+  /* border: 1px solid #555; */
+  height: calc(100vh - 200px);
+  overflow-y: auto;
+}
+
+/* 表格容器 */
+.mock-table-container {
+  margin-top: 16px;
+  overflow-x: auto;
+  height: calc(100vh - 200px); /* 固定高度，减去页面其他元素的高度 */
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  /* 移除 overflow-y，让表格内部处理滚动 */
+}
+
+.mock-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 0;
+  /* 设置表格容器为相对定位，为固定表头做准备 */
+  position: relative;
+}
+
+/* 表格头部固定 */
+.mock-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* 表格内容区域滚动 */
+.mock-table tbody {
+  max-height: calc(100vh - 250px); /* 减去表头和其他元素的高度 */
+  overflow-y: auto;
+  display: block;
+}
+
+.mock-table thead,
+.mock-table tbody tr {
+  display: table;
+  width: 100%;
+  table-layout: auto; /* 改为自动布局，根据内容调整列宽 */
+}
+
+.mock-table th,
+.mock-table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--dark-border);
+  white-space: normal; /* 允许内容换行 */
+  word-wrap: break-word; /* 长单词换行 */
+  word-break: break-all; /* 强制换行 */
+  min-width: 120px; /* 最小宽度 */
+  max-width: none; /* 移除最大宽度限制 */
+}
+
+.mock-table th {
+  background-color: rgba(255, 255, 255, 0.08);
+  font-weight: 600;
+  color: var(--dark-text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* 设置不同列的宽度比例 */
+.mock-table th:nth-child(1), /* 复选框列 */
+.mock-table td:nth-child(1) {
+  width: 50px;
+  text-align: center;
+}
+
+.mock-table th:nth-child(2), /* 接口名称列 */
+.mock-table td:nth-child(2) {
+  width: 25%;
+  min-width: 200px;
+}
+
+.mock-table th:nth-child(3), /* 请求路径列 */
+.mock-table td:nth-child(3) {
+  width: 30%;
+  min-width: 250px;
+}
+
+.mock-table th:nth-child(4), /* 请求类型列 */
+.mock-table td:nth-child(4) {
+  width: 100px;
+  text-align: center;
+}
+
+.mock-table th:nth-child(5), /* 创建时间列 */
+.mock-table td:nth-child(5) {
+  width: 150px;
+  text-align: center;
+}
+
+.mock-table th:nth-child(6), /* 操作列 */
+.mock-table td:nth-child(6) {
+  width: 200px;
+  text-align: center;
+}
+
+.mock-table td {
+  color: var(--dark-text);
+}
+
+.mock-table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* 优化表格行的高度和垂直对齐 */
+.mock-table tbody tr {
+  min-height: 60px; /* 确保行有足够高度显示换行内容 */
+}
+
+.mock-table td {
+  vertical-align: top; /* 内容顶部对齐 */
+  padding-top: 16px; /* 增加顶部内边距 */
+  padding-bottom: 16px; /* 增加底部内边距 */
+}
+
+/* 表格容器滚动条样式 */
+.mock-table-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.mock-table-container::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.mock-table-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.mock-table-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Firefox 滚动条样式 */
+.mock-table-container {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) rgba(255, 255, 255, 0.05);
+}
+
+/* 表格内容区域滚动条样式 */
+.mock-table tbody::-webkit-scrollbar {
+  width: 8px;
+}
+
+.mock-table tbody::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.mock-table tbody::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.mock-table tbody::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Firefox 表格内容滚动条样式 */
+.mock-table tbody {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) rgba(255, 255, 255, 0.05);
+}
+
+/* 响应式表格容器高度 */
+@media (max-width: 1200px) {
+  .mock-table-container {
+    height: calc(100vh - 200px);
+    overflow: hidden;
+  }
+  .mock-table tbody {
+    max-height: calc(100vh - 250px);
+  }
+}
+
+@media (max-width: 768px) {
+  .mock-table-container {
+    height: calc(100vh - 250px);
+  }
+  .mock-table tbody {
+    max-height: calc(100vh - 330px);
+  }
+}
+
+@media (max-width: 480px) {
+  .mock-table-container {
+    height: calc(100vh - 220px);
+  }
+  .mock-table tbody {
+    max-height: calc(100vh - 300px);
+  }
+}
+
+/* 模态框样式 */
+.mock-modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #2a2a2a75;
+  z-index: 10000;
+  backdrop-filter: blur(5px);
+  align-items: center;
+  justify-content: center;
+}
+
+.mock-modal.show {
+  display: flex;
+}
+
+.mock-modal-content {
+  background-color: #2a2a2a;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  border: 1px solid #444;
+  width: 800px;
+  max-width: 90vw;
+  max-height: 85vh;
+  overflow-y: auto;
+  position: relative;
+  margin: 20px;
+}
+
+.mock-modal-content.small {
+  width: 500px;
+  max-width: 90vw;
+}
+
+.mock-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #555;
+  background-color: #333;
+}
+
+.mock-modal-header h3 {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.mock-modal-body {
+  padding: 24px;
+  background-color: #2a2a2a;
+  color: #fff;
+}
+
+.mock-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px 24px;
+  border-top: 1px solid #555;
+  background-color: #333;
+}
+
+/* 表单样式 */
+.mock-form-group {
+  margin-bottom: 20px;
+}
+
+.mock-form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #fff;
+  font-size: 14px;
+}
+
+.mock-form-group input,
+.mock-form-group select,
+.mock-form-group textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #555;
+  border-radius: 8px;
+  background-color: #333;
+  color: #fff;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.mock-form-group input:focus,
+.mock-form-group select:focus,
+.mock-form-group textarea:focus {
+  outline: none;
+  border-color: #007acc;
+  background-color: #444;
+  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+}
+
+.mock-form-group input::placeholder,
+.mock-form-group textarea::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.mock-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.mock-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #555;
+}
+
+/* JSON预览样式 */
+.mock-json-preview {
+  margin-top: 15px;
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #555;
+}
+
+.mock-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.mock-preview-header h4 {
+  margin: 0;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.mock-preview-notice {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background-color: rgba(17, 138, 178, 0.2);
+  border: 1px solid rgba(17, 138, 178, 0.3);
+  border-radius: 6px;
+  color: var(--info-color);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 标签页样式 */
+.mock-tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #555;
+}
+
+.mock-tab {
+  padding: 10px 20px;
+  background-color: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  border-bottom: 2px solid transparent;
+}
+
+.mock-tab:hover {
+  color: var(--dark-text);
+}
+
+.mock-tab.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+}
+
+.mock-tab-content {
+  margin-top: 16px;
+}
+
+.mock-tab-pane {
+  display: none;
+}
+
+.mock-tab-pane.active {
+  display: block;
+}
+
+/* 测试信息样式 */
+.mock-test-info {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 16px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid var(--dark-border);
+}
+
+.mock-test-method,
+.mock-test-url,
+.mock-test-status {
+  font-size: 14px;
+  color: var(--dark-text);
+}
+
+.mock-test-method::before {
+  content: '方法: ';
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+.mock-test-url::before {
+  content: 'URL: ';
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+.mock-test-status::before {
+  content: '状态: ';
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+/* 响应内容样式 */
+.mock-response-body,
+.mock-response-headers,
+.mock-request-headers,
+.mock-request-query,
+.mock-request-body {
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  padding: 12px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--dark-text);
+  border: 1px solid var(--dark-border);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* 关闭按钮样式 */
+.mock-btn-icon.close {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 20px;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.mock-btn-icon.close:hover {
+  color: #fff;
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* 响应式设计 */
+@media (max-width: 1400px) {
+  .mock-grid-container {
+    max-width: 100%;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    justify-content: center;
+  }
+}
+
+@media (max-width: 1200px) {
+  .mock-main-container {
+    /* flex-direction: column; */
+    /* gap: 16px; */
+  }
+
+  .mock-sidebar {
+    min-width: auto;
+    max-width: none;
+  }
+
+  .mock-form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .mock-grid-container {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 14px;
+  }
+}
+
+@media (max-width: 768px) {
+  .mock-main-container {
+    /* padding: 16px; */
+  }
+
+  .mock-sidebar,
+  .mock-content-section {
+    padding: 16px;
+  }
+
+  .mock-section-header {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .mock-search-box input {
+    width: 100%;
+  }
+
+  .mock-modal-content {
+    margin: 20px;
+    width: calc(100vw - 40px);
+    max-width: calc(100vw - 40px);
+  }
+
+  .mock-grid-container {
+    height: 500px;
+    gap: 12px;
+    padding: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .mock-modal-content {
+    margin: 10px;
+    width: calc(100vw - 20px);
+    max-width: calc(100vw - 20px);
+  }
+
+  .mock-modal-header,
+  .mock-modal-body,
+  .mock-modal-footer {
+    padding: 16px;
+  }
+
+  .mock-grid-container {
+    height: 400px;
+    gap: 10px;
+    padding: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    max-width: 100%;
+  }
+}
+
+/* 滚动条样式 */
+.mock-modal-content::-webkit-scrollbar,
+.mock-json-preview::-webkit-scrollbar,
+.mock-response-body::-webkit-scrollbar,
+.mock-response-headers::-webkit-scrollbar,
+.mock-request-headers::-webkit-scrollbar,
+.mock-request-query::-webkit-scrollbar,
+.mock-request-body::-webkit-scrollbar,
+.mock-grid-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.mock-modal-content::-webkit-scrollbar-track,
+.mock-json-preview::-webkit-scrollbar-track,
+.mock-response-body::-webkit-scrollbar-track,
+.mock-response-headers::-webkit-scrollbar-track,
+.mock-request-headers::-webkit-scrollbar-track,
+.mock-request-query::-webkit-scrollbar-track,
+.mock-request-body::-webkit-scrollbar-track,
+.mock-grid-container::-webkit-scrollbar-track {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.mock-modal-content::-webkit-scrollbar-thumb,
+.mock-json-preview::-webkit-scrollbar-thumb,
+.mock-response-body::-webkit-scrollbar-thumb,
+.mock-response-headers::-webkit-scrollbar-thumb,
+.mock-request-headers::-webkit-scrollbar-thumb,
+.mock-request-query::-webkit-scrollbar-thumb,
+.mock-request-body::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.mock-modal-content::-webkit-scrollbar-thumb:hover,
+.mock-json-preview::-webkit-scrollbar-thumb:hover,
+.mock-response-body::-webkit-scrollbar-thumb:hover,
+.mock-response-headers::-webkit-scrollbar-thumb:hover,
+.mock-request-headers::-webkit-scrollbar-thumb:hover,
+.mock-request-query::-webkit-scrollbar-thumb:hover,
+.mock-request-body::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+/* 确保弹窗内容在滚动时保持居中 */
+.mock-modal-content {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) rgba(255, 255, 255, 0.05);
+}
+
+/* mock-grid-container的滚动条样式 */
+.mock-grid-container {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) rgba(255, 255, 255, 0.05);
+}
+
+/* 深色主题下的滚动条样式 */
+body.dark-theme .mock-grid-container {
+  scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.08);
+}
+
+/* 优化网格布局，防止过宽的间距 */
+.mock-grid-container {
+  grid-auto-rows: min-content;
+}
+
+/* 确保卡片在网格中均匀分布 */
+.mock-grid-container > * {
+  justify-self: center;
+  width: 100%;
+  max-width: 400px;
+}
