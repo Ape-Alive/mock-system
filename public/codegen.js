@@ -997,6 +997,15 @@ class CodeGenerator {
           this.copyCode(button, codeElement.textContent)
         }
       }
+      // 插入代码按钮
+      if (e.target.closest('.insert-code-btn')) {
+        const button = e.target.closest('.insert-code-btn')
+        const codeId = button.getAttribute('data-code-id')
+        const codeElement = container.querySelector(`code[data-code-id="${codeId}"]`)
+        if (codeElement) {
+          this.handleInsertCode(button, codeElement)
+        }
+      }
       // 预览按钮
       if (e.target.closest('.preview-btn')) {
         const button = e.target.closest('.preview-btn')
@@ -1842,6 +1851,234 @@ class CodeGenerator {
         console.error('复制失败:', err)
         alert('复制失败，请手动复制')
       })
+  }
+
+  // 处理插入代码
+  handleInsertCode(button, codeElement) {
+    // 检查是否有选中的路径
+    if (!window.currentSelectedPath) {
+      this.showToast('请先在左侧文件树中选择目标文件或文件夹', 'warning')
+      return
+    }
+
+    const codeContent = codeElement.textContent
+    const fileName = codeElement.getAttribute('data-filename')
+    const language = codeElement.getAttribute('data-language')
+
+    // 显示插入确认对话框
+    this.showInsertCodeConfirm(codeContent, fileName, language, window.currentSelectedPath)
+  }
+
+  // 显示插入代码确认对话框
+  showInsertCodeConfirm(codeContent, fileName, language, selectedPath) {
+    const confirmModal = document.createElement('div')
+    confirmModal.className = 'insert-code-confirm-modal'
+    confirmModal.innerHTML = `
+      <div class="insert-code-confirm-content">
+        <div class="insert-code-confirm-header">
+          <h3><i class="fas fa-download"></i> 插入代码确认</h3>
+          <button class="close-btn">&times;</button>
+        </div>
+        <div class="insert-code-confirm-body">
+          <div class="path-info">
+            <strong>目标位置:</strong> 
+            <span class="target-path">${selectedPath.path}</span>
+            <span class="target-type">(${selectedPath.type === 'directory' ? '文件夹' : '文件同级目录'})</span>
+          </div>
+          <div class="file-info">
+            <strong>文件名:</strong> 
+            <input type="text" class="file-name-input" value="${fileName}" placeholder="请输入文件名">
+            <span class="language-badge">${language.toUpperCase()}</span>
+            <div class="file-name-tips">
+              <small>支持字母、数字、下划线和连字符，回车键快速确认</small>
+            </div>
+          </div>
+          <div class="code-preview">
+            <strong>代码预览:</strong>
+            <pre class="code-preview-content">${this.escapeHtml(codeContent.substring(0, 200))}${
+      codeContent.length > 200 ? '...' : ''
+    }</pre>
+          </div>
+        </div>
+        <div class="insert-code-confirm-footer">
+          <button class="btn secondary cancel-btn">取消</button>
+          <button class="btn primary confirm-btn">确认插入</button>
+        </div>
+      </div>
+    `
+
+    // 添加到页面
+    document.body.appendChild(confirmModal)
+
+    // 绑定事件
+    const closeBtn = confirmModal.querySelector('.close-btn')
+    const cancelBtn = confirmModal.querySelector('.cancel-btn')
+    const confirmBtn = confirmModal.querySelector('.confirm-btn')
+
+    const closeModal = () => {
+      document.body.removeChild(confirmModal)
+    }
+
+    closeBtn.addEventListener('click', closeModal)
+    cancelBtn.addEventListener('click', closeModal)
+    confirmBtn.addEventListener('click', () => {
+      this.executeInsertCode(codeContent, fileName, language, selectedPath)
+      closeModal()
+    })
+
+    // 点击遮罩关闭
+    confirmModal.addEventListener('click', (e) => {
+      if (e.target === confirmModal) {
+        closeModal()
+      }
+    })
+
+    // 自动聚焦到文件名输入框
+    const fileNameInput = confirmModal.querySelector('.file-name-input')
+    if (fileNameInput) {
+      fileNameInput.focus()
+      // 选中文件名部分（不包括扩展名）
+      const dotIndex = fileNameInput.value.lastIndexOf('.')
+      if (dotIndex > 0) {
+        fileNameInput.setSelectionRange(0, dotIndex)
+      } else {
+        fileNameInput.select()
+      }
+    }
+
+    // 支持回车键确认
+    fileNameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        confirmBtn.click()
+      }
+    })
+  }
+
+  // 根据语言获取默认文件扩展名
+  getDefaultExtension(language) {
+    const extensions = {
+      javascript: 'js',
+      js: 'js',
+      typescript: 'ts',
+      ts: 'ts',
+      vue: 'vue',
+      'vue-html': 'vue',
+      html: 'html',
+      css: 'css',
+      scss: 'scss',
+      less: 'less',
+      jsx: 'jsx',
+      tsx: 'tsx',
+      react: 'jsx',
+      python: 'py',
+      java: 'java',
+      cpp: 'cpp',
+      c: 'c',
+      go: 'go',
+      rust: 'rs',
+      php: 'php',
+      ruby: 'rb',
+      swift: 'swift',
+      kotlin: 'kt',
+      scala: 'scala',
+      dart: 'dart',
+      sql: 'sql',
+      json: 'json',
+      yaml: 'yml',
+      xml: 'xml',
+      markdown: 'md',
+      md: 'md',
+      shell: 'sh',
+      bash: 'sh',
+    }
+    return extensions[language.toLowerCase()] || 'txt'
+  }
+
+  // 执行插入代码
+  async executeInsertCode(codeContent, fileName, language, selectedPath) {
+    try {
+      // 从输入框获取用户修改后的文件名
+      const fileNameInput = document.querySelector('.file-name-input')
+      const finalFileName = fileNameInput ? fileNameInput.value.trim() : fileName
+
+      // 验证文件名
+      if (!finalFileName) {
+        this.showToast('请输入有效的文件名', 'error')
+        return
+      }
+
+      // 检查文件名是否包含非法字符
+      const invalidChars = /[<>:"/\\|?*]/
+      if (invalidChars.test(finalFileName)) {
+        this.showToast('文件名包含非法字符，请使用字母、数字、下划线和连字符', 'error')
+        return
+      }
+
+      // 检查文件名长度
+      if (finalFileName.length > 255) {
+        this.showToast('文件名过长，请使用少于255个字符的名称', 'error')
+        return
+      }
+
+      // 检查文件名是否包含扩展名，如果没有则添加默认扩展名
+      let finalFileNameWithExt = finalFileName
+      if (!finalFileName.includes('.')) {
+        const defaultExt = this.getDefaultExtension(language)
+        finalFileNameWithExt = `${finalFileName}.${defaultExt}`
+      }
+
+      // 确定目标路径
+      let targetPath
+      if (selectedPath.type === 'directory') {
+        // 如果是文件夹，在文件夹下创建新文件
+        targetPath = `${selectedPath.path}/${finalFileNameWithExt}`
+      } else {
+        // 如果是文件，在文件同级目录创建新文件
+        const parentDir = selectedPath.path.substring(0, selectedPath.path.lastIndexOf('/'))
+        targetPath = `${parentDir}/${finalFileNameWithExt}`
+      }
+
+      // 调用后端API创建文件
+      const response = await fetch('/api/file/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          filePath: targetPath,
+          content: codeContent,
+        }),
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        if (result.success) {
+          this.showToast(`代码已成功插入到 ${targetPath}`, 'success')
+
+          // 通知父页面刷新文件树
+          if (window.parent && window.parent !== window) {
+            window.parent.postMessage(
+              {
+                type: 'fileCreated',
+                value: {
+                  path: targetPath,
+                  content: codeContent,
+                },
+              },
+              '*'
+            )
+          }
+        } else {
+          this.showToast(`插入失败: ${result.error}`, 'error')
+        }
+      } else {
+        this.showToast(`插入失败: HTTP ${response.status}`, 'error')
+      }
+    } catch (error) {
+      this.showToast(`插入失败: ${error.message}`, 'error')
+      console.error('插入代码失败:', error)
+    }
   }
 
   refreshPreview() {

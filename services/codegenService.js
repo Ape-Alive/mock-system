@@ -134,7 +134,9 @@ class CodegenService {
       custom: customLibrary || '原生组件',
     }
     let prompt = `请使用${techStackMap[techStack]}技术栈，生成一个${
-      outputType === 'component' ? '可复用的组件' : '完整的可预览的html页面'
+      outputType === 'component'
+        ? '可复用的组件（需要有与后端接口的交互，名字不能和已有的组件名字重复）'
+        : '完整的可预览的html页面'
     }。\n\n`
     if (uiLibrary && uiLibrary !== 'custom') {
       prompt += `UI库要求：使用${uiLibraryMap[uiLibrary]}\n`
@@ -145,7 +147,9 @@ class CodegenService {
     prompt += `\n页面结构要求：\n${pageStructure}\n\n`
     prompt += `页面逻辑要求：\n${pageLogic}\n\n`
     prompt += `需要集成的接口信息：\n${apiDescription}\n\n`
-    prompt += `请生成完整的、可直接运行的代码，包括：\n1. 完整的组件/页面代码\n2. 必要的样式代码\n3. 接口调用逻辑\n4. 错误处理\n5. 加载状态处理\n6. 数据验证\n\n`
+    prompt += `请生成完整的、可直接运行的代码，包括：\n1. ${
+      outputType === 'component' ? '完整的组件代码（不是html代码）' : '完整的页面代码'
+    }\n2. 必要的样式代码\n3. 接口调用逻辑\n4. 错误处理\n5. 加载状态处理\n6. 数据验证\n\n`
     if (techStack === 'vue2') {
       prompt += `使用Vue 2 Options API，包含完整的组件结构。`
     } else if (techStack === 'vue3') {
@@ -155,6 +159,8 @@ class CodegenService {
     } else if (techStack === 'flutter') {
       prompt += `使用Flutter Widget，包含完整的页面结构。`
     }
+    // console.log('prompt', prompt)
+
     return prompt
   }
 

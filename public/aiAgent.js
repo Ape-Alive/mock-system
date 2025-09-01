@@ -15,6 +15,7 @@ class AIAgentManager {
     this.initResizeBar()
     this.initTerminalResizeBar() // 新增：初始化终端拖拽条
     this.renderPathList() // 初始化路径列表
+    this.initMockPlatformMessageListener() // 初始化Mock平台消息监听
     this.hideLoading()
   }
 
@@ -499,6 +500,9 @@ class AIAgentManager {
     }
 
     this.selectedNode = node
+
+    // 向Mock接口管理平台传递选中的路径信息
+    this.sendPathToMockPlatform(node)
   }
 
   // 切换目录展开/折叠
@@ -5230,6 +5234,57 @@ class AIAgentManager {
     // 设置编辑器引用为null
     this.editor = null
     console.log('iframe编辑器创建成功')
+  }
+
+  // 向Mock接口管理平台传递选中的路径信息
+  sendPathToMockPlatform(node) {
+    try {
+      // 查找Mock管理iframe
+      const mockIframe = document.querySelector('iframe[src*="localhost:3400"]')
+      if (mockIframe && mockIframe.contentWindow) {
+        // 发送路径信息到iframe
+        mockIframe.contentWindow.postMessage(
+          {
+            type: 'setPath',
+            value: {
+              type: node.type, // 'file' 或 'directory'
+              path: node.path, // 完整路径
+              name: node.name, // 文件名或文件夹名
+            },
+          },
+          '*'
+        )
+
+        console.log('已向Mock平台发送路径信息:', {
+          type: node.type,
+          path: node.path,
+          name: node.name,
+        })
+      } else {
+        console.log('Mock管理iframe未找到或未加载完成')
+      }
+    } catch (error) {
+      console.error('发送路径信息失败:', error)
+    }
+  }
+
+  // 监听来自Mock平台的文件创建成功消息
+  initMockPlatformMessageListener() {
+    window.addEventListener('message', (event) => {
+      if (event.data.type === 'refreshFileTree') {
+        console.log('收到Mock平台文件创建成功消息，刷新文件树:', event.data.value)
+
+        // 刷新文件树
+        this.loadFileTree()
+
+        // 高亮新创建的文件
+        if (event.data.value && event.data.value.path) {
+          setTimeout(() => {
+            this.highlightAndExpandTo(event.data.value.path)
+          }, 500)
+        }
+      }
+    })
   }
 }
 

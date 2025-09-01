@@ -533,6 +533,11 @@
                 <div class="status-indicator"></div>
                 <span class="status-text">准备就绪</span>
               </div>
+              <!-- 当前选中路径显示 -->
+              <div id="current-path-display" class="current-path-info" style="display: none; margin-left: 20px">
+                <i class="fas fa-map-marker-alt"></i>
+                <span id="current-path-text">未选择路径</span>
+              </div>
             </div>
             <div class="right-actions">
               <button id="download-code" class="btn secondary"><i class="fas fa-download"></i> 下载代码</button>
@@ -542,7 +547,7 @@
           <!-- 预览外包容器 -->
           <div class="preview-container" style="display: flex; align-items: flex-start; height: calc(100% - 72px)">
             <!-- 预览左侧代码区-->
-              <!-- 本地目录树面板 -->
+            <!-- 本地目录树面板 -->
             <!-- <div class="preview-left-code-area" style="height: 100%">
               <div id="codegen-filetree-panel" class="codegen-filetree-panel">
                 <div class="filetree-title">本地目录</div>
@@ -789,6 +794,56 @@
     <script src="script.js"></script>
     <script src="codegen.js"></script>
     <script src="dock.js"></script>
+
+    <!-- 路径传递和代码插入功能 -->
+    <script>
+      // 全局变量存储当前选中的路径
+      window.currentSelectedPath = null
+
+      // 监听来自父页面的消息
+      window.addEventListener('message', (event) => {
+        if (event.data.type === 'setPath') {
+          console.log('收到父页面的路径:', event.data.value)
+
+          // 保存选中的路径信息
+          window.currentSelectedPath = event.data.value
+
+          // 更新路径显示
+          updatePathDisplay(event.data.value)
+        }
+      })
+
+      // 更新路径显示
+      function updatePathDisplay(pathInfo) {
+        const pathDisplay = document.getElementById('current-path-display')
+        const pathText = document.getElementById('current-path-text')
+
+        if (pathDisplay && pathText) {
+          const typeText = pathInfo.type === 'directory' ? '文件夹' : '文件同级目录'
+          pathText.textContent = `${pathInfo.name} (${typeText})`
+          pathDisplay.style.display = 'block'
+        }
+      }
+
+      // 监听文件创建成功的消息，通知父页面刷新文件树
+      window.addEventListener('message', (event) => {
+        if (event.data.type === 'fileCreated') {
+          console.log('文件创建成功，通知父页面刷新:', event.data.value)
+
+          // 向父页面发送刷新文件树的消息
+          if (window.parent && window.parent !== window) {
+            window.parent.postMessage(
+              {
+                type: 'refreshFileTree',
+                value: event.data.value,
+              },
+              '*'
+            )
+          }
+        }
+      })
+    </script>
+
     <!-- 最后引入 Monaco Editor loader.js，只能有一处 -->
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
   </body>
