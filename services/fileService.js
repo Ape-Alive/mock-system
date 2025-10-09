@@ -58,6 +58,25 @@ class FileService {
     }
   }
 
+  // 路径归一化与安全校验（带目录参数）
+  normalizeFilePathWithDirectory(filePath, localDirectory) {
+    if (!localDirectory) throw new Error('本地目录未设置')
+    // 绝对路径转相对
+    if (path.isAbsolute(filePath)) {
+      if (filePath.startsWith(localDirectory)) {
+        return path.relative(localDirectory, filePath)
+      } else {
+        throw new Error('禁止跨目录操作')
+      }
+    }
+    // 防止 ../ 越权
+    const resolved = path.resolve(localDirectory, filePath)
+    if (!resolved.startsWith(localDirectory)) {
+      throw new Error('禁止越权操作')
+    }
+    return filePath
+  }
+
   // 路径归一化与安全校验
   normalizeFilePath(filePath) {
     if (!this.localDirectory) throw new Error('本地目录未设置')
@@ -93,7 +112,7 @@ class FileService {
       return [
         {
           name: rootName,
-          path: record && record.directory ? record.directory : targetPath,
+          path: '', // 修复：根目录的 path 应该是空字符串，表示相对于本地目录的根路径
           type: 'directory',
           children: children,
         },
@@ -149,11 +168,16 @@ class FileService {
 
   // 读取文件内容
   async readFile(filePath) {
-    if (!this.localDirectory) {
+    // 每次都从数据库获取最新的本地目录设置
+    const record = await dbService.getLocalDirectory()
+    const localDirectory = record ? record.directory : this.localDirectory
+    
+    if (!localDirectory) {
       throw new Error('本地目录未设置')
     }
-    const safePath = this.normalizeFilePath(filePath)
-    const fullPath = path.join(this.localDirectory, safePath)
+    
+    const safePath = this.normalizeFilePathWithDirectory(filePath, localDirectory)
+    const fullPath = path.join(localDirectory, safePath)
     try {
       const content = await fs.readFile(fullPath, 'utf8')
       return {
@@ -455,14 +479,17 @@ class FileService {
     if (forbidden.includes(resolved)) {
       throw new Error('禁止访问该目录')
     }
+
     try {
       const entries = await fs.readdir(resolved, { withFileTypes: true })
-      return entries
+      const directories = entries
         .filter((entry) => entry.isDirectory())
         .map((entry) => ({
           name: entry.name,
           path: path.join(resolved, entry.name),
         }))
+
+      return directories
     } catch (error) {
       throw new Error(`列举子目录失败: ${error.message}`)
     }

@@ -312,7 +312,7 @@ class AIAgentManager {
 
     // 其他事件
     document.getElementById('open-terminal-btn').addEventListener('click', () => this.openTerminal())
-    document.getElementById('settings-btn').addEventListener('click', () => this.showSettings())
+    // document.getElementById('settings-btn').addEventListener('click', () => this.showSettings())
   }
 
   // 加载欢迎内容
@@ -344,10 +344,33 @@ class AIAgentManager {
         this.fileTreeData = data.data
         this.renderFileTree()
       } else {
-        this.showError('加载文件树失败')
+        // 检查是否是本地目录未设置错误
+        if (data.error === '本地目录未设置') {
+          this.showDirectoryNotSetError()
+        } else {
+          this.showError('加载文件树失败')
+        }
       }
     } catch (error) {
       this.showError('加载文件树失败: ' + error.message)
+    }
+  }
+
+  // 显示本地目录未设置错误并弹出设置弹窗
+  showDirectoryNotSetError() {
+    // 显示错误提示
+    this.showError('本地目录未设置，请先配置项目目录')
+
+    // 弹出设置弹窗并跳转到常规设置
+    if (window.settingsManager) {
+      window.settingsManager.showSettings()
+      // 延迟一下确保弹窗已经显示
+      setTimeout(() => {
+        const generalTab = document.querySelector('[data-tab="general"]')
+        if (generalTab) {
+          generalTab.click()
+        }
+      }, 100)
     }
   }
 
@@ -3641,7 +3664,7 @@ class AIAgentManager {
     })
 
     // 自动创建Mock管理tab
-    this.createIframeTab('mock-management', 'Mock管理', 'http://localhost:3400/')
+    this.createIframeTab('mock-management', 'Mock管理', 'http://localhost:3400/mock-management.html')
 
     // 更新AI助手的提示
     this.updateAIAssistantPrompt('mock')
@@ -5202,7 +5225,7 @@ class AIAgentManager {
     loadingDiv.className = 'iframe-loading'
     loadingDiv.innerHTML = `
       <div class="loading-spinner"></div>
-      <div>正在加载 ${iframeSrc}...</div>
+      <div>正在加载 ...</div>
     `
     loadingDiv.style.cssText = `
       position: absolute;

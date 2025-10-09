@@ -1,0 +1,160 @@
+    <!-- 设置弹窗 -->
+    <div id="settings-modal" class="modal">
+      <div class="modal-content large">
+        <div class="modal-header">
+          <h3><i class="fas fa-cog"></i> 系统设置</h3>
+          <button class="btn-icon close" id="close-settings">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="settings-container">
+            <!-- 左侧菜单栏 -->
+            <div class="settings-sidebar">
+              <div class="settings-menu">
+                <div class="menu-item active" data-tab="models">
+                  <i class="fas fa-brain"></i>
+                  <span>模型</span>
+                </div>
+                <div class="menu-item" data-tab="default-model">
+                  <i class="fas fa-star"></i>
+                  <span>默认模型</span>
+                </div>
+                <div class="menu-item" data-tab="general">
+                  <i class="fas fa-sliders-h"></i>
+                  <span>常规设置</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 右侧内容区域 -->
+            <div class="settings-content">
+              <!-- 模型管理页面 -->
+              <div id="models-tab" class="settings-tab active">
+                <div class="tab-header">
+                  <h4>OpenAI</h4>
+                  <a href="https://openai.com" target="_blank" class="external-link">
+                    <i class="fas fa-external-link-alt"></i>
+                  </a>
+                </div>
+                
+                <div class="form-group">
+                  <label for="api-key">API 密钥</label>
+                  <div class="input-group">
+                    <input type="password" id="api-key" placeholder="请输入API密钥">
+                    <button type="button" class="btn-icon" id="toggle-api-key">
+                      <i class="fas fa-eye"></i>
+                    </button>
+                    <button type="button" class="btn secondary" id="check-api-key">检查</button>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="api-host">API 主机</label>
+                  <input type="text" id="api-host" value="https://api.openai.com" readonly>
+                  <input type="text" id="api-endpoint" value="https://api.openai.com/v1/chat/completions" readonly>
+                </div>
+
+                <div class="form-group">
+                  <label>模型</label>
+                  <div class="model-actions">
+                    <button type="button" class="btn primary" id="add-model">
+                      <i class="fas fa-plus"></i> 新建
+                    </button>
+                    <button type="button" class="btn secondary" id="reset-models">
+                      <i class="fas fa-sync-alt"></i> 重置
+                    </button>
+                    <button type="button" class="btn secondary" id="fetch-models">
+                      <i class="fas fa-download"></i> 获取
+                    </button>
+                  </div>
+                  <div class="model-list" id="model-list">
+                    <!-- 模型列表将在这里动态生成 -->
+                  </div>
+                </div>
+              </div>
+
+              <!-- 默认模型设置页面 -->
+              <div id="default-model-tab" class="settings-tab">
+                <div class="tab-header">
+                  <h4>默认模型设置</h4>
+                </div>
+                
+                <div class="form-group">
+                  <label for="default-model-select">选择默认模型</label>
+                  <select id="default-model-select" class="form-select">
+                    <option value="">请选择默认模型</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="model-temperature">温度 (Temperature)</label>
+                  <input type="range" id="model-temperature" min="0" max="2" step="0.1" value="0.7">
+                  <span class="range-value">0.7</span>
+                </div>
+
+                <div class="form-group">
+                  <label for="model-max-tokens">最大令牌数 (Max Tokens)</label>
+                  <input type="number" id="model-max-tokens" min="1" max="4096" value="2048">
+                </div>
+
+                <div class="form-group">
+                  <label for="model-top-p">Top P</label>
+                  <input type="range" id="model-top-p" min="0" max="1" step="0.1" value="1">
+                  <span class="range-value">1</span>
+                </div>
+              </div>
+
+              <!-- 常规设置页面 -->
+              <div id="general-tab" class="settings-tab">
+                <div class="tab-header">
+                  <h4>常规设置</h4>
+                </div>
+                
+                <div class="form-group">
+                  <label for="initial-directory">初始目录路径</label>
+                  <div class="input-group">
+                    <input type="text" id="initial-directory" placeholder="请输入初始目录路径">
+                    <button type="button" class="btn secondary" id="browse-directory">
+                      <i class="fas fa-folder-open"></i> 浏览
+                    </button>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="language-select">语言设置</label>
+                  <select id="language-select" class="form-select">
+                    <option value="zh-CN" selected>中文</option>
+                    <option value="en-US">English</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="theme-select">主题设置</label>
+                  <select id="theme-select" class="form-select">
+                    <option value="dark" selected>深色主题</option>
+                    <option value="light">浅色主题</option>
+                    <option value="auto">跟随系统</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="auto-save">自动保存</label>
+                  <div class="checkbox-group">
+                    <input type="checkbox" id="auto-save" checked>
+                    <label for="auto-save">启用自动保存</label>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="save-interval">保存间隔 (秒)</label>
+                  <input type="number" id="save-interval" min="10" max="300" value="30">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn secondary" id="cancel-settings">取消</button>
+          <button type="button" class="btn primary" id="save-settings">保存设置</button>
+        </div>
+      </div>
+    </div>

@@ -1,11 +1,7 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+  binaryTargets = ["native", "darwin", "darwin-arm64"]
 }
 
 datasource db {
@@ -14,28 +10,68 @@ datasource db {
 }
 
 model LocalDirectory {
-  id          Int     @id @default(1)
+  id          Int      @id @default(autoincrement())
   directory   String
   projectName String?
   updatedAt   DateTime @updatedAt
 }
 
-// LocalDirectory表已删除
-
 model FileVectorIndex {
-  id        Int    @id @default(autoincrement())
-  filePath  String @unique
-  fileHash  String
-  vectorId  Int
-  mtime     BigInt
+  id       Int    @id @default(autoincrement())
+  filePath String @unique
+  fileHash String
+  vectorId Int
+  mtime    BigInt
 }
 
 model FileHistory {
   id        Int      @id @default(autoincrement())
   filePath  String
   content   String
-  action    String   // 'create' | 'edit' | 'delete' | 'rename' | 'rollback'
-  operator  String?  // 可选，记录操作人
-  newPath   String?  // 重命名时的新路径
+  action    String
+  operator  String?
+  newPath   String?
   createdAt DateTime @default(now())
+}
+
+model AIProvider {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  displayName String
+  icon        String
+  host        String
+  endpoint    String
+  link        String
+  isActive    Boolean   @default(true)
+  isCustom    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  models      AIModel[]
+}
+
+model AIModel {
+  id          Int        @id @default(autoincrement())
+  name        String
+  displayName String?
+  providerId  Int
+  modelType   String     @default("LLM") // CODE, LLM, SWOT
+  isBeta      Boolean    @default(false)
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  provider    AIProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@unique([name, providerId])
+}
+
+model Settings {
+  id           Int      @id @default(autoincrement())
+  provider     String   @default("openai")
+  apiKeys      Json?
+  customApi    Json?
+  defaultModel String?
+  modelParams  Json?
+  general      Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }

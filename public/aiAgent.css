@@ -271,7 +271,7 @@ body {
 .main-content {
   display: flex;
   width: 100%;
-  height: 100%;
+  height: calc(100% - 60px);
   min-width: 0; /* 关键：防止被子项撑开 */
 }
 
@@ -1108,13 +1108,19 @@ body {
 }
 
 .modal {
-  background: #2a2a2a75;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #2a2a2af3;
   border: 1px solid #3e3e42;
   border-radius: 8px;
   min-width: 400px;
   max-width: 600px;
   max-height: 80vh;
   overflow: hidden;
+  z-index: 2001;
+  display: none; /* 默认隐藏 */
 }
 
 .modal-header {
@@ -2962,4 +2968,74 @@ body {
   word-wrap: break-word;
   overflow-wrap: break-word;
   max-width: 100%;
+}
+
+/* 目录列表样式 */
+#server-dir-list-embed-settings {
+  background: #2d2d30;
+  border: 1px solid #3e3e42;
+  border-radius: 6px;
+  margin-top: 8px;
+  margin-bottom: 8px;
+  height: 280px;
+  max-height: 280px;
+  overflow-y: auto;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+  padding: 8px 0;
+  z-index: 10;
+}
+
+.server-dir-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-radius: 4px;
+  margin-bottom: 2px;
+  font-size: 14px;
+  transition: background 0.15s;
+  color: #d4d4d4;
+}
+
+.server-dir-item:hover {
+  background: #3c3c3c;
+}
+
+.server-dir-item i {
+  margin-right: 8px;
+  color: #007acc;
+  font-size: 14px;
+}
+
+.server-dir-item span {
+  flex: 1;
+  user-select: none;
+}
+
+/* 深色主题下的目录列表样式 */
+body.dark-theme #server-dir-list-embed-settings {
+  background: #1e1e1e;
+  border-color: #3e3e42;
+}
+
+body.dark-theme .server-dir-item:hover {
+  background: #2d2d30;
+}
+
+/* 上级目录特殊样式 */
+.server-dir-item.parent-dir {
+  color: #ffc107;
+  font-style: italic;
+}
+
+.server-dir-item.parent-dir i {
+  color: #ffc107;
+}
+
+.server-dir-item.parent-dir:hover {
+  background: rgba(255, 193, 7, 0.1);
+}
+
+body.dark-theme .server-dir-item.parent-dir:hover {
+  background: rgba(255, 193, 7, 0.15);
 }

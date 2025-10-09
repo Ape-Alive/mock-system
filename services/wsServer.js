@@ -1,4 +1,4 @@
-const pty = require('node-pty')
+const pty = require('@xiaobaidadada/node-pty-prebuilt')
 const WebSocket = require('ws')
 const dbService = require('./dbService')
 const path = require('path')

@@ -1,20 +1,10 @@
 const config = require('../config')
 const mockService = require('./mockService')
-const OpenAI = require('openai')
+const aiService = require('./aiService')
 
 class CodegenService {
   constructor() {
-    this.deepseekConfig = {
-      baseURL: process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com',
-      apiKey: process.env.DEEPSEEK_API_KEY || 'sk- ',
-      model: 'deepseek-coder',
-    }
-    this.openai = new OpenAI({
-      baseURL: this.deepseekConfig.baseURL,
-      apiKey: this.deepseekConfig.apiKey,
-    })
-    console.log('codegenService.js 读取到的 DEEPSEEK_API_KEY:', process.env.DEEPSEEK_API_KEY)
-    console.log('最终 deepseekConfig.apiKey:', this.deepseekConfig.apiKey)
+    // 移除硬编码的配置，改为使用aiService
   }
 
   async generateCode(params) {
@@ -32,8 +22,9 @@ class CodegenService {
         apiDescription,
       })
 
-      // 如果没有配置API密钥，使用模拟代码生成
-      if (!this.deepseekConfig.apiKey) {
+      // 检查是否配置了API密钥
+      const hasAPIKey = await aiService.checkAPIKeyConfigured('CODE')
+      if (!hasAPIKey) {
         const mockCode = this.generateMockCode({
           techStack,
           outputType,
@@ -49,7 +40,7 @@ class CodegenService {
         }
       }
 
-      const code = await this.callDeepSeekAPI(prompt)
+      const code = await aiService.callAI(prompt, 'CODE')
       return { success: true, code, dependencies: this.getDependencies(techStack, uiLibrary, customLibrary) }
     } catch (error) {
       return { success: false, error: error.message }
@@ -159,57 +150,8 @@ class CodegenService {
     } else if (techStack === 'flutter') {
       prompt += `使用Flutter Widget，包含完整的页面结构。`
     }
-    // console.log('prompt', prompt)
 
     return prompt
-  }
-
-  async callDeepSeekAPI(prompt) {
-    if (!this.deepseekConfig.apiKey) {
-      throw new Error('DeepSeek API密钥未配置')
-    }
-    try {
-      const completion = await this.openai.chat.completions.create({
-        model: this.deepseekConfig.model,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7,
-        max_tokens: 4000,
-      })
-      if (completion.choices && completion.choices[0]) {
-        return completion.choices[0].message.content
-      } else {
-        throw new Error('API响应格式错误')
-      }
-    } catch (error) {
-      throw new Error(`DeepSeek API错误: ${error.message}`)
-    }
-  }
-
-  async callDeepSeekAPIStream(prompt, onChunk) {
-    if (!this.deepseekConfig.apiKey) {
-      throw new Error('DeepSeek API密钥未配置')
-    }
-    try {
-      const stream = await this.openai.chat.completions.create({
-        model: this.deepseekConfig.model,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7,
-        max_tokens: 4000,
-        stream: true,
-      })
-
-      let fullContent = ''
-      for await (const chunk of stream) {
-        const content = chunk.choices[0]?.delta?.content || ''
-        if (content) {
-          fullContent += content
-          onChunk(content, fullContent)
-        }
-      }
-      return fullContent
-    } catch (error) {
-      throw new Error(`DeepSeek API错误: ${error.message}`)
-    }
   }
 
   getDependencies(techStack, uiLibrary, customLibrary) {

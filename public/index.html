@@ -3,380 +3,587 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Mock接口管理平台</title>
-    <link rel="stylesheet" href="style.css" />
-    <link rel="stylesheet" href="preview-styles.css" />
-    <link rel="stylesheet" href="dock.css" />
-    <link rel="stylesheet" href="mock-platform.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" />
-    <script src="https://cdn.bootcdn.net/ajax/libs/Mock.js/1.0.0/mock-min.js"></script>
-    <!-- jQuery 必须最先引入，并全局暴露 -->
+    <title>AI Agent 代码管理</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    <link rel="stylesheet" href="aiAgent.css" />
+    <link rel="stylesheet" href="settings-modal.css" />
+    <!-- Marked.js for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@3.0.8/marked.min.js"></script>
+    <!-- Prism.js for syntax highlighting -->
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-java.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-go.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" />
+    <!-- jQuery 必须在 jsTree 之前引入 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-    <script>
-      window.$ = window.jQuery = $
-    </script>
-    <!-- jsTree 依赖 jQuery，紧随其后引入 -->
-    <script src="https://cdn.jsdelivr.net/npm/jstree@3.3.15/dist/jstree.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jstree@3.3.15/dist/themes/default/style.min.css" />
-    <!-- 其他依赖 -->
-    <link rel="stylesheet" href="style.css" />
-    <link rel="stylesheet" href="preview-styles.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" />
-    <script src="https://cdn.bootcdn.net/ajax/libs/Mock.js/1.0.0/mock-min.js"></script>
-    <!-- Prism.js 主题，只需引入一次 -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" />
+    <!-- jsTree 必须在 aiAgent.js 之前引入 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/jstree.min.js"></script>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/xterm/lib/xterm.js"></script> -->
+    <!-- <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit/lib/xterm-addon-fit.js"></script> -->
+    <!-- Monaco Editor -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
   </head>
-  <body class="dark-theme">
-    <!-- <header>
-      <div class="container">
-        <h1>Mock接口管理平台</h1>
-        <div class="actions">
-          <button id="theme-toggle" class="btn-icon">
-            <i class="fas fa-moon"></i>
-          </button>
-          <button id="file-manager-btn" class="btn secondary" title="文件操作">
-            <i class="fas fa-folder-open"></i> 文件操作
-          </button>
-          <button id="clear-local-directory-btn" class="btn danger" title="清空本地目录">
-            <i class="fas fa-eraser"></i> 清空本地目录
-          </button>
+  <body>
+    <div class="ai-agent-container">
+      <!-- 顶部工具栏 -->
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <div class="mode-switcher">
+            <div class="mode-toggle">
+              <div class="mode-option" data-mode="pure" title="纯编码模式">
+                <i class="fas fa-code"></i>
+                <span>纯编码</span>
+              </div>
+              <div class="mode-switch">
+                <div class="switch-track">
+                  <div class="switch-thumb"></div>
+                </div>
+              </div>
+              <div class="mode-option" data-mode="mock" title="Mock编码模式">
+                <i class="fas fa-mock"></i>
+                <span>Mock编码</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="toolbar-center">
+          <div class="search-container">
+            <input type="text" id="code-search" placeholder="搜索代码或文件..." />
+            <button id="search-btn"><i class="fas fa-search"></i></button>
+          </div>
+        </div>
+        <div class="toolbar-right">
+          <button id="open-terminal-btn" class="btn secondary"><i class="fas fa-terminal"></i> 打开终端</button>
+          <button id="settings-btn" class="btn secondary"><i class="fas fa-cog"></i> 设置</button>
         </div>
       </div>
-    </header> -->
 
-    <main class="mock-main-container">
-      <!-- 分组树形导航 -->
-      <aside id="group-tree" class="mock-sidebar">
-        <div class="mock-sidebar-header">
-          <h3 class="mock-sidebar-title">接口分组</h3>
-          <div class="mock-sidebar-actions">
-            <button id="delete-group-btn" class="mock-btn-icon" title="删除分组">
-              <i class="fas fa-trash"></i>
-            </button>
-            <button id="clear-group-btn" class="mock-btn-icon" title="清空分组接口">
-              <i class="fas fa-eraser"></i>
-            </button>
-            <button id="add-group-btn" class="mock-btn-icon" title="新增分组">
-              <i class="fas fa-plus"></i>
-            </button>
+      <!-- 主内容区域 -->
+      <div class="main-content">
+        <!-- 左侧目录树 -->
+        <div class="sidebar">
+          <div class="sidebar-header">
+            <h3><i class="fas fa-folder"></i> 项目文件</h3>
+            <div class="sidebar-actions">
+              <button id="refresh-tree" title="刷新"><i class="fas fa-sync-alt"></i></button>
+              <button id="new-file-btn" title="新建文件"><i class="fas fa-file"></i></button>
+              <button id="new-folder-btn" title="新建文件夹"><i class="fas fa-folder"></i></button>
+            </div>
+          </div>
+          <div id="file-tree" class="file-tree"></div>
+        </div>
+
+        <!-- 中间代码编辑器 -->
+        <div class="editor-container">
+          <div class="editor-header">
+            <div class="editor-tabs">
+              <div class="tab active" data-file="welcome">
+                <span>欢迎</span>
+                <button class="close-tab"><i class="fas fa-times"></i></button>
+              </div>
+            </div>
+            <div class="editor-actions">
+              <button id="save-file" title="保存"><i class="fas fa-save"></i></button>
+              <button id="format-code" title="格式化"><i class="fas fa-indent"></i></button>
+            </div>
+          </div>
+          <div id="monaco-editor" class="monaco-editor"></div>
+          <!-- 终端区域：使用绝对定位，不影响布局 -->
+          <div
+            id="terminal-panel"
+            style="
+              position: absolute;
+              bottom: 0;
+              left: 280px;
+              right: 350px;
+              height: 320px;
+              border-top: 1px solid #454545;
+              background: #fafbfc;
+              border-radius: 0 0 6px 6px;
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+              display: none;
+              z-index: 1000;
+            "
+          >
+            <!-- 拖拽条：放在终端面板顶部 -->
+            <div
+              id="terminal-resize-bar"
+              class="resize-bar"
+              style="
+                position: absolute;
+                top: -4px;
+                left: 0;
+                right: 0;
+                height: 8px;
+                background: transparent;
+                cursor: row-resize;
+                z-index: 1001;
+                display: none;
+              "
+            ></div>
+            <div
+              id="terminal-iframe-wrapper"
+              style="width: 100%; height: 320px; background: #181818; border-radius: 0 0 6px 6px"
+            >
+              <iframe
+                id="ai-terminal-iframe"
+                src="/terminal.html"
+                style="width: 100%; height: 100%; border: none; background: #181818; border-radius: 0 0 6px 6px"
+              ></iframe>
+            </div>
           </div>
         </div>
-        <div id="group-tree-jstree" class="mock-tree-container"></div>
-      </aside>
-
-      <section id="mock-list-section" class="mock-content-section">
-        <div class="mock-section-header">
-          <h2 class="mock-section-title">接口列表</h2>
-          <div class="mock-section-actions">
-            <div class="mock-search-box">
-              <input type="text" id="search-input" placeholder="搜索接口..." />
-              <i class="fas fa-search"></i>
+        <div id="ai-panel-resize-bar"></div>
+        <!-- 右侧AI助手和Diff -->
+        <div class="ai-panel">
+          <div class="ai-panel-header">
+            <div class="panel-tabs">
+              <button class="panel-tab active" data-panel="ai-assistant"><i class="fas fa-robot"></i> AI 助手</button>
+              <button class="panel-tab" data-panel="diff-view"><i class="fas fa-code-branch"></i> 代码对比</button>
+              <button class="panel-tab" data-panel="history"><i class="fas fa-history"></i> 历史记录</button>
             </div>
-            <button id="toggle-table-mode" class="mock-btn secondary" title="切换表格/卡片模式">
-              <i class="fas fa-table"></i>
-            </button>
           </div>
-        </div>
-        <div id="mock-list" class="mock-grid-container">
-          <!-- 接口列表将通过JS动态生成 -->
-        </div>
-        <!-- 新增表格模式容器 -->
-        <div id="mock-table-container" class="mock-table-container" style="display: none">
-          <table class="mock-table">
-            <thead>
-              <tr>
-                <th class="checkbox-col"><input type="checkbox" id="table-checkbox-all" /></th>
-                <th>接口名称</th>
-                <th>请求路径</th>
-                <th>请求类型</th>
-                <th>创建时间</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody id="mock-table-body">
-              <!-- JS动态生成 -->
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </main>
 
-    <!-- 创建/编辑接口的模态框 -->
-    <div id="mock-modal" class="mock-modal">
-      <div class="mock-modal-content">
-        <div class="mock-modal-header">
-          <h3 id="modal-title">创建新接口</h3>
-          <button class="mock-btn-icon close">&times;</button>
-        </div>
-        <div class="mock-modal-body">
-          <form id="mock-form">
-            <input type="hidden" id="filename" />
-
-            <div class="mock-form-group">
-              <label for="pathName">接口名称 *</label>
-              <input type="text" id="pathName" required />
-            </div>
-
-            <div class="mock-form-group">
-              <label for="group-input">分组</label>
-              <input type="text" id="group-input" placeholder="如 a/b/c" />
-            </div>
-
-            <div class="mock-form-row">
-              <div class="mock-form-group">
-                <label for="path">请求路径 *</label>
-                <input type="text" id="path" placeholder="/api/example" required />
+          <!-- AI 助手面板 -->
+          <div class="panel-content active" id="ai-assistant-panel">
+            <!-- 隐藏的路径存储元素 -->
+            <input type="hidden" id="manual-paths" value="[]" />
+            <!-- 路径管理区域 -->
+            <div class="path-manager">
+              <div class="path-manager-header">
+                <h4 id="path-manager-title" class="path-manager-title">
+                  <i class="fas fa-folder-open"></i> 相关文件路径
+                </h4>
+                <button id="add-path-btn" class="btn secondary" title="添加路径">
+                  <i class="fas fa-plus"></i>
+                </button>
               </div>
-
-              <div class="mock-form-group">
-                <label for="pathType">请求类型 *</label>
-                <select id="pathType" required>
-                  <option value="GET">GET</option>
-                  <option value="POST">POST</option>
-                  <option value="PUT">PUT</option>
-                  <option value="DELETE">DELETE</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="mock-form-row">
-              <div class="mock-form-group">
-                <label for="mockType">Mock类型 *</label>
-                <select id="mockType" required>
-                  <option value="rawJson">原始JSON</option>
-                  <option value="mockjsTemplate">Mock.js模板</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="mock-form-group">
-              <label for="queryParams">查询参数 (JSON格式)</label>
-              <textarea id="queryParams" rows="3" placeholder='{"param1": "value1", "param2": "value2"}'></textarea>
-            </div>
-            <div class="mock-form-group">
-              <label for="queryParamsDesc">查询参数说明 (字段说明/类型, JSON格式)</label>
-              <textarea
-                id="queryParamsDesc"
-                rows="3"
-                placeholder='{"param1": {"desc": "参数1说明", "type": "string"}, "param2": {"desc": "参数2说明", "type": "string"}}'
-              ></textarea>
-            </div>
-
-            <div class="mock-form-group" id="body-group" style="display: none">
-              <label for="bodyParams">Body参数 (JSON格式)</label>
-              <textarea id="bodyParams" rows="4" placeholder='{"key": "value"}'></textarea>
-            </div>
-            <div class="mock-form-group" id="body-group-desc" style="display: none">
-              <label for="bodyParamsDesc">Body参数说明 (字段说明/类型, JSON格式)</label>
-              <textarea
-                id="bodyParamsDesc"
-                rows="4"
-                placeholder='{"key": {"desc": "字段说明", "type": "string"}}'
-              ></textarea>
-            </div>
-
-            <div class="mock-form-group">
-              <label for="responseHeaders">响应头内容 (JSON格式) *</label>
-              <textarea
-                id="responseHeaders"
-                rows="3"
-                required
-                placeholder='{"Content-Type": "application/json"}'
-              ></textarea>
-            </div>
-            <div class="mock-form-group">
-              <label for="responseHeadersDesc">响应头说明 (字段说明/类型, JSON格式)</label>
-              <textarea
-                id="responseHeadersDesc"
-                rows="3"
-                placeholder='{"Content-Type": {"desc": "响应类型", "type": "string"}}'
-              ></textarea>
-            </div>
-
-            <!-- 修改响应内容部分 -->
-            <div class="mock-form-group">
-              <label for="pathContent">响应内容 (JSON格式) *</label>
-              <textarea id="pathContent" rows="8" required placeholder='{"data": "@cname", "age|18-60": 1}'></textarea>
-
-              <div class="mock-json-preview">
-                <div class="mock-preview-header">
-                  <h4>JSON预览:</h4>
-                  <button id="refresh-preview" class="mock-btn-icon" title="刷新预览">
-                    <i class="fas fa-sync-alt"></i>
-                  </button>
-                </div>
-                <pre id="json-preview"></pre>
-                <div class="mock-preview-notice" id="mockjs-notice">
-                  <i class="fas fa-info-circle"></i> 您正在使用Mock.js模板，预览显示实际生成数据
+              <!-- 只读Popover -->
+              <div id="selected-paths-popover" class="selected-paths-popover">
+                <div class="path-list" id="path-list">
+                  <div class="no-paths">
+                    <i class="fas fa-info-circle"></i>
+                    <p>暂无相关文件路径</p>
+                  </div>
                 </div>
               </div>
             </div>
-            <div class="mock-form-group">
-              <label for="pathContentDesc">响应内容说明 (字段说明/类型, JSON格式)</label>
-              <textarea
-                id="pathContentDesc"
-                rows="8"
-                placeholder='{"data": {"desc": "数据内容", "type": "string"}, "age": {"desc": "年龄", "type": "number"}}'
-              ></textarea>
+
+            <!-- 路径选择Popover -->
+            <div id="path-popover" class="path-popover">
+              <div class="path-popover-header">
+                <h5>选择相关文件路径</h5>
+                <button id="close-path-popover" class="close-popover">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+              <div class="path-popover-search">
+                <input type="text" id="path-search-input" placeholder="搜索文件路径..." />
+              </div>
+              <div class="path-popover-content" id="path-popover-content">
+                <!-- 动态加载的文件路径列表 -->
+              </div>
+              <div class="path-popover-footer">
+                <button id="confirm-selected-paths" class="btn primary">确认选择</button>
+                <button id="cancel-path-selection" class="btn secondary">取消</button>
+              </div>
             </div>
 
-            <div class="mock-form-actions">
-              <button type="button" class="mock-btn secondary close">取消</button>
-              <button type="submit" class="mock-btn primary">保存</button>
+            <div class="ai-chat">
+              <div class="chat-messages" id="chat-messages">
+                <div class="message ai">
+                  <div class="message-content">
+                    <i class="fas fa-robot"></i>
+                    <div class="text">
+                      你好！我是你的AI编程助手。我可以帮你：
+                      <ul>
+                        <li>搜索相关代码片段</li>
+                        <li>提供代码补全建议</li>
+                        <li>重构和优化代码</li>
+                        <li>解释代码逻辑</li>
+                      </ul>
+                      请告诉我你需要什么帮助？
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="chat-input">
+                <textarea id="user-input" placeholder="输入你的问题或需求..."></textarea>
+                <button id="send-message">
+                  <i class="fas fa-paper-plane"></i>
+                </button>
+              </div>
             </div>
-          </form>
+          </div>
+
+          <!-- 代码对比面板 -->
+          <div class="panel-content" id="diff-view-panel">
+            <div class="diff-header">
+              <h4>代码修改建议</h4>
+              <div class="diff-actions">
+                <button id="accept-all" class="btn success">全部接受</button>
+                <button id="reject-all" class="btn danger">全部拒绝</button>
+              </div>
+            </div>
+            <div class="diff-list" id="diff-list">
+              <div class="no-diffs">
+                <i class="fas fa-code-branch"></i>
+                <p>暂无代码修改建议</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 历史记录面板 -->
+          <div class="panel-content" id="history-panel">
+            <div class="history-header">
+              <h4>文件历史记录</h4>
+              <button id="refresh-history"><i class="fas fa-sync-alt"></i></button>
+            </div>
+            <div class="history-list" id="history-list">
+              <div class="no-history">
+                <i class="fas fa-history"></i>
+                <p>暂无历史记录</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- 加载指示器 -->
+    <!-- 右键菜单 -->
+    <div id="context-menu" class="context-menu">
+      <div class="menu-item" data-action="new-file"><i class="fas fa-file"></i> 新建文件</div>
+      <div class="menu-item" data-action="new-folder"><i class="fas fa-folder"></i> 新建文件夹</div>
+      <div class="menu-separator"></div>
+      <div class="menu-item" data-action="rename"><i class="fas fa-edit"></i> 重命名</div>
+      <div class="menu-item" data-action="delete"><i class="fas fa-trash"></i> 删除</div>
+      <div class="menu-separator"></div>
+      <div class="menu-item" data-action="copy-path"><i class="fas fa-copy"></i> 复制路径</div>
+    </div>
+
+    <!-- 模态框 -->
+    <div id="modal-overlay" class="modal-overlay">
+      <div class="modal">
+        <div class="modal-header">
+          <h3 id="modal-title">标题</h3>
+          <button class="close-modal"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body" id="modal-body">内容</div>
+        <div class="modal-footer">
+          <button class="btn secondary" id="modal-cancel">取消</button>
+          <button class="btn primary" id="modal-confirm">确认</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 加载提示 -->
     <div id="loading" class="loading">
-      <div class="spinner"></div>
+      <div class="loading-spinner"></div>
+      <div class="loading-text">处理中...</div>
     </div>
+    <div
+      id="iframe-drag-mask"
+      style="
+        display: none;
+        position: fixed;
+        z-index: 9999;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        cursor: row-resize;
+      "
+    ></div>
 
-    <!-- 确认对话框 -->
-    <div id="confirm-modal" class="mock-modal">
-      <div class="mock-modal-content small">
-        <div class="mock-modal-header">
-          <h3>确认操作</h3>
-        </div>
-        <div class="mock-modal-body">
-          <p id="confirm-message">您确定要删除此接口吗？此操作不可撤销。</p>
-        </div>
-        <div class="mock-modal-footer">
-          <button class="mock-btn secondary" id="confirm-cancel">取消</button>
-          <button class="mock-btn danger" id="confirm-action">确认</button>
-        </div>
-      </div>
-    </div>
-    <!-- 测试结果模态框 -->
-
-    <div id="test-modal" class="mock-modal">
-      <div class="mock-modal-content">
-        <div class="mock-modal-header">
-          <h3>接口测试结果</h3>
-          <button class="mock-btn-icon close">&times;</button>
-        </div>
-        <div class="mock-modal-body">
-          <div class="mock-test-info">
-            <div class="mock-test-method"></div>
-            <div class="mock-test-url"></div>
-            <div class="mock-test-status"></div>
-          </div>
-
-          <div class="mock-tabs">
-            <button class="mock-tab active" data-tab="response">响应内容</button>
-            <button class="mock-tab" data-tab="headers">响应头</button>
-            <button class="mock-tab" data-tab="request">请求详情</button>
-          </div>
-
-          <div class="mock-tab-content">
-            <div id="response" class="mock-tab-pane active">
-              <pre class="mock-response-body"></pre>
-            </div>
-
-            <div id="headers" class="mock-tab-pane">
-              <pre class="mock-response-headers"></pre>
-            </div>
-
-            <div id="request" class="mock-tab-pane">
-              <div class="mock-form-group">
-                <label>请求头</label>
-                <pre class="mock-request-headers"></pre>
-              </div>
-              <div class="mock-form-group">
-                <label>查询参数</label>
-                <pre class="mock-request-query"></pre>
-              </div>
-              <div class="mock-form-group" id="request-body-section">
-                <label>请求体</label>
-                <pre class="mock-request-body"></pre>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="mock-modal-footer">
-          <button class="mock-btn secondary close">关闭</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- 导入OpenAPI/Swagger模态框 -->
-    <div id="import-modal" class="modal">
-      <div class="modal-content small">
+    <!-- 设置弹窗 -->
+    <div id="settings-modal" class="settings-modal">
+      <div class="modal-content large">
         <div class="modal-header">
-          <h3>导入OpenAPI/Swagger</h3>
-          <button class="btn-icon modal-close" id="import-modal-close">&times;</button>
+          <h3><i class="fas fa-cog"></i> 系统设置</h3>
+          <button class="btn-icon close" id="close-settings">&times;</button>
         </div>
         <div class="modal-body">
-          <form id="import-form">
-            <div class="form-group">
-              <label for="import-file">选择OpenAPI/Swagger文件 (JSON/YAML)</label>
-              <input
-                type="file"
-                id="import-file"
-                accept=".json,.yaml,.yml,application/json,application/x-yaml,text/yaml"
-              />
+          <div class="settings-container">
+            <!-- 左侧菜单栏 -->
+            <div class="settings-sidebar">
+              <div class="settings-menu">
+                <div class="menu-item active" data-tab="models">
+                  <i class="fas fa-brain"></i>
+                  <span>模型</span>
+                </div>
+                <div class="menu-item" data-tab="default-model">
+                  <i class="fas fa-star"></i>
+                  <span>默认模型</span>
+                </div>
+                <div class="menu-item" data-tab="general">
+                  <i class="fas fa-sliders-h"></i>
+                  <span>常规设置</span>
+                </div>
+              </div>
             </div>
-            <div class="form-actions">
-              <button type="button" class="btn secondary" id="import-modal-cancel">取消</button>
-              <button type="submit" class="btn primary">上传并导入</button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
 
-    <!-- 新增分组弹窗 -->
-    <div id="group-modal" class="modal">
-      <div class="modal-content small">
-        <div class="modal-header">
-          <h3>新增分组</h3>
-          <button class="btn-icon close">&times;</button>
-        </div>
-        <div class="modal-body">
-          <form id="group-form">
-            <div class="form-group">
-              <label for="group-name">分组名称（支持多级，如a/b/c）</label>
-              <input type="text" id="group-name" required placeholder="请输入分组名" />
-            </div>
-            <div class="form-actions">
-              <button type="button" class="btn secondary close">取消</button>
-              <button type="submit" class="btn primary">确定</button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+            <!-- 右侧内容区域 -->
+            <div class="settings-content">
+              <!-- 模型管理页面 -->
+              <div id="models-tab" class="settings-tab active">
+                <div class="tab-header">
+                  <h4>AI 提供来源</h4>
+                  <a href="#" target="_blank" class="external-link" id="provider-link">
+                    <i class="fas fa-external-link-alt"></i>
+                  </a>
+                </div>
 
-    <!-- 批量分组浮动按钮 -->
-    <button
-      id="batch-move-btn"
-      class="btn-icon"
-      style="position: fixed; right: 80px; top: 300px; z-index: 3000; color: var(--primary-color); font-size: 2em"
-    >
-      <i class="fas fa-share-square"></i>
-    </button>
-    <!-- 批量分组选择弹框 -->
-    <div id="batch-move-modal" class="modal">
-      <div class="modal-content small">
-        <div class="modal-header">
-          <h3>批量分组</h3>
-          <button class="btn-icon close">&times;</button>
+                <!-- AI 提供来源选择 -->
+                <div class="form-group">
+                  <label for="ai-provider-select">选择 AI 提供来源</label>
+                  <select id="ai-provider-select" class="form-select">
+                    <option value="openai" selected>OpenAI</option>
+                    <option value="claude">Claude</option>
+                    <option value="deepseek">DeepSeek</option>
+                    <option value="gemini">Gemini</option>
+                    <option value="custom">自定义API</option>
+                  </select>
+                </div>
+
+                <!-- 动态内容区域 -->
+                <div id="provider-content">
+                  <!-- OpenAI 配置 -->
+                  <div id="openai-config" class="provider-config active">
+                    <div class="form-group">
+                      <label for="api-key">API 密钥</label>
+                      <div class="input-group">
+                        <input type="password" id="api-key" placeholder="请输入API密钥" />
+                        <button type="button" class="btn-icon" id="toggle-api-key">
+                          <i class="fas fa-eye"></i>
+                        </button>
+                        <button type="button" class="btn secondary" id="check-api-key">检查</button>
+                      </div>
+                    </div>
+
+                    <div class="form-group">
+                      <label for="api-host">API 主机</label>
+                      <input type="text" id="api-host" value="https://api.openai.com" readonly />
+                      <input
+                        type="text"
+                        id="api-endpoint"
+                        value="https://api.openai.com/v1/chat/completions"
+                        readonly
+                      />
+                    </div>
+                  </div>
+
+                  <!-- Claude 配置 -->
+                  <div id="claude-config" class="provider-config">
+                    <div class="form-group">
+                      <label for="claude-api-key">API 密钥</label>
+                      <div class="input-group">
+                        <input type="password" id="claude-api-key" placeholder="请输入Claude API密钥" />
+                        <button type="button" class="btn-icon" id="toggle-claude-api-key">
+                          <i class="fas fa-eye"></i>
+                        </button>
+                        <button type="button" class="btn secondary" id="check-claude-api-key">检查</button>
+                      </div>
+                    </div>
+
+                    <div class="form-group">
+                      <label for="claude-api-host">API 主机</label>
+                      <input type="text" id="claude-api-host" value="https://api.anthropic.com" readonly />
+                      <input
+                        type="text"
+                        id="claude-api-endpoint"
+                        value="https://api.anthropic.com/v1/messages"
+                        readonly
+                      />
+                    </div>
+                  </div>
+
+                  <!-- DeepSeek 配置 -->
+                  <div id="deepseek-config" class="provider-config">
+                    <div class="form-group">
+                      <label for="deepseek-api-key">API 密钥</label>
+                      <div class="input-group">
+                        <input type="password" id="deepseek-api-key" placeholder="请输入DeepSeek API密钥" />
+                        <button type="button" class="btn-icon" id="toggle-deepseek-api-key">
+                          <i class="fas fa-eye"></i>
+                        </button>
+                        <button type="button" class="btn secondary" id="check-deepseek-api-key">检查</button>
+                      </div>
+                    </div>
+
+                    <div class="form-group">
+                      <label for="deepseek-api-host">API 主机</label>
+                      <input type="text" id="deepseek-api-host" value="https://api.deepseek.com" readonly />
+                      <input
+                        type="text"
+                        id="deepseek-api-endpoint"
+                        value="https://api.deepseek.com/v1/chat/completions"
+                        readonly
+                      />
+                    </div>
+                  </div>
+
+                  <!-- Gemini 配置 -->
+                  <div id="gemini-config" class="provider-config">
+                    <div class="form-group">
+                      <label for="gemini-api-key">API 密钥</label>
+                      <div class="input-group">
+                        <input type="password" id="gemini-api-key" placeholder="请输入Gemini API密钥" />
+                        <button type="button" class="btn-icon" id="toggle-gemini-api-key">
+                          <i class="fas fa-eye"></i>
+                        </button>
+                        <button type="button" class="btn secondary" id="check-gemini-api-key">检查</button>
+                      </div>
+                    </div>
+
+                    <div class="form-group">
+                      <label for="gemini-api-host">API 主机</label>
+                      <input
+                        type="text"
+                        id="gemini-api-host"
+                        value="https://generativelanguage.googleapis.com"
+                        readonly
+                      />
+                      <input
+                        type="text"
+                        id="gemini-api-endpoint"
+                        value="https://generativelanguage.googleapis.com/v1beta/models"
+                        readonly
+                      />
+                    </div>
+                  </div>
+
+                  <!-- 自定义API 配置 -->
+                  <div id="custom-config" class="provider-config">
+                    <div class="form-group">
+                      <label for="custom-api-key">API 密钥</label>
+                      <div class="input-group">
+                        <input type="password" id="custom-api-key" placeholder="请输入自定义API密钥" />
+                        <button type="button" class="btn-icon" id="toggle-custom-api-key">
+                          <i class="fas fa-eye"></i>
+                        </button>
+                        <button type="button" class="btn secondary" id="check-custom-api-key">检查</button>
+                      </div>
+                    </div>
+
+                    <div class="form-group">
+                      <label for="custom-api-host">API 主机</label>
+                      <input type="text" id="custom-api-host" placeholder="请输入自定义API主机地址" />
+                    </div>
+
+                    <div class="form-group">
+                      <label for="custom-api-endpoint">API 端点</label>
+                      <input type="text" id="custom-api-endpoint" placeholder="请输入自定义API端点" />
+                    </div>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label>模型</label>
+                  <!-- <div class="model-actions">
+                    <button type="button" class="btn primary" id="add-model"><i class="fas fa-plus"></i> 新建</button>
+                    <button type="button" class="btn secondary" id="reset-models">
+                      <i class="fas fa-sync-alt"></i> 重置
+                    </button>
+                    <button type="button" class="btn secondary" id="fetch-models">
+                      <i class="fas fa-download"></i> 获取
+                    </button>
+                  </div> -->
+                  <div class="model-list" id="model-list">
+                    <!-- 模型列表将在这里动态生成 -->
+                  </div>
+                </div>
+              </div>
+
+              <!-- 默认模型设置页面 -->
+              <div id="default-model-tab" class="settings-tab">
+                <div class="tab-header">
+                  <h4>默认模型设置</h4>
+                </div>
+                <div class="form-group">
+                  <label for="default-model-select">选择默认模型</label>
+                  <select id="default-model-select" class="form-select">
+                    <option value="">请选择默认模型</option>
+                  </select>
+                </div>
+
+                <!-- 模型参数设置 -->
+                <div class="form-group">
+                  <label for="model-temperature">Temperature (创造性)</label>
+                  <div class="range-input-group">
+                    <input type="range" id="model-temperature" min="0" max="2" step="0.1" value="0.7" />
+                    <span class="range-value">0.7</span>
+                  </div>
+                  <small class="form-text">控制输出的随机性，值越高越有创造性</small>
+                </div>
+
+                <div class="form-group">
+                  <label for="model-max-tokens">最大Token数</label>
+                  <input type="number" id="model-max-tokens" min="1" max="8192" value="2048" />
+                  <small class="form-text">控制回复的最大长度</small>
+                </div>
+
+                <div class="form-group">
+                  <label for="model-top-p">Top P (核采样)</label>
+                  <div class="range-input-group">
+                    <input type="range" id="model-top-p" min="0" max="1" step="0.1" value="1" />
+                    <span class="range-value">1</span>
+                  </div>
+                  <small class="form-text">控制词汇选择的多样性</small>
+                </div>
+              </div>
+
+              <!-- 常规设置页面 -->
+              <div id="general-tab" class="settings-tab">
+                <div class="tab-header">
+                  <h4>常规设置</h4>
+                </div>
+                <div class="form-group">
+                  <label for="initial-directory">初始目录</label>
+                  <div class="input-group">
+                    <input type="text" id="initial-directory" placeholder="请输入初始目录路径" />
+                    <button type="button" class="btn secondary" id="browse-directory">浏览</button>
+                  </div>
+                  <div id="server-dir-list-embed-settings" style="display: none"></div>
+                </div>
+                <div class="form-group">
+                  <label for="project-name">项目名称</label>
+                  <input type="text" id="project-name" placeholder="项目名称（可选）" />
+                </div>
+                <div class="form-group">
+                  <label for="language-select">界面语言</label>
+                  <select id="language-select" class="form-select">
+                    <option value="zh-CN">中文</option>
+                    <option value="en-US">English</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="theme-select">主题</label>
+                  <select id="theme-select" class="form-select">
+                    <option value="dark">深色</option>
+                    <option value="light">浅色</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>
+                    <input type="checkbox" id="auto-save" />
+                    自动保存
+                  </label>
+                </div>
+                <div class="form-group">
+                  <label for="save-interval">保存间隔（秒）</label>
+                  <input type="number" id="save-interval" value="30" min="10" max="300" />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="modal-body">
-          <form id="batch-move-form">
-            <div class="form-group">
-              <label for="batch-move-group">选择目标分组</label>
-              <select id="batch-move-group" required></select>
-            </div>
-            <div class="form-actions">
-              <button type="button" class="btn secondary close">取消</button>
-              <button type="submit" class="btn primary">确定</button>
-            </div>
-          </form>
+        <div class="modal-footer">
+          <button type="button" class="btn secondary" id="cancel-settings">取消</button>
+          <button type="button" class="btn primary" id="save-settings">保存设置</button>
         </div>
       </div>
     </div>
@@ -421,430 +628,40 @@
       </div>
     </div>
 
-    <!-- 代码生成模态框 -->
-    <div id="code-generator-modal" class="modal">
-      <div class="modal-content large">
-        <div class="modal-header">
-          <h3>AI代码生成器</h3>
-          <button class="btn-icon modal-close" id="code-generator-close">&times;</button>
-        </div>
-        <div class="modal-body">
-          <form id="code-generator-form">
-            <div class="form-group">
-              <label for="tech-stack">技术类型 *</label>
-              <select id="tech-stack" required>
-                <option value="">请选择技术类型</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="output-type">呈现类型 *</label>
-              <select id="output-type" required>
-                <option value="">请选择呈现类型</option>
-                <option value="component">组件</option>
-                <option value="page">完整网页</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="ui-library">UI库</label>
-              <select id="ui-library">
-                <option value="">无</option>
-              </select>
-            </div>
-            <div class="form-group" id="custom-library-group" style="display: none">
-              <label for="custom-library">自定义三方库</label>
-              <input type="text" id="custom-library" placeholder="如: axios, lodash, moment" />
-            </div>
-            <div class="form-group">
-              <label>
-                选择接口 *
-                <input
-                  type="text"
-                  id="interface-search"
-                  placeholder="搜索接口..."
-                  style="margin-left: 12px; width: 180px; display: inline-block"
-                />
-              </label>
-              <!-- 当前分组信息显示 -->
-              <div
-                id="interface-group-info"
-                class="interface-group-info"
-                style="
-                  margin: 8px 0;
-                  padding: 8px 12px;
-                  background: rgba(255, 255, 255, 0.05);
-                  border-radius: 4px;
-                  color: var(--text-secondary);
-                  font-size: 14px;
-                  display: none;
-                "
-              >
-                当前分组：全部 (0个接口)
-              </div>
-              <div class="interface-select-all" style="margin-bottom: 8px">
-                <label> <input type="checkbox" id="interface-select-all-checkbox" /> 全选 </label>
-              </div>
-              <div id="interface-selector" class="interface-list">
-                <!-- 动态生成接口列表 -->
-              </div>
-            </div>
-            <div class="form-group">
-              <label for="page-structure">页面结构描述</label>
-              <textarea
-                id="page-structure"
-                rows="3"
-                placeholder="描述页面布局和组件结构，如：顶部导航栏，左侧菜单，右侧内容区域等"
-              ></textarea>
-            </div>
-            <div class="form-group">
-              <label for="page-logic">页面逻辑描述</label>
-              <textarea
-                id="page-logic"
-                rows="3"
-                placeholder="描述页面交互逻辑，如：点击按钮调用接口，表单验证，数据展示等"
-              ></textarea>
-            </div>
-            <div class="form-actions">
-              <button type="button" class="btn secondary" id="code-generator-cancel">取消</button>
-              <button type="submit" class="btn primary">生成代码</button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-    <!-- 代码预览模态框 -->
-    <div id="code-preview-modal" class="modal">
-      <div class="modal-content extra-large">
-        <div class="modal-header">
-          <h3>生成的代码</h3>
-          <button class="btn-icon fullscreen-toggle" title="全屏预览">
-            <i class="fas fa-expand"></i>
-          </button>
-          <button class="btn-icon close" style="color: #333; font-size: 30px">&times;</button>
-        </div>
-        <div class="modal-body" style="position: relative">
-          <!-- 悬浮流式生成提示 -->
-          <div id="streaming-floating-bar" style="display: none">
-            <span id="streaming-indicator"><i class="fas fa-spinner fa-spin"></i> 正在流式生成...</span>
-          </div>
-          <!-- 预览头部操作栏 -->
-          <div class="preview-header-bar">
-            <div class="left-actions">
-              <div class="preview-status">
-                <div class="status-indicator"></div>
-                <span class="status-text">准备就绪</span>
-              </div>
-              <!-- 当前选中路径显示 -->
-              <div id="current-path-display" class="current-path-info" style="display: none; margin-left: 20px">
-                <i class="fas fa-map-marker-alt"></i>
-                <span id="current-path-text">未选择路径</span>
-              </div>
-            </div>
-            <div class="right-actions">
-              <button id="download-code" class="btn secondary"><i class="fas fa-download"></i> 下载代码</button>
-              <button id="export-zip" class="btn secondary"><i class="fas fa-file-archive"></i> 导出项目</button>
-            </div>
-          </div>
-          <!-- 预览外包容器 -->
-          <div class="preview-container" style="display: flex; align-items: flex-start; height: calc(100% - 72px)">
-            <!-- 预览左侧代码区-->
-            <!-- 本地目录树面板 -->
-            <!-- <div class="preview-left-code-area" style="height: 100%">
-              <div id="codegen-filetree-panel" class="codegen-filetree-panel">
-                <div class="filetree-title">本地目录</div>
-                <div id="codegen-filetree" class="filetree-list"></div>
-              </div>
-            </div> -->
-            <!--  预览右侧代码区-->
-            <div class="preview-right-code-area" style="flex: 1; min-width: 0; height: 100%">
-              <!-- 标签页导航 -->
-              <div class="preview-tabs">
-                <button class="preview-tab active" data-tab="code">
-                  <i class="fas fa-code tab-icon"></i>
-                  代码
-                  <span class="tab-badge" id="code-count">0</span>
-                </button>
-                <button class="preview-tab" data-tab="preview">
-                  <i class="fas fa-eye tab-icon"></i>
-                  预览
-                </button>
-                <button class="preview-tab" data-tab="dependencies">
-                  <i class="fas fa-box tab-icon"></i>
-                  依赖
-                  <span class="tab-badge" id="deps-count">0</span>
-                </button>
-              </div>
-
-              <!-- 标签页内容 -->
-              <div class="preview-tab-content">
-                <div style="display: flex; align-items: flex-start; height: 100%">
-                  <!-- 代码tab内容 -->
-                  <div style="flex: 1; min-width: 0; height: 100%">
-                    <!-- 代码标签页 -->
-                    <div id="code" class="preview-tab-pane active">
-                      <div class="code-display-area">
-                        <div class="code-toolbar">
-                          <div class="left-tools">
-                            <button class="tool-btn" id="copy-all-code"><i class="fas fa-copy"></i> 复制全部</button>
-                            <button class="tool-btn" id="format-code"><i class="fas fa-magic"></i> 格式化</button>
-                            <button class="tool-btn" id="toggle-line-numbers">
-                              <i class="fas fa-list-ol"></i> 行号
-                            </button>
-                          </div>
-                          <div class="right-tools">
-                            <button class="tool-btn" id="search-code"><i class="fas fa-search"></i> 搜索</button>
-                            <button class="tool-btn" id="toggle-theme"><i class="fas fa-moon"></i> 主题</button>
-                          </div>
-                        </div>
-                        <div class="code-blocks-container" id="generated-code">
-                          <!-- 代码块将在这里动态生成 -->
-                        </div>
-                      </div>
-                    </div>
-                    <!-- 预览标签页 -->
-                    <div id="preview" class="preview-tab-pane">
-                      <div class="preview-area">
-                        <div class="preview-toolbar">
-                          <div class="preview-controls">
-                            <button class="preview-size-btn active" data-size="desktop">
-                              <i class="fas fa-desktop"></i> 桌面
-                            </button>
-                            <button class="preview-size-btn" data-size="tablet">
-                              <i class="fas fa-tablet-alt"></i> 平板
-                            </button>
-                            <button class="preview-size-btn" data-size="mobile">
-                              <i class="fas fa-mobile-alt"></i> 手机
-                            </button>
-                          </div>
-                          <div class="preview-controls">
-                            <button class="tool-btn" id="refresh-preview"><i class="fas fa-sync-alt"></i> 刷新</button>
-                            <button class="tool-btn" id="open-preview-new-tab">
-                              <i class="fas fa-external-link-alt"></i> 新窗口
-                            </button>
-                          </div>
-                        </div>
-                        <div class="preview-frame-container">
-                          <iframe
-                            id="code-preview-frame"
-                            style="width: 100%; height: 100%; border: none; background: white"
-                          ></iframe>
-                          <div class="preview-loading-overlay" id="preview-loading" style="display: none">
-                            <div class="preview-loading-spinner"></div>
-                          </div>
-                          <div class="preview-error-overlay" id="preview-error" style="display: none">
-                            <div class="preview-error-content">
-                              <i class="fas fa-exclamation-triangle"></i>
-                              <p>预览加载失败</p>
-                              <button class="btn secondary" id="retry-preview">重试</button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <!-- 依赖标签页 -->
-                    <div id="dependencies" class="preview-tab-pane">
-                      <div class="dependencies-area">
-                        <div class="dependencies-toolbar">
-                          <div class="left-tools">
-                            <h4>项目依赖</h4>
-                          </div>
-                          <div class="right-tools">
-                            <button class="tool-btn" id="copy-dependencies">
-                              <i class="fas fa-copy"></i> 复制依赖
-                            </button>
-                            <button class="tool-btn" id="install-dependencies">
-                              <i class="fas fa-download"></i> 安装指南
-                            </button>
-                          </div>
-                        </div>
-                        <div class="dependencies-content" id="dependencies-content">
-                          <!-- 依赖列表将在这里动态生成 -->
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 文件操作模态框 -->
-    <div id="file-operation-modal" class="modal">
-      <div class="modal-content large">
-        <div class="modal-header">
-          <h3>文件操作</h3>
-          <button class="btn-icon close">&times;</button>
-        </div>
-        <div class="modal-body">
-          <div class="file-operation-toolbar">
-            <div class="left-tools">
-              <button id="create-file-btn" class="btn primary"><i class="fas fa-file-plus"></i> 新建文件</button>
-              <button id="create-folder-btn" class="btn secondary">
-                <i class="fas fa-folder-plus"></i> 新建文件夹
-              </button>
-              <button id="upload-file-btn" class="btn secondary"><i class="fas fa-upload"></i> 上传文件</button>
-            </div>
-            <div class="right-tools">
-              <button id="refresh-files-btn" class="btn secondary"><i class="fas fa-sync-alt"></i> 刷新</button>
-              <input type="file" id="file-upload-input" style="display: none" multiple />
-            </div>
-          </div>
-          <div class="file-explorer">
-            <div class="file-tree" id="file-tree">
-              <!-- 文件树将在这里动态生成 -->
-            </div>
-            <div class="file-content" id="file-content">
-              <div class="file-content-placeholder">
-                <i class="fas fa-file-alt"></i>
-                <p>选择一个文件来查看或编辑内容</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 新建文件/文件夹模态框 -->
-    <div id="create-item-modal" class="modal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3 id="create-item-title">新建文件</h3>
-          <button class="btn-icon close">&times;</button>
-        </div>
-        <div class="modal-body">
-          <form id="create-item-form">
-            <div class="form-group">
-              <label for="item-name">名称 *</label>
-              <input type="text" id="item-name" required />
-            </div>
-            <div class="form-group" id="file-content-group" style="display: none">
-              <label for="file-content-input">文件内容</label>
-              <textarea id="file-content-input" rows="10" placeholder="输入文件内容..."></textarea>
-            </div>
-            <div class="form-actions">
-              <button type="button" class="btn secondary close">取消</button>
-              <button type="submit" class="btn primary">确定</button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-
-    <!-- 确认删除模态框 -->
-    <div id="delete-confirm-modal" class="modal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>确认删除</h3>
-          <button class="btn-icon close">&times;</button>
-        </div>
-        <div class="modal-body">
-          <p id="delete-confirm-message">确定要删除这个项目吗？此操作不可撤销。</p>
-          <div class="form-actions">
-            <button type="button" class="btn secondary close">取消</button>
-            <button type="button" class="btn danger" id="confirm-delete-btn">删除</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div id="custom-confirm-modal" class="modal">
-      <div class="modal-content small">
-        <div class="modal-header">
-          <h3>操作确认</h3>
-          <button class="btn-icon close" id="custom-confirm-close">&times;</button>
-        </div>
-        <div class="modal-body">
-          <p id="custom-confirm-message">确定要执行此操作吗？</p>
-        </div>
-        <div class="modal-footer">
-          <button class="btn secondary" id="custom-confirm-cancel">取消</button>
-          <button class="btn danger" id="custom-confirm-ok">确定</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- 底部程序坞 -->
-    <div id="dock-container" class="dock-container">
-      <div class="dock">
-        <div class="dock-item" data-action="add-mock" title="新建接口">
-          <div class="dock-icon">
-            <i class="fas fa-plus"></i>
-          </div>
-          <div class="dock-label">新建接口</div>
-        </div>
-        <div class="dock-item" data-action="code-generator" title="代码生成器">
-          <div class="dock-icon">
-            <i class="fas fa-code"></i>
-          </div>
-          <div class="dock-label">代码生成器</div>
-        </div>
-        <div class="dock-item" data-action="import-openapi" title="导入OpenAPI/Swagger">
-          <div class="dock-icon">
-            <i class="fas fa-file-import"></i>
-          </div>
-          <div class="dock-label">导入</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 业务脚本最后引入 -->
-    <script src="fileManager.js"></script>
-    <script src="script.js"></script>
-    <script src="codegen.js"></script>
-    <script src="dock.js"></script>
-
-    <!-- 路径传递和代码插入功能 -->
     <script>
-      // 全局变量存储当前选中的路径
-      window.currentSelectedPath = null
-
-      // 监听来自父页面的消息
-      window.addEventListener('message', (event) => {
-        if (event.data.type === 'setPath') {
-          console.log('收到父页面的路径:', event.data.value)
-
-          // 保存选中的路径信息
-          window.currentSelectedPath = event.data.value
-
-          // 更新路径显示
-          updatePathDisplay(event.data.value)
-        }
-      })
-
-      // 更新路径显示
-      function updatePathDisplay(pathInfo) {
-        const pathDisplay = document.getElementById('current-path-display')
-        const pathText = document.getElementById('current-path-text')
-
-        if (pathDisplay && pathText) {
-          const typeText = pathInfo.type === 'directory' ? '文件夹' : '文件同级目录'
-          pathText.textContent = `${pathInfo.name} (${typeText})`
-          pathDisplay.style.display = 'block'
+      // 顶部“打开终端”按钮滚动到终端区域
+      document.getElementById('open-terminal-btn').onclick = function () {
+        const terminalPanel = document.getElementById('terminal-panel')
+        if (terminalPanel) {
+          terminalPanel.style.display = 'block'
+          // terminalPanel.scrollIntoView({ behavior: 'smooth' });
         }
       }
-
-      // 监听文件创建成功的消息，通知父页面刷新文件树
+      // iframe 通信示例
+      const terminalIframe = document.getElementById('ai-terminal-iframe')
       window.addEventListener('message', (event) => {
-        if (event.data.type === 'fileCreated') {
-          console.log('文件创建成功，通知父页面刷新:', event.data.value)
+        if (event.data.source !== 'terminal-iframe') return
+        // 你可以在这里处理 tab-created/tab-closed/tab-activated/status 等事件
+        console.log('终端事件:', event.data.type, event.data.data)
 
-          // 向父页面发送刷新文件树的消息
-          if (window.parent && window.parent !== window) {
-            window.parent.postMessage(
-              {
-                type: 'refreshFileTree',
-                value: event.data.value,
-              },
-              '*'
-            )
+        // 处理关闭所有终端的消息
+        if (event.data.type === 'close-all-terminals') {
+          const terminalPanel = document.getElementById('terminal-panel')
+          if (terminalPanel) {
+            terminalPanel.style.display = 'none'
+          }
+          // 重置终端标签页创建标志
+          if (window.aiAgent && window.aiAgent.resetTerminalState) {
+            window.aiAgent.resetTerminalState()
           }
         }
       })
+      // 示例：发送命令到终端
+      // terminalIframe.contentWindow.postMessage({ type: 'send-command', data: { command: 'ls -la' } }, '*');
     </script>
-
-    <!-- 最后引入 Monaco Editor loader.js，只能有一处 -->
-    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+    <!-- 你的主逻辑 -->
+    <script src="aiAgent.js"></script>
+    <script src="settings.js"></script>
+    <!-- <script src="terminal.js"></script> -->
   </body>
 </html>

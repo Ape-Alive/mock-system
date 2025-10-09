@@ -1,6 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const codegenService = require('../services/codegenService')
+const aiService = require('../services/aiService')
 
 /**
  * @swagger
@@ -165,8 +166,9 @@ router.post('/api/codegen/stream', async (req, res) => {
         apiDescription,
       })
 
-      // 如果没有配置API密钥，使用模拟代码生成
-      if (!codegenService.deepseekConfig.apiKey) {
+      // 检查是否配置了API密钥
+      const hasAPIKey = await aiService.checkAPIKeyConfigured('CODE')
+      if (!hasAPIKey) {
         const mockCode = codegenService.generateMockCode({
           techStack,
           outputType,
@@ -182,9 +184,9 @@ router.post('/api/codegen/stream', async (req, res) => {
       }
 
       // 使用流式传输
-      await codegenService.callDeepSeekAPIStream(prompt, (chunk, fullContent) => {
+      await aiService.callAIStream(prompt, (chunk, fullContent) => {
         res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`)
-      })
+      }, 'CODE')
 
       res.write('data: [DONE]\n\n')
       res.end()

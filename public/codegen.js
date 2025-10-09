@@ -2522,7 +2522,22 @@ class CodeGenerator {
         treeContainer.innerHTML = ''
         this.renderFileTreeNodes(data.data, treeContainer)
       } else {
-        treeContainer.innerHTML = `<div class="filetree-error">${data.error}</div>`
+        // 检查是否是本地目录未设置错误
+        if (data.error === '本地目录未设置') {
+          treeContainer.innerHTML = '<div class="filetree-error">本地目录未设置，请先配置项目目录</div>'
+          // 弹出设置弹窗并跳转到常规设置
+          if (window.settingsManager) {
+            window.settingsManager.showSettings()
+            setTimeout(() => {
+              const generalTab = document.querySelector('[data-tab="general"]')
+              if (generalTab) {
+                generalTab.click()
+              }
+            }, 100)
+          }
+        } else {
+          treeContainer.innerHTML = `<div class="filetree-error">${data.error}</div>`
+        }
       }
     } catch (e) {
       treeContainer.innerHTML = '<div class="filetree-error">加载失败</div>'

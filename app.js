@@ -16,7 +16,7 @@ const groupRoutes = require('./routes/groupRoutes')
 const codegenRoutes = require('./routes/codegenRoutes')
 const fileRoutes = require('./routes/fileRoutes')
 const aiAgentRoutes = require('./routes/aiAgentRoutes')
-
+const settingsRoutes = require('./routes/settingsRoutes')
 const app = express()
 
 // 确保必要的目录存在
@@ -34,6 +34,7 @@ app.use('/', groupRoutes)
 app.use('/', codegenRoutes)
 app.use('/', fileRoutes)
 app.use('/api/ai-agent', aiAgentRoutes)
+app.use('/api/settings', settingsRoutes)
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec))
 
 // 设置动态路由中间件
