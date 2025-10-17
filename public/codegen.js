@@ -857,9 +857,8 @@ class CodeGenerator {
           <span class="interface-info">
             <span class="interface-name">${item.pathName || item.name || '未命名接口'}</span>
             <span class="interface-path">${item.path || item.endpoint || ''}</span>
-            <span class="interface-method ${(item.pathType || item.method || 'GET').toLowerCase()}">${
-        item.pathType || item.method || 'GET'
-      }</span>
+            <span class="interface-method ${(item.pathType || item.method || 'GET').toLowerCase()}">${item.pathType || item.method || 'GET'
+        }</span>
           </span>
         </label>
       `
@@ -964,7 +963,7 @@ class CodeGenerator {
                 fullContent += parsed.content
                 this.updateStreamingContent(fullContent)
               }
-            } catch (e) {}
+            } catch (e) { }
           }
         }
       }
@@ -1881,12 +1880,12 @@ class CodeGenerator {
         </div>
         <div class="insert-code-confirm-body">
           <div class="path-info">
-            <strong>目标位置:</strong> 
+            <strong>目标位置:</strong>
             <span class="target-path">${selectedPath.path}</span>
             <span class="target-type">(${selectedPath.type === 'directory' ? '文件夹' : '文件同级目录'})</span>
           </div>
           <div class="file-info">
-            <strong>文件名:</strong> 
+            <strong>文件名:</strong>
             <input type="text" class="file-name-input" value="${fileName}" placeholder="请输入文件名">
             <span class="language-badge">${language.toUpperCase()}</span>
             <div class="file-name-tips">
@@ -1895,9 +1894,8 @@ class CodeGenerator {
           </div>
           <div class="code-preview">
             <strong>代码预览:</strong>
-            <pre class="code-preview-content">${this.escapeHtml(codeContent.substring(0, 200))}${
-      codeContent.length > 200 ? '...' : ''
-    }</pre>
+            <pre class="code-preview-content">${this.escapeHtml(codeContent.substring(0, 200))}${codeContent.length > 200 ? '...' : ''
+      }</pre>
           </div>
         </div>
         <div class="insert-code-confirm-footer">
@@ -2523,8 +2521,8 @@ class CodeGenerator {
         this.renderFileTreeNodes(data.data, treeContainer)
       } else {
         // 检查是否是本地目录未设置错误
-        if (data.error === '本地目录未设置') {
-          treeContainer.innerHTML = '<div class="filetree-error">本地目录未设置，请先配置项目目录</div>'
+        if (data.returnStatus === 'ERROR-A3100' && data.returnStatus === 'ERROR-A3110') {
+          treeContainer.innerHTML = '<div class="filetree-error">本地目录未设置或目录不存在，请先配置项目目录</div>'
           // 弹出设置弹窗并跳转到常规设置
           if (window.settingsManager) {
             window.settingsManager.showSettings()

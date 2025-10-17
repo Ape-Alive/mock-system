@@ -114,15 +114,15 @@ module.exports = {
       })
 
       // 如果设置了初始目录，同时更新 LocalDirectory 表
-      if (settings.general && settings.general.initialDirectory) {
+      if (settings.general) {
         await prisma.localDirectory.upsert({
           where: { id: 1 },
-          update: { 
+          update: {
             directory: settings.general.initialDirectory,
             projectName: settings.general.projectName || null
           },
-          create: { 
-            id: 1, 
+          create: {
+            id: 1,
             directory: settings.general.initialDirectory,
             projectName: settings.general.projectName || null
           },

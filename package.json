@@ -1,5 +1,5 @@
 {
-  "name": "mock-system",
+  "name": "Mock Coding",
   "version": "1.0.0",
   "main": "electron-main.js",
   "homepage": "./",
@@ -15,9 +15,11 @@
     "build-win": "electron-builder --win",
     "build-linux": "electron-builder --linux",
     "dist": "npm run build",
+    "build-production": "chmod +x build-production.sh && ./build-production.sh",
+    "build-production-js": "node build-production.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "Mock System Team",
+  "author": "Liuqihui",
   "license": "MIT",
   "description": "一个强大的API Mock和代码生成工具",
   "dependencies": {
@@ -47,8 +49,8 @@
     "prisma": "^6.10.1"
   },
   "build": {
-    "appId": "com.mock-system.app",
-    "productName": "Mock System",
+    "appId": "com.mock-coding.app",
+    "productName": "Mock Coding",
     "directories": {
       "output": "dist"
     },

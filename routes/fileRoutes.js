@@ -99,8 +99,14 @@ router.get('/api/file/directory', async (req, res) => {
 // 获取目录树
 router.get('/api/file/tree', async (req, res) => {
   try {
-    const tree = await fileService.getDirectoryTree()
-    res.json({ success: true, data: tree })
+    const result = await fileService.getDirectoryTree()
+
+    // 检查是否返回错误格式
+    if (result.returnStatus) {
+      res.status(400).json(result)
+    } else {
+      res.json({ success: true, data: result })
+    }
   } catch (error) {
     res.status(500).json({ success: false, error: error.message })
   }

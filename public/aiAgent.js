@@ -340,14 +340,18 @@ class AIAgentManager {
       const response = await fetch('/api/file/tree')
       const data = await response.json()
 
-      if (data.success && data.data) {
+      if (data.success) {
         this.fileTreeData = data.data
         this.renderFileTree()
       } else {
         // 检查是否是本地目录未设置错误
-        if (data.error === '本地目录未设置') {
-          this.showDirectoryNotSetError()
-        } else {
+        if (data.returnStatus === 'ERROR-A3100') {
+          this.showDirectoryNotSetError(data.returnStatus)
+        } else if (data.returnStatus === 'ERROR-A3110') {
+          this.showDirectoryNotSetError(data.returnStatus)
+          // this.showError('目录不存在')
+        }
+        else {
           this.showError('加载文件树失败')
         }
       }
@@ -357,9 +361,10 @@ class AIAgentManager {
   }
 
   // 显示本地目录未设置错误并弹出设置弹窗
-  showDirectoryNotSetError() {
+  showDirectoryNotSetError(typeStatus) {
+    const messageContent = typeStatus === 'ERROR-A3100' ? '本地目录未设置，请先配置项目目录' : typeStatus === 'ERROR-A3100' ? '目录已经不存在，请配置项目目录' : ''
     // 显示错误提示
-    this.showError('本地目录未设置，请先配置项目目录')
+    this.showError(messageContent)
 
     // 弹出设置弹窗并跳转到常规设置
     if (window.settingsManager) {
@@ -370,7 +375,7 @@ class AIAgentManager {
         if (generalTab) {
           generalTab.click()
         }
-      }, 100)
+      }, 800)
     }
   }
 
@@ -833,9 +838,9 @@ class AIAgentManager {
         `
         buttonContainer.innerHTML = `
           <button class="btn success" onclick="aiAgent.applyDiffFromTab('${diffData.newContent.replace(
-            /'/g,
-            "\\'"
-          )}')" style="padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">应用建议</button>
+          /'/g,
+          "\\'"
+        )}')" style="padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">应用建议</button>
           <button class="btn danger" onclick="aiAgent.rejectDiffFromTab()" style="padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">拒绝建议</button>
         `
         editorContainer.style.position = 'relative'
@@ -1137,8 +1142,8 @@ class AIAgentManager {
       </div>
       <div class="diff-list">
         ${results
-          .map(
-            (result, index) => `
+        .map(
+          (result, index) => `
           <div class="diff-item">
             <div class="diff-item-header">
               <div class="diff-item-title">${result.meta?.filePath || '未知文件'}</div>
@@ -1152,8 +1157,8 @@ class AIAgentManager {
             </div>
           </div>
         `
-          )
-          .join('')}
+        )
+        .join('')}
       </div>
     `
 
@@ -2390,9 +2395,8 @@ class AIAgentManager {
           </div>
         </div>
         <div class="history-item-content">
-          <pre><code>${this.escapeHtml(history.content.substring(0, 200))}${
-          history.content.length > 200 ? '...' : ''
-        }</code></pre>
+          <pre><code>${this.escapeHtml(history.content.substring(0, 200))}${history.content.length > 200 ? '...' : ''
+          }</code></pre>
         </div>
       </div>
     `
@@ -3061,7 +3065,7 @@ class AIAgentManager {
       const response = await fetch('/api/file/tree')
       const data = await response.json()
 
-      if (data.success && data.data) {
+      if (data.success) {
         this.pathListData = this.flattenFileTree(data.data)
         this.renderPathPopoverList()
       } else {
@@ -4269,7 +4273,7 @@ class AIAgentManager {
         <div class="json-content" style="display: none;">
           <div class="json-summary">
             <div class="json-summary-item">
-              <strong>验证状态:</strong> 
+              <strong>验证状态:</strong>
               <span class="status-badge ${schemaStatus}">${jsonData.schema_validation || 'unknown'}</span>
             </div>
             <div class="json-summary-item">
@@ -4324,44 +4328,40 @@ class AIAgentManager {
           </div>
           <div class="change-content">
             <div class="change-summary">${changeSummary}</div>
-            ${
-              Array.isArray(howToTest) && howToTest.length > 0
-                ? `
+            ${Array.isArray(howToTest) && howToTest.length > 0
+            ? `
               <div class="change-test">
                 <strong>测试步骤:</strong>
                 <ul>${howToTest.map((step) => `<li>${step}</li>`).join('')}</ul>
               </div>
             `
-                : ''
-            }
-            ${
-              Array.isArray(rollback) && rollback.length > 0
-                ? `
+            : ''
+          }
+            ${Array.isArray(rollback) && rollback.length > 0
+            ? `
               <div class="change-rollback">
                 <strong>回滚步骤:</strong>
                 <ul>${rollback.map((step) => `<li>${step}</li>`).join('')}</ul>
               </div>
             `
-                : ''
-            }
-            ${
-              change.author
-                ? `
+            : ''
+          }
+            ${change.author
+            ? `
               <div class="change-author">
                 <strong>作者:</strong> ${change.author}
               </div>
             `
-                : ''
-            }
-            ${
-              change.timestamp
-                ? `
+            : ''
+          }
+            ${change.timestamp
+            ? `
               <div class="change-timestamp">
                 <strong>时间:</strong> ${new Date(change.timestamp).toLocaleString()}
               </div>
             `
-                : ''
-            }
+            : ''
+          }
           </div>
         </div>
       `

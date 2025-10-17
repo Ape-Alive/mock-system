@@ -96,15 +96,71 @@ class FileService {
     return filePath
   }
 
+  // 获取用户目录列表
+  async getUserDirectories() {
+    const os = require('os')
+    const userHome = os.homedir()
+
+    try {
+      const entries = await fs.readdir(userHome, { withFileTypes: true })
+      const directories = entries
+        .filter(entry => entry.isDirectory())
+        .map(entry => ({
+          name: entry.name,
+          path: path.join(userHome, entry.name),
+          type: 'directory'
+        }))
+      return directories
+    } catch (error) {
+      return []
+    }
+  }
+
   // 获取目录树结构
   async getDirectoryTree(directoryPath = null) {
     // 每次都从数据库查，保证拿到最新的
     const record = await dbService.getLocalDirectory()
-    const targetPath = directoryPath || (record && record.directory) || this.localDirectory
+    const targetPath = directoryPath || (record && record.directory)
     if (!targetPath) {
-      throw new Error('本地目录未设置')
+      return {
+        success: false,
+        returnStatus: 'ERROR-A3100',
+        msg: '本地目录未设置'
+      }
     }
-
+    //需要检验目录是否存在
+    try {
+      await fs.stat(targetPath)
+    } catch (error) {
+      // 目录不存在：清空本地目录与设置中的初始目录
+      try {
+        // 清空 LocalDirectory 表路径
+        await dbService.setLocalDirectory('', null)
+      } catch (e) {
+        console.warn('清空 LocalDirectory 失败:', e?.message || e)
+      }
+      try {
+        // 更新 settings.general.initialDirectory 为空
+        const settings = await dbService.getSettings()
+        const newSettings = {
+          ...settings,
+          general: {
+            ...(settings.general || {}),
+            initialDirectory: ''
+          }
+        }
+        await dbService.saveSettings(newSettings)
+      } catch (e) {
+        console.warn('更新 settings.general.initialDirectory 失败:', e?.message || e)
+      }
+      const userDirectories = await this.getUserDirectories()
+      return {
+        success: false,
+        returnStatus: 'ERROR-A3110',
+        msg: '目录不存在',
+        returnObject: userDirectories
+      }
+    }
     try {
       // 获取根目录名
       const rootName = path.basename(targetPath)
@@ -171,11 +227,11 @@ class FileService {
     // 每次都从数据库获取最新的本地目录设置
     const record = await dbService.getLocalDirectory()
     const localDirectory = record ? record.directory : this.localDirectory
-    
+
     if (!localDirectory) {
       throw new Error('本地目录未设置')
     }
-    
+
     const safePath = this.normalizeFilePathWithDirectory(filePath, localDirectory)
     const fullPath = path.join(localDirectory, safePath)
     try {
@@ -447,15 +503,18 @@ class FileService {
 
   // 列举指定目录下的所有子目录（不递归）
   async listSubdirectories(basePath = null) {
-    // 如果传入 basePath，则允许直接列举该路径，否则：
-    // 1. 如果已设置 localDirectory，则用 localDirectory
-    // 2. 如果未设置 localDirectory，则用 process.cwd() 作为根目录
+
     let targetPath = basePath
     if (!targetPath) {
-      if (this.localDirectory) {
-        targetPath = this.localDirectory
+      const record = this.getLocalDirectory()
+
+      if (record.directory) {
+        targetPath = record.directory
       } else {
-        targetPath = process.cwd() // 默认用当前工作目录
+        const os = require('os')
+        const userHome = os.homedir()
+        // targetPath = process.cwd() // 默认用当前工作目录
+        targetPath = userHome
       }
     }
     // 安全限制：禁止访问根目录、/etc、/root 等敏感目录
@@ -489,7 +548,19 @@ class FileService {
           path: path.join(resolved, entry.name),
         }))
 
-      return directories
+      // 检查每个目录的读取权限，过滤掉没有权限的目录
+      const accessibleDirectories = []
+      for (const directory of directories) {
+        try {
+          await fs.access(directory.path, fs.constants.R_OK)
+          accessibleDirectories.push(directory)
+        } catch (accessError) {
+          // 没有权限读取的目录将被跳过
+          console.warn(`跳过无权限访问的目录: ${directory.path}`)
+        }
+      }
+
+      return accessibleDirectories
     } catch (error) {
       throw new Error(`列举子目录失败: ${error.message}`)
     }

@@ -1,11 +1,11 @@
 const axios = require('axios')
 const fs = require('fs')
 const path = require('path')
-const { diff_match_patch } = require('diff-match-patch')
+// const { diff_match_patch } = require('diff-match-patch')
 const { getLocalDirectory } = require('./dbService')
-const { handleIntent, handleIntentStream } = require('./intentAutoHandler')
-const { batchWriteFiles } = require('./fileBatchWriter')
-const aiService = require('./aiService')
+const { handleIntentStream, getAIConfig } = require('./intentAutoHandler')
+// const { batchWriteFiles } = require('./fileBatchWriter')
+// const aiService = require('./aiService')
 
 const VECTOR_SERVER = 'http://localhost:8300'
 
@@ -53,302 +53,302 @@ async function faissUpdate(id, vector, meta = null) {
 }
 
 // 单文件补全（LLM）
-async function codeCompletion(prompt, context = '') {
-  // TODO: 调用 AI 服务
-  return { completion: '// 补全内容示例' }
-}
+// async function codeCompletion(prompt, context = '') {
+//   // TODO: 调用 AI 服务
+//   return { completion: '// 补全内容示例' }
+// }
 
 // 多文件批量补全/修改（流式版本）
-async function* batchCodeCompletionStream(parameters, files, messages) {
-  console.log('hhhhh', parameters, files, messages)
+// async function* batchCodeCompletionStream(parameters, files, messages) {
+//   console.log('hhhhh', parameters, files, messages)
 
-  // 组装多文件上下文
-  const context = files.map((f) => `文件: ${f.path}\n内容:\n${f.content}\n`).join('\n')
+//   // 组装多文件上下文
+//   const context = files.map((f) => `文件: ${f.path}\n内容:\n${f.content}\n`).join('\n')
 
-  // 获取最近五次对话上下文
-  const recentMessages = messages.slice(-10) // 最近10条消息（5轮对话）
+//   // 获取最近五次对话上下文
+//   const recentMessages = messages.slice(-10) // 最近10条消息（5轮对话）
 
-  // 构建 prompt
-  const systemPrompt = `你是一个专业的代码助手。请根据用户需求对提供的文件进行智能修改。
+//   // 构建 prompt
+//   const systemPrompt = `你是一个专业的代码助手。请根据用户需求对提供的文件进行智能修改。
 
-### 任务要求
-- 仔细分析用户需求和文件内容
-- 只修改必要的部分，保持代码风格一致
-- 如果不需要修改,无需返回任何内容
-- 返回格式必须是纯JSON对象，不要包含任何markdown标记
-- **重要：每个文件只能在一个对象内，不能分段处理**
-- **重要：oldContent必须包含完整的原始文件内容**
-- **重要：newContent必须包含完整的修改后文件内容**
-- **重要：不能将一个文件分成多个对象处理**
+// ### 任务要求
+// - 仔细分析用户需求和文件内容
+// - 只修改必要的部分，保持代码风格一致
+// - 如果不需要修改,无需返回任何内容
+// - 返回格式必须是纯JSON对象，不要包含任何markdown标记
+// - **重要：每个文件只能在一个对象内，不能分段处理**
+// - **重要：oldContent必须包含完整的原始文件内容**
+// - **重要：newContent必须包含完整的修改后文件内容**
+// - **重要：不能将一个文件分成多个对象处理**
 
-### 输出格式
-{
-  "files": [
-    {
-      "path": "文件路径",
-      "operation": "操作类型",
-      "oldContent": "完整的原始文件内容",
-      "newContent": "完整的修改后文件内容", 
-      "diff": "diff格式的修改",
-      "reason": "修改原因"
-    }
-  ]
-}
+// ### 输出格式
+// {
+//   "files": [
+//     {
+//       "path": "文件路径",
+//       "operation": "操作类型",
+//       "oldContent": "完整的原始文件内容",
+//       "newContent": "完整的修改后文件内容",
+//       "diff": "diff格式的修改",
+//       "reason": "修改原因"
+//     }
+//   ]
+// }
 
-### 重要规则
-- 每个文件只能有一个对象，不能重复
-- oldContent和newContent必须是完整的文件内容
-- 如果文件不需要修改，newContent应该等于oldContent
-- 操作类型可以是：create、edit、delete、rename
+// ### 重要规则
+// - 每个文件只能有一个对象，不能重复
+// - oldContent和newContent必须是完整的文件内容
+// - 如果文件不需要修改，newContent应该等于oldContent
+// - 操作类型可以是：create、edit、delete、rename
 
-### 文件内容
-${context}
+// ### 文件内容
+// ${context}
 
-### 对话历史
-${recentMessages.map((msg, index) => `${msg.role === 'user' ? '用户' : 'AI'}: ${msg.content}`).join('\n')}
+// ### 对话历史
+// ${recentMessages.map((msg, index) => `${msg.role === 'user' ? '用户' : 'AI'}: ${msg.content}`).join('\n')}
 
-### 当前用户需求
-${JSON.stringify(messages[messages.length - 1].content)}`
+// ### 当前用户需求
+// ${JSON.stringify(messages[messages.length - 1].content)}`
 
-  const llmMessages = [
-    { role: 'system', content: systemPrompt },
-    ...recentMessages.map((msg) => ({
-      role: msg.role === 'user' ? 'user' : 'assistant',
-      content: msg.content,
-    })),
-    {
-      role: 'user',
-      content: `请根据上述对话历史和需求修改文件。注意：每个文件只能在一个对象中，包含完整的文件内容：${JSON.stringify(
-        messages[messages.length - 1].content
-      )}`,
-    },
-  ]
+//   const llmMessages = [
+//     { role: 'system', content: systemPrompt },
+//     ...recentMessages.map((msg) => ({
+//       role: msg.role === 'user' ? 'user' : 'assistant',
+//       content: msg.content,
+//     })),
+//     {
+//       role: 'user',
+//       content: `请根据上述对话历史和需求修改文件。注意：每个文件只能在一个对象中，包含完整的文件内容：${JSON.stringify(
+//         messages[messages.length - 1].content
+//       )}`,
+//     },
+//   ]
 
-  try {
-    // 检查是否配置了API密钥
-    const hasAPIKey = await aiService.checkAPIKeyConfigured('LLM')
-    if (!hasAPIKey) {
-      throw new Error('未配置AI API密钥')
-    }
+//   try {
+//     // 检查是否配置了API密钥
+//     const hasAPIKey = await aiService.checkAPIKeyConfigured('LLM')
+//     if (!hasAPIKey) {
+//       throw new Error('未配置AI API密钥')
+//     }
 
-    // 使用新的AI服务进行流式调用
-    let fullResponse = ''
-    await aiService.callAIStream(
-      llmMessages[llmMessages.length - 1].content,
-      (chunk, fullContent) => {
-        fullResponse = fullContent
-      },
-      'LLM',
-      {
-        temperature: 0.1,
-        maxTokens: 4000,
-        messages: llmMessages,
-      }
-    )
+//     // 使用新的AI服务进行流式调用
+//     let fullResponse = ''
+//     await aiService.callAIStream(
+//       llmMessages[llmMessages.length - 1].content,
+//       (chunk, fullContent) => {
+//         fullResponse = fullContent
+//       },
+//       'LLM',
+//       {
+//         temperature: 0.1,
+//         maxTokens: 4000,
+//         messages: llmMessages,
+//       }
+//     )
 
-    // 流式传输完成，解析完整响应
-    try {
-      // 提取JSON从markdown代码块中
-      const cleanJson = extractJsonFromMarkdown(fullResponse)
-      const result = JSON.parse(cleanJson)
+//     // 流式传输完成，解析完整响应
+//     try {
+//       // 提取JSON从markdown代码块中
+//       const cleanJson = extractJsonFromMarkdown(fullResponse)
+//       const result = JSON.parse(cleanJson)
 
-      // 去重处理：如果有重复的文件路径，只保留最后一个
-      const uniqueFiles = new Map()
-      for (const fileResult of result.files || []) {
-        uniqueFiles.set(fileResult.path, fileResult)
-      }
+//       // 去重处理：如果有重复的文件路径，只保留最后一个
+//       const uniqueFiles = new Map()
+//       for (const fileResult of result.files || []) {
+//         uniqueFiles.set(fileResult.path, fileResult)
+//       }
 
-      // 处理每个文件的修改结果
-      for (const fileResult of uniqueFiles.values()) {
-        const originalFile = files.find((f) => f.path === fileResult.path)
-        if (originalFile) {
-          if (fileResult.oldContent !== fileResult.newContent) {
-            // 有修改
-            yield {
-              type: 'file_modification',
-              path: fileResult.path,
-              operation: fileResult.operation || 'edit',
-              oldContent: fileResult.oldContent,
-              newContent: fileResult.newContent,
-              diff: fileResult.diff,
-              reason: fileResult.reason,
-            }
-          } else {
-            // 无修改
-            yield {
-              type: 'file_no_change',
-              path: fileResult.path,
-              operation: fileResult.operation || 'edit',
-              reason: fileResult.reason || '无需修改',
-            }
-          }
-        }
-      }
-    } catch (parseError) {
-      console.error('解析AI响应失败:', parseError)
-      console.error('原始响应:', fullResponse)
-      yield {
-        type: 'error',
-        error: '解析AI响应失败: ' + parseError.message,
-        rawResponse: fullResponse,
-      }
-    }
-  } catch (error) {
-    console.error('AI调用失败:', error)
-    yield {
-      type: 'error',
-      error: 'AI调用失败: ' + error.message,
-    }
-  }
-}
+//       // 处理每个文件的修改结果
+//       for (const fileResult of uniqueFiles.values()) {
+//         const originalFile = files.find((f) => f.path === fileResult.path)
+//         if (originalFile) {
+//           if (fileResult.oldContent !== fileResult.newContent) {
+//             // 有修改
+//             yield {
+//               type: 'file_modification',
+//               path: fileResult.path,
+//               operation: fileResult.operation || 'edit',
+//               oldContent: fileResult.oldContent,
+//               newContent: fileResult.newContent,
+//               diff: fileResult.diff,
+//               reason: fileResult.reason,
+//             }
+//           } else {
+//             // 无修改
+//             yield {
+//               type: 'file_no_change',
+//               path: fileResult.path,
+//               operation: fileResult.operation || 'edit',
+//               reason: fileResult.reason || '无需修改',
+//             }
+//           }
+//         }
+//       }
+//     } catch (parseError) {
+//       console.error('解析AI响应失败:', parseError)
+//       console.error('原始响应:', fullResponse)
+//       yield {
+//         type: 'error',
+//         error: '解析AI响应失败: ' + parseError.message,
+//         rawResponse: fullResponse,
+//       }
+//     }
+//   } catch (error) {
+//     console.error('AI调用失败:', error)
+//     yield {
+//       type: 'error',
+//       error: 'AI调用失败: ' + error.message,
+//     }
+//   }
+// }
 
 // 全栈开发AI Agent批量补全/修改（流式版本）
-async function* batchCodeAllCompletionStream(parameters, files, messages) {
-  // 组装多文件上下文
-  const context = files.map((f) => `文件: ${f.path}\n内容:\n${f.content}\n`).join('\n')
+// async function* batchCodeAllCompletionStream(parameters, files, messages) {
+//   // 组装多文件上下文
+//   const context = files.map((f) => `文件: ${f.path}\n内容:\n${f.content}\n`).join('\n')
 
-  // 获取最近五次对话上下文
-  const recentMessages = messages.slice(-10) // 最近10条消息（5轮对话）
+//   // 获取最近五次对话上下文
+//   const recentMessages = messages.slice(-10) // 最近10条消息（5轮对话）
 
-  // 使用新的全栈提示词
-  const prompt = `你是全栈开发AI Agent，分析用户需求并输出改动方案。
+//   // 使用新的全栈提示词
+//   const prompt = `你是全栈开发AI Agent，分析用户需求并输出改动方案。
 
-==== 输出格式 ====
-选择以下任一方式：
-1. **穿插式**：Markdown + 内嵌JSON代码块
-2. **分离式**：完整JSON + 完整Markdown
-3. **混合式**：Markdown中嵌入JSON片段 + 最终完整JSON
+// ==== 输出格式 ====
+// 选择以下任一方式：
+// 1. **穿插式**：Markdown + 内嵌JSON代码块
+// 2. **分离式**：完整JSON + 完整Markdown
+// 3. **混合式**：Markdown中嵌入JSON片段 + 最终完整JSON
 
-**要求**：JSON必须符合schema，Markdown必须完整，最终能提取完整JSON结构。
+// **要求**：JSON必须符合schema，Markdown必须完整，最终能提取完整JSON结构。
 
-==== JSON Schema ====
-{
-  "schema_validation": "pass|fail",
-  "schema_errors": ["string"],           // 仅当validation=fail时
+// ==== JSON Schema ====
+// {
+//   "schema_validation": "pass|fail",
+//   "schema_errors": ["string"],           // 仅当validation=fail时
 
-  "change": [
-    {
-      "change_id": "string",             // 唯一ID
-      "file_path": "string",             // 文件路径
-      "operation": "MODIFY|DELETE|CREATE|RENAME",
-      "change_summary": "string",        // 改动描述
-      "new_path": "string|null",         // 仅重命名时
-      "newContent": "string|null",       // 修改后完整内容
-      "oldContent": "string|null",       // 修改前完整内容
-      "patch": "string|null",            // unified diff（可选）
-      "how_to_test": ["string"],         // 测试步骤
-      "rollback": ["string"],            // 回滚步骤
-      "risk_level": "low|medium|high",
-      "author": "string",                // 可选
-      "timestamp": "ISO8601 string",
-      "issue_id": "string|null"          // 可选
-    }
-  ]
-}
+//   "change": [
+//     {
+//       "change_id": "string",             // 唯一ID
+//       "file_path": "string",             // 文件路径
+//       "operation": "MODIFY|DELETE|CREATE|RENAME",
+//       "change_summary": "string",        // 改动描述
+//       "new_path": "string|null",         // 仅重命名时
+//       "newContent": "string|null",       // 修改后完整内容
+//       "oldContent": "string|null",       // 修改前完整内容
+//       "patch": "string|null",            // unified diff（可选）
+//       "how_to_test": ["string"],         // 测试步骤
+//       "rollback": ["string"],            // 回滚步骤
+//       "risk_level": "low|medium|high",
+//       "author": "string",                // 可选
+//       "timestamp": "ISO8601 string",
+//       "issue_id": "string|null"          // 可选
+//     }
+//   ]
+// }
 
-==== 改动类型要求 ====
-- **前端**：UI变更、API调用、交互逻辑
-- **后端**：接口、服务、性能优化
-- **数据库**：DDL/DML、表结构、验证SQL
-- **配置**：环境变量、部署脚本、启动影响
-- **安全**：无敏感信息、去敏感化处理
+// ==== 改动类型要求 ====
+// - **前端**：UI变更、API调用、交互逻辑
+// - **后端**：接口、服务、性能优化
+// - **数据库**：DDL/DML、表结构、验证SQL
+// - **配置**：环境变量、部署脚本、启动影响
+// - **安全**：无敏感信息、去敏感化处理
 
-==== Markdown必须包含 ====
-- 操作摘要
-- 详细操作列表（按模块）
-- 测试步骤
-- 回滚指引
-- 假设与注意事项
-- PR标题与描述
+// ==== Markdown必须包含 ====
+// - 操作摘要
+// - 详细操作列表（按模块）
+// - 测试步骤
+// - 回滚指引
+// - 假设与注意事项
+// - PR标题与描述
 
-==== 文件内容 ====
-${context}
+// ==== 文件内容 ====
+// ${context}
 
-==== 对话历史 ====
-${recentMessages.map((msg, index) => `${msg.role === 'user' ? '用户' : 'AI'}: ${msg.content}`).join('\n')}
+// ==== 对话历史 ====
+// ${recentMessages.map((msg, index) => `${msg.role === 'user' ? '用户' : 'AI'}: ${msg.content}`).join('\n')}
 
-==== 用户需求 ====
-${JSON.stringify(parameters)}
+// ==== 用户需求 ====
+// ${JSON.stringify(parameters)}
 
-灵活组织输出，确保JSON符合schema，Markdown完整覆盖要求。`
+// 灵活组织输出，确保JSON符合schema，Markdown完整覆盖要求。`
 
-  const llmMessages = [
-    { role: 'system', content: prompt },
-    ...recentMessages.map((msg) => ({
-      role: msg.role === 'user' ? 'user' : 'assistant',
-      content: msg.content,
-    })),
-    { role: 'user', content: `请根据上述对话历史和需求进行全栈改动分析：${JSON.stringify(parameters)}` },
-  ]
+//   const llmMessages = [
+//     { role: 'system', content: prompt },
+//     ...recentMessages.map((msg) => ({
+//       role: msg.role === 'user' ? 'user' : 'assistant',
+//       content: msg.content,
+//     })),
+//     { role: 'user', content: `请根据上述对话历史和需求进行全栈改动分析：${JSON.stringify(parameters)}` },
+//   ]
 
-  try {
-    // 检查是否配置了API密钥
-    const hasAPIKey = await aiService.checkAPIKeyConfigured('LLM')
-    if (!hasAPIKey) {
-      throw new Error('未配置AI API密钥')
-    }
+//   try {
+//     // 检查是否配置了API密钥
+//     const hasAPIKey = await aiService.checkAPIKeyConfigured('LLM')
+//     if (!hasAPIKey) {
+//       throw new Error('未配置AI API密钥')
+//     }
 
-    // 使用新的AI服务进行流式调用
-    let fullResponse = ''
-    await aiService.callAIStream(
-      llmMessages[llmMessages.length - 1].content,
-      (chunk, fullContent) => {
-        fullResponse = fullContent
-      },
-      'LLM',
-      {
-        temperature: 0.1,
-        maxTokens: 6000, // 增加token限制以支持更详细的输出
-        messages: llmMessages,
-      }
-    )
+//     // 使用新的AI服务进行流式调用
+//     let fullResponse = ''
+//     await aiService.callAIStream(
+//       llmMessages[llmMessages.length - 1].content,
+//       (chunk, fullContent) => {
+//         fullResponse = fullContent
+//       },
+//       'LLM',
+//       {
+//         temperature: 0.1,
+//         maxTokens: 6000, // 增加token限制以支持更详细的输出
+//         messages: llmMessages,
+//       }
+//     )
 
-    let chunkCount = 0
-    let totalContentLength = 0
+//     let chunkCount = 0
+//     let totalContentLength = 0
 
-    // 流式传输完成，解析完整响应
-    try {
-      // 提取JSON从markdown代码块中
-      const cleanJson = extractJsonFromMarkdown(fullResponse)
-      const result = JSON.parse(cleanJson)
+//     // 流式传输完成，解析完整响应
+//     try {
+//       // 提取JSON从markdown代码块中
+//       const cleanJson = extractJsonFromMarkdown(fullResponse)
+//       const result = JSON.parse(cleanJson)
 
-      // 处理每个改动
-      for (const change of result.change || []) {
-        yield {
-          type: 'change_analysis',
-          changeId: change.change_id,
-          filePath: change.file_path,
-          operation: change.operation,
-          changeSummary: change.change_summary,
-          newPath: change.new_path,
-          newContent: change.newContent,
-          oldContent: change.oldContent,
-          patch: change.patch,
-          howToTest: change.how_to_test,
-          rollback: change.rollback,
-          riskLevel: change.risk_level,
-          author: change.author,
-          timestamp: change.timestamp,
-          issueId: change.issue_id,
-        }
-      }
-    } catch (parseError) {
-      console.error('解析AI响应失败:', parseError)
-      console.error('原始响应:', fullResponse)
-      yield {
-        type: 'error',
-        error: '解析AI响应失败: ' + parseError.message,
-        rawResponse: fullResponse,
-      }
-    }
-  } catch (error) {
-    console.error('AI调用失败:', error)
-    yield {
-      type: 'error',
-      error: 'AI调用失败: ' + error.message,
-    }
-  }
-}
+//       // 处理每个改动
+//       for (const change of result.change || []) {
+//         yield {
+//           type: 'change_analysis',
+//           changeId: change.change_id,
+//           filePath: change.file_path,
+//           operation: change.operation,
+//           changeSummary: change.change_summary,
+//           newPath: change.new_path,
+//           newContent: change.newContent,
+//           oldContent: change.oldContent,
+//           patch: change.patch,
+//           howToTest: change.how_to_test,
+//           rollback: change.rollback,
+//           riskLevel: change.risk_level,
+//           author: change.author,
+//           timestamp: change.timestamp,
+//           issueId: change.issue_id,
+//         }
+//       }
+//     } catch (parseError) {
+//       console.error('解析AI响应失败:', parseError)
+//       console.error('原始响应:', fullResponse)
+//       yield {
+//         type: 'error',
+//         error: '解析AI响应失败: ' + parseError.message,
+//         rawResponse: fullResponse,
+//       }
+//     }
+//   } catch (error) {
+//     console.error('AI调用失败:', error)
+//     yield {
+//       type: 'error',
+//       error: 'AI调用失败: ' + error.message,
+//     }
+//   }
+// }
 
 // 提取JSON从Markdown代码块中
 function extractJsonFromMarkdown(text) {
@@ -497,25 +497,9 @@ async function deleteFileIndex(filePath) {
   }
 }
 
-module.exports = {
-  vectorizeText,
-  vectorizeCode,
-  faissAdd,
-  faissSearch,
-  faissDelete,
-  faissUpdate,
-  codeCompletion,
-  batchCodeCompletionStream,
-  batchCodeAllCompletionStream,
-  indexFiles,
-  searchRelatedFiles,
-  updateFileIndex,
-  deleteFileIndex,
-  chatWithAIStream,
-}
 
 // 获取 DeepSeek API Key
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk-104ec0b815584973bf91b742170782b9'
+// const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk-104ec0b815584973bf91b742170782b9'
 
 // 忽略列表
 const ignoreList = [
@@ -600,7 +584,9 @@ function loadPrompts() {
 }
 
 // DeepSeek LLM 意图解析
-async function parseIntentWithDeepSeek(userInput, fileTree) {
+async function parseIntentWithAi(userInput, fileTree) {
+  const aiConfig = await getAIConfig('LLM')
+
   const prompts = loadPrompts()
   let systemPrompt = prompts.intent_parse.system
   systemPrompt = systemPrompt.replace('${fileTree}', JSON.stringify(fileTree))
@@ -609,15 +595,15 @@ async function parseIntentWithDeepSeek(userInput, fileTree) {
     { role: 'user', content: userInput },
   ]
   const res = await axios.post(
-    'https://api.deepseek.com/v1/chat/completions',
+    aiConfig.provider.endpoint,
     {
-      model: 'deepseek-chat',
+      model: aiConfig.model.name,
       messages,
       response_format: { type: 'json_object' },
     },
     {
       headers: {
-        Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
+        Authorization: `Bearer ${aiConfig.apiKey}`,
         'Content-Type': 'application/json',
       },
     }
@@ -635,15 +621,14 @@ async function* chatWithAIStream(messages, editorFile, manualPaths, contextPaths
     typeof localDirResult === 'string' ? localDirResult : localDirResult.directory || localDirResult.path || ''
   if (!rootDir) throw new Error('未获取到有效的本地目录')
   const fileTree = getProjectFileTree(rootDir, ignoreList)
-  const intentResult = await parseIntentWithDeepSeek(lastMessage.content, fileTree)
-
+  const intentResult = await parseIntentWithAi(lastMessage.content, fileTree)
   const afterHandlePaths = await processPathsForChatStream({
     editorFile,
     manualPaths,
     contextPaths,
     semanticPaths: intentResult.paths,
   })
-  console.log('intentResult', afterHandlePaths, intentResult, editorFile, manualPaths, contextPaths)
+  // console.log('intentResult', afterHandlePaths, intentResult, editorFile, manualPaths, contextPaths)
   for await (const chunk of handleIntentStream(intentResult, fileTree, afterHandlePaths, messages)) {
     yield chunk
   }
@@ -702,4 +687,21 @@ async function processPathsForChatStream({
     .sort((a, b) => (b.weight === a.weight ? a.path.localeCompare(b.path) : b.weight - a.weight))
     .slice(0, maxLength)
   return result
+}
+
+module.exports = {
+  vectorizeText,
+  vectorizeCode,
+  faissAdd,
+  faissSearch,
+  faissDelete,
+  faissUpdate,
+  // codeCompletion,
+  // batchCodeCompletionStream,
+  // batchCodeAllCompletionStream,
+  indexFiles,
+  searchRelatedFiles,
+  updateFileIndex,
+  deleteFileIndex,
+  chatWithAIStream,
 }

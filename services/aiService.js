@@ -21,9 +21,9 @@ class AIService {
       }
 
       // 根据modelType获取对应的模型
-      const currentModel = models.find(m => 
-        m.providerId === currentProvider.id && 
-        m.modelType === modelType && 
+      const currentModel = models.find(m =>
+        m.providerId === currentProvider.id &&
+        m.modelType === modelType &&
         m.isActive
       )
 
@@ -53,7 +53,7 @@ class AIService {
   async initializeClient(modelType = 'LLM') {
     try {
       const config = await this.getAIConfig(modelType)
-      
+
       this.currentConfig = config
       this.openai = new OpenAI({
         baseURL: config.provider.host,

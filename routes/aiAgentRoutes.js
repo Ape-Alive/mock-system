@@ -94,15 +94,15 @@ router.post('/search', async (req, res) => {
  *         description: 服务器错误
  */
 // 单文件代码补全
-router.post('/complete', async (req, res) => {
-  const { prompt, context = '' } = req.body
-  try {
-    const result = await aiAgent.codeCompletion(prompt, context)
-    res.json(result)
-  } catch (e) {
-    res.status(500).json({ error: e.message })
-  }
-})
+// router.post('/complete', async (req, res) => {
+//   const { prompt, context = '' } = req.body
+//   try {
+//     const result = await aiAgent.codeCompletion(prompt, context)
+//     res.json(result)
+//   } catch (e) {
+//     res.status(500).json({ error: e.message })
+//   }
+// })
 
 /**
  * @swagger
