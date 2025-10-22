@@ -340,6 +340,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const response = await fetch('/mock-list')
       if (!response.ok) throw new Error('无法加载接口列表')
       mockItems = await response.json()
+      // 加载数据后立即渲染
+      filterMockList()
     } catch (error) {
       showError('加载失败: ' + error.message)
     } finally {
@@ -746,8 +748,7 @@ document.addEventListener('DOMContentLoaded', () => {
         })
 
         if (!response.ok) throw new Error('删除失败')
-
-        // 刷新列表
+        // 立即刷新列表
         await loadMockList()
       } catch (error) {
         showError('删除失败: ' + error.message)
@@ -1048,9 +1049,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (testStatus) {
       testStatus.textContent = `状态码: ${results.status} ${results.statusText} | 耗时: ${results.responseTime}ms`
-      testStatus.className = `mock-test-status ${
-        results.status >= 200 && results.status < 300 ? 'status-success' : 'status-error'
-      }`
+      testStatus.className = `mock-test-status ${results.status >= 200 && results.status < 300 ? 'status-success' : 'status-error'
+        }`
     }
 
     // 设置响应内容
@@ -1277,7 +1277,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 每次切换分组都刷新mockItems
         await loadMockList()
-        filterMockList()
         updateGroupActionButtons(data.node.data)
       })
       .on('ready.jstree', function () {
@@ -1482,11 +1481,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isMockTemplate && window.Mock) {
           try {
             val = Mock.mock(val)
-          } catch {}
+          } catch { }
         }
         const descObj = genDescObj(val)
         descInput.value = JSON.stringify(descObj, null, 2)
-      } catch {}
+      } catch { }
     })
   }
   autoGenDesc('queryParams', 'queryParamsDesc', true)

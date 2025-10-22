@@ -13,7 +13,9 @@ async function initDatabase() {
         console.log('🔧 初始化生产环境数据库...');
 
         // 获取应用资源路径
-        const resourcePath = process.resourcesPath || path.join(__dirname, 'dist');
+        // 在构建阶段，我们使用当前项目的数据库路径
+        // 在生产环境中，会使用打包后的路径
+        const resourcePath = process.resourcesPath || __dirname;
         const dbPath = path.join(resourcePath, 'prisma', 'dev.db');
         const dbDir = path.dirname(dbPath);
 
@@ -47,19 +49,32 @@ async function initDatabase() {
 
         console.log('📊 现有表:', tables.map(t => t.name));
 
-        // 如果表不存在，运行迁移
-        if (tables.length === 0) {
-            console.log('🔄 运行数据库迁移...');
-            execSync('npx prisma db push', { stdio: 'inherit' });
-            console.log('✅ 数据库迁移完成');
-        }
+        // 总是运行数据库迁移以确保表结构是最新的
+        console.log('🔄 运行数据库迁移...');
+        execSync('npx prisma db push', { stdio: 'inherit' });
+        console.log('✅ 数据库迁移完成');
+
+        // 重新连接以确保获取最新的schema
+        await prisma.$disconnect();
+
+        // 重新创建Prisma客户端以获取最新的schema
+        const freshPrisma = new PrismaClient({
+            datasources: {
+                db: {
+                    url: `file:${dbPath}`
+                }
+            }
+        });
+
+        await freshPrisma.$connect();
+        console.log('✅ 重新连接数据库成功');
 
         // 检查并创建必要的初始数据
-        await createInitialData(prisma);
+        await createInitialData(freshPrisma);
+
+        await freshPrisma.$disconnect();
 
         console.log('✅ 生产环境数据库初始化完成');
-
-        await prisma.$disconnect();
 
     } catch (error) {
         console.error('❌ 数据库初始化失败:', error);
@@ -75,8 +90,14 @@ async function createInitialData(prisma) {
 
         // 检查是否有 AI 提供者数据
         console.log('🔍 查询 AI 提供者数据...');
-        const providers = await prisma.aIProvider.findMany();
-        console.log('📊 找到 AI 提供者数量:', providers.length);
+        let providers = [];
+        try {
+            providers = await prisma.aIProvider.findMany();
+            console.log('📊 找到 AI 提供者数量:', providers.length);
+        } catch (error) {
+            console.log('⚠️  AI提供者表可能不存在，将创建初始数据:', error.message);
+            providers = [];
+        }
         if (providers.length > 0) {
             console.log('📋 现有 AI 提供者:', providers.map(p => p.name).join(', '));
         }
@@ -156,12 +177,25 @@ async function createInitialData(prisma) {
         }
 
         // 检查是否有 AI 模型数据
-        const models = await prisma.aIModel.findMany();
+        let models = [];
+        try {
+            models = await prisma.aIModel.findMany();
+        } catch (error) {
+            console.log('⚠️  AI模型表可能不存在，将创建初始数据:', error.message);
+            models = [];
+        }
+
         if (models.length === 0) {
             console.log('📝 创建初始 AI 模型数据...');
 
             // 获取提供者
-            const providers = await prisma.aIProvider.findMany();
+            let providers = [];
+            try {
+                providers = await prisma.aIProvider.findMany();
+            } catch (error) {
+                console.log('⚠️  无法获取AI提供者数据:', error.message);
+                providers = [];
+            }
             const providerMap = {};
             providers.forEach(p => {
                 providerMap[p.name] = p;
@@ -223,57 +257,75 @@ async function createInitialData(prisma) {
         }
 
         // 检查是否有设置数据
-        const settings = await prisma.settings.findFirst();
-        if (!settings) {
-            console.log('📝 创建初始设置数据...');
-
-            await prisma.settings.create({
-                data: {
-                    provider: 'openai',
-                    apiKeys: {
-                        openai: '',
-                        claude: '',
-                        deepseek: '',
-                        gemini: '',
-                        custom: '',
-                    },
-                    customApi: {
-                        host: '',
-                        endpoint: '',
-                    },
-                    defaultModel: '',
-                    modelParams: {
-                        temperature: 0.7,
-                        maxTokens: 2048,
-                        topP: 1,
-                    },
-                    general: {
-                        initialDirectory: '',
-                        language: 'zh-CN',
-                        theme: 'dark',
-                        autoSave: true,
-                        saveInterval: 30,
-                    },
-                    createdAt: new Date(),
-                    updatedAt: new Date(),
-                }
-            });
-            console.log('✅ 设置数据创建完成');
-
-            // 验证创建结果
-            const newSettings = await prisma.settings.findFirst();
-            console.log('📊 创建后设置数据:', newSettings ? '存在' : '不存在');
-            if (newSettings) {
-                console.log('📋 默认提供者:', newSettings.provider);
+        // 无需检查是否存在，直接覆盖创建
+        console.log('📝 重置并创建初始设置数据...');
+        await prisma.settings.deleteMany();
+        await prisma.settings.create({
+            data: {
+                provider: 'deepseek',
+                apiKeys: {
+                    openai: '',
+                    claude: '',
+                    deepseek: '',
+                    gemini: '',
+                    custom: '',
+                },
+                customApi: {
+                    host: '',
+                    endpoint: '',
+                },
+                defaultModel: '',
+                modelParams: {
+                    temperature: 0.7,
+                    maxTokens: 4000,
+                    topP: 1,
+                },
+                general: {
+                    initialDirectory: '',
+                    language: 'zh-CN',
+                    theme: 'dark',
+                    autoSave: true,
+                    saveInterval: 30,
+                },
+                createdAt: new Date(),
+                updatedAt: new Date(),
             }
-        }
+        });
+        console.log('✅ 设置数据已覆盖创建');
 
-        console.log('✅ 初始数据检查完成');
+        // 清空 LocalDirectory 表并写入空白记录
+        console.log('🧹 清空 LocalDirectory 表并写入空白记录...')
+        await prisma.localDirectory.deleteMany()
+        await prisma.localDirectory.create({
+            data: {
+                id: 1,
+                directory: '',
+                projectName: null,
+                updatedAt: new Date(),
+            }
+        })
+        console.log('✅ LocalDirectory 已重置为空')
 
         // 最终验证所有数据
-        const finalProviders = await prisma.aIProvider.findMany();
-        const finalModels = await prisma.aIModel.findMany();
-        const finalSettings = await prisma.settings.findFirst();
+        let finalProviders = [], finalModels = [], finalSettings = null;
+
+        try {
+            finalProviders = await prisma.aIProvider.findMany();
+        } catch (error) {
+            console.log('⚠️  无法验证AI提供者数据:', error.message);
+        }
+
+        try {
+            finalModels = await prisma.aIModel.findMany();
+        } catch (error) {
+            console.log('⚠️  无法验证AI模型数据:', error.message);
+        }
+
+        try {
+            finalSettings = await prisma.settings.findFirst();
+        } catch (error) {
+            console.log('⚠️  无法验证设置数据:', error.message);
+        }
 
         console.log('📊 最终数据统计:');
         console.log('   - AI 提供者:', finalProviders.length, '个');
@@ -336,7 +388,19 @@ async function buildProduction() {
 
 // 运行打包流程
 if (require.main === module) {
-    buildProduction();
+    // 检查命令行参数
+    const args = process.argv.slice(2);
+
+    if (args.includes('--init-db-only') || args.includes('--init-database')) {
+        // 只执行数据库初始化
+        initDatabase().catch(error => {
+            console.error('❌ 数据库初始化失败:', error);
+            process.exit(1);
+        });
+    } else {
+        // 执行完整的构建流程
+        buildProduction();
+    }
 }
 
 module.exports = {

@@ -1,26 +1,121 @@
 const { PrismaClient } = require('@prisma/client')
-const prisma = new PrismaClient()
+const path = require('path')
+const fs = require('fs')
+
+// 动态获取数据库路径
+function getDatabasePath() {
+  // 在开发环境中使用相对路径
+  if (process.env.NODE_ENV === 'development') {
+    return "file:./dev.db"
+  }
+
+  // 在生产环境中使用绝对路径
+  const appPath = process.resourcesPath || __dirname
+  const dbPath = path.join(appPath, 'prisma', 'dev.db')
+  const dbDir = path.dirname(dbPath)
+
+  // 确保数据库目录存在
+  if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true })
+    console.log('📁 创建数据库目录:', dbDir)
+  }
+
+  // 设置数据库文件权限
+  if (fs.existsSync(dbPath)) {
+    try {
+      // 尝试多种权限设置
+      fs.chmodSync(dbPath, 0o664)
+      console.log('🔧 设置数据库文件权限:', dbPath)
+
+      // 清理可能的扩展属性
+      try {
+        const { execSync } = require('child_process')
+        execSync(`xattr -c "${dbPath}"`, { stdio: 'ignore' })
+        console.log('🧹 清理数据库文件扩展属性')
+      } catch (cleanupError) {
+        console.log('⚠️ 清理扩展属性失败:', cleanupError.message)
+      }
+    } catch (error) {
+      console.warn('⚠️ 设置数据库权限失败:', error.message)
+    }
+  } else {
+    // 如果数据库文件不存在，创建一个新的
+    try {
+      fs.writeFileSync(dbPath, '')
+      fs.chmodSync(dbPath, 0o664)
+      console.log('📄 创建新的数据库文件:', dbPath)
+    } catch (createError) {
+      console.error('❌ 创建数据库文件失败:', createError.message)
+    }
+  }
+
+  return `file:${dbPath}`
+}
+
+// 创建 Prisma 客户端，添加重试机制
+const prisma = new PrismaClient({
+  log: ['query', 'info', 'warn', 'error'],
+  datasources: {
+    db: {
+      url: getDatabasePath()
+    }
+  }
+})
+
+// 初始化数据库连接
+async function initializeDatabase() {
+  try {
+    console.log('🔧 初始化数据库连接...')
+
+    // 测试数据库连接
+    await prisma.$connect()
+    console.log('✅ 数据库连接成功')
+
+    // 运行数据库迁移
+    const { execSync } = require('child_process')
+    try {
+      execSync('npx prisma db push', { stdio: 'pipe' })
+      console.log('✅ 数据库迁移完成')
+    } catch (migrateError) {
+      console.log('⚠️ 数据库迁移失败，继续使用现有结构:', migrateError.message)
+    }
+
+    return true
+  } catch (error) {
+    console.error('❌ 数据库初始化失败:', error.message)
+    return false
+  }
+}
 
 module.exports = {
   prisma,
+  initializeDatabase,
 
   // 本地目录相关
   async getLocalDirectory() {
-    return await prisma.localDirectory.findUnique({ where: { id: 1 } })
+    return await prisma.localDirectory.findFirst()
   },
 
   async setLocalDirectory(directory, projectName) {
-    return await prisma.localDirectory.upsert({
-      where: { id: 1 },
-      update: { directory, projectName },
-      create: { id: 1, directory, projectName },
-    })
+    // 先检查是否存在记录
+    const existing = await prisma.localDirectory.findFirst()
+
+    if (existing) {
+      // 如果存在，则更新
+      return await prisma.localDirectory.update({
+        where: { id: existing.id },
+        data: { directory, projectName },
+      })
+    } else {
+      // 如果不存在，则创建
+      return await prisma.localDirectory.create({
+        data: { directory, projectName },
+      })
+    }
   },
   async getSettings() {
     try {
-      const settings = await prisma.settings.findFirst({
-        orderBy: { id: 'desc' },
-      })
+      const settings = await prisma.settings.findFirst()
 
       if (!settings) {
         // 返回默认设置
@@ -88,45 +183,62 @@ module.exports = {
 
   async saveSettings(settings) {
     try {
-      // 保存设置
-      const result = await prisma.settings.upsert({
-        where: { id: 1 },
-        update: {
-          provider: settings.provider,
-          apiKeys: settings.apiKeys,
-          customApi: settings.customApi,
-          defaultModel: settings.defaultModel,
-          modelParams: settings.modelParams,
-          general: settings.general,
-          updatedAt: new Date(),
-        },
-        create: {
-          id: 1,
-          provider: settings.provider,
-          apiKeys: settings.apiKeys,
-          customApi: settings.customApi,
-          defaultModel: settings.defaultModel,
-          modelParams: settings.modelParams,
-          general: settings.general,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      })
+      // 先检查是否存在设置记录
+      const existingSettings = await prisma.settings.findFirst()
+      let result
 
-      // 如果设置了初始目录，同时更新 LocalDirectory 表
-      if (settings.general) {
-        await prisma.localDirectory.upsert({
-          where: { id: 1 },
-          update: {
-            directory: settings.general.initialDirectory,
-            projectName: settings.general.projectName || null
-          },
-          create: {
-            id: 1,
-            directory: settings.general.initialDirectory,
-            projectName: settings.general.projectName || null
+      if (existingSettings) {
+        // 如果存在，则更新
+        result = await prisma.settings.update({
+          where: { id: existingSettings.id },
+          data: {
+            provider: settings.provider,
+            apiKeys: settings.apiKeys,
+            customApi: settings.customApi,
+            defaultModel: settings.defaultModel,
+            modelParams: settings.modelParams,
+            general: settings.general,
+            updatedAt: new Date(),
           },
         })
+      } else {
+        // 如果不存在，则创建
+        result = await prisma.settings.create({
+          data: {
+            provider: settings.provider,
+            apiKeys: settings.apiKeys,
+            customApi: settings.customApi,
+            defaultModel: settings.defaultModel,
+            modelParams: settings.modelParams,
+            general: settings.general,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        })
+      }
+
+      // 如果设置了初始目录，同时更新 LocalDirectory 表
+      if (settings.general && settings.general.initialDirectory) {
+        const existing = await prisma.localDirectory.findFirst()
+
+        if (existing) {
+          // 如果存在，则更新
+          await prisma.localDirectory.update({
+            where: { id: existing.id },
+            data: {
+              directory: settings.general.initialDirectory,
+              projectName: settings.general.projectName || null
+            }
+          })
+        } else {
+          // 如果不存在，则创建
+          await prisma.localDirectory.create({
+            data: {
+              directory: settings.general.initialDirectory,
+              projectName: settings.general.projectName || null
+            }
+          })
+        }
         console.log('已更新 LocalDirectory 表:', settings.general.initialDirectory)
       }
 

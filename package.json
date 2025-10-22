@@ -1,5 +1,5 @@
 {
-  "name": "Mock Coding",
+  "name": "MockCoding",
   "version": "1.0.0",
   "main": "electron-main.js",
   "homepage": "./",
@@ -10,12 +10,12 @@
     "electron-dev": "NODE_ENV=development electron .",
     "electron-clean": "./start-electron-clean.sh",
     "build": "electron-builder",
-    "build-mac": "electron-builder --mac",
-    "build-mac-pre": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac",
-    "build-win": "electron-builder --win",
-    "build-linux": "electron-builder --linux",
+    "build-mac": "ELECTRON_MIRROR=https://registry.npmmirror.com/-/binary/electron/ electron-builder --mac",
+    "build-mac-pre": "CSC_IDENTITY_AUTO_DISCOVERY=false ELECTRON_MIRROR=https://registry.npmmirror.com/-/binary/electron/ electron-builder --mac",
+    "build-win": "ELECTRON_MIRROR=https://registry.npmmirror.com/-/binary/electron/ electron-builder --win",
+    "build-linux": "ELECTRON_MIRROR=https://registry.npmmirror.com/-/binary/electron/ electron-builder --linux",
     "dist": "npm run build",
-    "build-production": "chmod +x build-production.sh && ./build-production.sh",
+    "build-production": "chmod +x build-production.sh && ./build-production.sh \"$@\"",
     "build-production-js": "node build-production.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -138,6 +138,14 @@
       "signIgnore": [
         "node_modules/@xiaobaidadada/node-pty-prebuilt/build/Release/pty.node"
       ]
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.png"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "assets/icon.png"
     }
   }
 }

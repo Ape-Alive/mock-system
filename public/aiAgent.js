@@ -472,7 +472,7 @@ class AIAgentManager {
     if (['jsx', 'tsx'].includes(ext)) return { class: 'fab fa-react text-info' }
 
     // 配置文件
-    if (['json'].includes(ext)) return { class: 'fas fa-brackets-curly text-warning' }
+    if (['json'].includes(ext)) return { class: 'fas fa-file-code text-warning' }
     if (['xml'].includes(ext)) return { class: 'fas fa-code text-orange' }
     if (['yaml', 'yml'].includes(ext)) return { class: 'fas fa-file-code text-purple' }
     if (['toml'].includes(ext)) return { class: 'fas fa-file-code text-blue' }
