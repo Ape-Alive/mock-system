@@ -7,15 +7,29 @@ const groupService = require('./groupService')
 class MockService {
   constructor() {
     this.routeHandlers = new Map()
-    this.ensureMockDirectory()
+    this.initialized = false
+    // 延迟初始化，避免在模块加载时出现问题
   }
 
   ensureMockDirectory() {
-    fileUtils.ensureDirectoryExists(config.MOCK_DIR)
+    try {
+      if (!this.initialized) {
+        // 确保配置已加载
+        const config = require('../config')
+        fileUtils.ensureDirectoryExists(config.MOCK_DIR)
+        this.initialized = true
+        console.log('✅ MockService 初始化完成')
+      }
+    } catch (error) {
+      console.error('❌ MockService 初始化失败:', error.message)
+      // 不抛出错误，允许应用继续运行
+    }
   }
 
   // 创建Mock项
   createMock(mockData) {
+    this.ensureMockDirectory()
+
     const {
       pathName,
       path: routePath,

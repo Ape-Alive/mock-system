@@ -1,4 +1,11 @@
-const pty = require('@xiaobaidadada/node-pty-prebuilt')
+// 尝试导入pty模块，如果失败则使用备用方案
+let pty = null
+try {
+  pty = require('@xiaobaidadada/node-pty-prebuilt')
+  console.log('✅ PTY模块加载成功')
+} catch (error) {
+  console.log('⚠️ PTY模块不可用，终端功能将被禁用:', error.message)
+}
 const WebSocket = require('ws')
 const dbService = require('./dbService')
 const path = require('path')
@@ -69,7 +76,7 @@ async function setupTerminalWS(server) {
       if (dirObj && dirObj.directory) {
         allowedDir = dirObj.directory
       }
-    } catch (e) {}
+    } catch (e) { }
 
     // 多终端会话管理：sessionId -> { child, inputBuffer }
     const sessions = {}
@@ -83,6 +90,11 @@ async function setupTerminalWS(server) {
         }
         if (type === 'create') {
           // 创建新终端窗口
+          if (!pty) {
+            ws.send(JSON.stringify({ type: 'error', data: '终端功能不可用：PTY模块未安装' }))
+            return
+          }
+
           if (sessions[sessionId]) {
             ws.send(JSON.stringify({ type: 'error', data: '该 sessionId 已存在' }))
             return
@@ -152,12 +164,18 @@ async function setupTerminalWS(server) {
             ws.send(JSON.stringify({ type: 'closed', sessionId }))
           }
         }
-      } catch (e) {}
+      } catch (e) { }
     })
 
     ws.on('close', () => {
       // 断开时关闭所有终端窗口
-      Object.values(sessions).forEach((session) => session.child.kill())
+      if (pty) {
+        Object.values(sessions).forEach((session) => {
+          if (session && session.child) {
+            session.child.kill()
+          }
+        })
+      }
     })
   })
 }

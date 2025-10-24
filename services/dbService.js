@@ -71,19 +71,309 @@ async function initializeDatabase() {
     await prisma.$connect()
     console.log('✅ 数据库连接成功')
 
-    // 运行数据库迁移
-    const { execSync } = require('child_process')
-    try {
-      execSync('npx prisma db push', { stdio: 'pipe' })
-      console.log('✅ 数据库迁移完成')
-    } catch (migrateError) {
-      console.log('⚠️ 数据库迁移失败，继续使用现有结构:', migrateError.message)
-    }
+    // 检查数据库表是否存在，如果不存在则创建
+    await ensureDatabaseTables()
+    console.log('✅ 数据库表检查/创建完成')
 
     return true
   } catch (error) {
     console.error('❌ 数据库初始化失败:', error.message)
     return false
+  }
+}
+
+// 确保数据库表存在
+async function ensureDatabaseTables() {
+  try {
+    // 检查Settings表是否存在
+    const settingsExists = await checkTableExists('Settings')
+    if (!settingsExists) {
+      console.log('📝 创建数据库表...')
+      await createDatabaseTables()
+    } else {
+      console.log('✅ 数据库表已存在')
+    }
+  } catch (error) {
+    console.error('❌ 数据库表检查失败:', error.message)
+    // 尝试创建表
+    try {
+      await createDatabaseTables()
+    } catch (createError) {
+      console.error('❌ 创建数据库表失败:', createError.message)
+      throw createError
+    }
+  }
+}
+
+// 检查表是否存在
+async function checkTableExists(tableName) {
+  try {
+    const result = await prisma.$queryRaw`
+      SELECT name FROM sqlite_master
+      WHERE type='table' AND name=${tableName}
+    `
+    return result.length > 0
+  } catch (error) {
+    console.log('⚠️ 检查表存在性失败:', error.message)
+    return false
+  }
+}
+
+// 创建数据库表
+async function createDatabaseTables() {
+  try {
+    // 创建LocalDirectory表
+    await prisma.$executeRaw`
+      CREATE TABLE IF NOT EXISTS "LocalDirectory" (
+        "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        "directory" TEXT NOT NULL,
+        "projectName" TEXT,
+        "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `
+
+    // 创建FileVectorIndex表
+    await prisma.$executeRaw`
+      CREATE TABLE IF NOT EXISTS "FileVectorIndex" (
+        "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        "filePath" TEXT NOT NULL UNIQUE,
+        "fileHash" TEXT NOT NULL,
+        "vectorId" INTEGER NOT NULL,
+        "mtime" BIGINT NOT NULL
+      )
+    `
+
+    // 创建FileHistory表
+    await prisma.$executeRaw`
+      CREATE TABLE IF NOT EXISTS "FileHistory" (
+        "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        "filePath" TEXT NOT NULL,
+        "content" TEXT NOT NULL,
+        "action" TEXT NOT NULL,
+        "operator" TEXT,
+        "newPath" TEXT,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `
+
+    // 创建AIProvider表
+    await prisma.$executeRaw`
+      CREATE TABLE IF NOT EXISTS "AIProvider" (
+        "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        "name" TEXT NOT NULL UNIQUE,
+        "displayName" TEXT NOT NULL,
+        "icon" TEXT NOT NULL,
+        "host" TEXT NOT NULL,
+        "endpoint" TEXT NOT NULL,
+        "link" TEXT NOT NULL,
+        "isActive" BOOLEAN NOT NULL DEFAULT true,
+        "isCustom" BOOLEAN NOT NULL DEFAULT false,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `
+
+    // 创建AIModel表
+    await prisma.$executeRaw`
+      CREATE TABLE IF NOT EXISTS "AIModel" (
+        "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        "name" TEXT NOT NULL,
+        "displayName" TEXT,
+        "providerId" INTEGER NOT NULL,
+        "modelType" TEXT NOT NULL DEFAULT 'LLM',
+        "isBeta" BOOLEAN NOT NULL DEFAULT false,
+        "isActive" BOOLEAN NOT NULL DEFAULT true,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY ("providerId") REFERENCES "AIProvider"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+        UNIQUE("name", "providerId")
+      )
+    `
+
+    // 创建Settings表
+    await prisma.$executeRaw`
+      CREATE TABLE IF NOT EXISTS "Settings" (
+        "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        "provider" TEXT NOT NULL DEFAULT 'openai',
+        "apiKeys" TEXT,
+        "customApi" TEXT,
+        "defaultModel" TEXT,
+        "modelParams" TEXT,
+        "general" TEXT,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `
+
+    console.log('✅ 数据库表创建完成')
+
+    // 创建初始数据
+    await createInitialData()
+    console.log('✅ 初始数据创建完成')
+
+  } catch (error) {
+    console.error('❌ 创建数据库表失败:', error.message)
+    throw error
+  }
+}
+
+// 创建初始数据
+async function createInitialData() {
+  try {
+    // 检查是否有AI提供者数据
+    const providers = await prisma.aIProvider.findMany()
+    if (providers.length === 0) {
+      console.log('📝 创建初始AI提供者数据...')
+      await prisma.aIProvider.createMany({
+        data: [
+          {
+            name: 'openai',
+            displayName: 'OpenAI',
+            icon: 'fas fa-brain',
+            host: 'https://api.openai.com',
+            endpoint: 'https://api.openai.com/v1/chat/completions',
+            link: 'https://openai.com',
+            isActive: true,
+            isCustom: false,
+          },
+          {
+            name: 'claude',
+            displayName: 'Claude',
+            icon: 'fas fa-robot',
+            host: 'https://api.anthropic.com',
+            endpoint: 'https://api.anthropic.com/v1/messages',
+            link: 'https://anthropic.com',
+            isActive: true,
+            isCustom: false,
+          },
+          {
+            name: 'deepseek',
+            displayName: 'DeepSeek',
+            icon: 'fas fa-dolphin',
+            host: 'https://api.deepseek.com',
+            endpoint: 'https://api.deepseek.com/v1/chat/completions',
+            link: 'https://deepseek.com',
+            isActive: true,
+            isCustom: false,
+          },
+          {
+            name: 'gemini',
+            displayName: 'Gemini',
+            icon: 'fas fa-gem',
+            host: 'https://generativelanguage.googleapis.com',
+            endpoint: 'https://generativelanguage.googleapis.com/v1beta/models',
+            link: 'https://ai.google.dev',
+            isActive: true,
+            isCustom: false,
+          },
+          {
+            name: 'custom',
+            displayName: '自定义API',
+            icon: 'fas fa-code',
+            host: '',
+            endpoint: '',
+            link: '#',
+            isActive: true,
+            isCustom: true,
+          }
+        ]
+      })
+    }
+
+    // 检查是否有AI模型数据
+    const models = await prisma.aIModel.findMany()
+    if (models.length === 0) {
+      console.log('📝 创建初始AI模型数据...')
+      const providers = await prisma.aIProvider.findMany()
+      const providerMap = {}
+      providers.forEach(p => {
+        providerMap[p.name] = p
+      })
+
+      const defaultModels = [
+        { name: 'gpt-4', displayName: 'GPT-4', providerName: 'openai', modelType: 'LLM', isBeta: false },
+        { name: 'gpt-4-turbo', displayName: 'GPT-4 Turbo', providerName: 'openai', modelType: 'LLM', isBeta: false },
+        { name: 'gpt-4o', displayName: 'GPT-4o', providerName: 'openai', modelType: 'LLM', isBeta: false },
+        { name: 'gpt-4o-mini', displayName: 'GPT-4o Mini', providerName: 'openai', modelType: 'LLM', isBeta: false },
+        { name: 'gpt-3.5-turbo', displayName: 'GPT-3.5 Turbo', providerName: 'openai', modelType: 'LLM', isBeta: false },
+        { name: 'gpt-3.5-turbo-16k', displayName: 'GPT-3.5 Turbo 16K', providerName: 'openai', modelType: 'LLM', isBeta: false },
+        { name: 'claude-3-opus', displayName: 'Claude 3 Opus', providerName: 'claude', modelType: 'LLM', isBeta: false },
+        { name: 'claude-3-sonnet', displayName: 'Claude 3 Sonnet', providerName: 'claude', modelType: 'LLM', isBeta: false },
+        { name: 'claude-3-haiku', displayName: 'Claude 3 Haiku', providerName: 'claude', modelType: 'LLM', isBeta: false },
+        { name: 'deepseek-chat', displayName: 'DeepSeek Chat', providerName: 'deepseek', modelType: 'LLM', isBeta: false },
+        { name: 'deepseek-coder', displayName: 'DeepSeek Coder', providerName: 'deepseek', modelType: 'CODE', isBeta: false },
+        { name: 'gemini-pro', displayName: 'Gemini Pro', providerName: 'gemini', modelType: 'LLM', isBeta: false },
+      ]
+
+      const modelData = defaultModels
+        .map((model) => {
+          const provider = providerMap[model.providerName]
+          return {
+            name: model.name,
+            displayName: model.displayName,
+            providerId: provider?.id,
+            modelType: model.modelType || 'LLM',
+            isBeta: model.isBeta,
+            isActive: true,
+          }
+        })
+        .filter((model) => model.providerId)
+
+      await prisma.aIModel.createMany({
+        data: modelData,
+      })
+    }
+
+    // 检查是否有设置数据
+    const settings = await prisma.settings.findFirst()
+    if (!settings) {
+      console.log('📝 创建初始设置数据...')
+      await prisma.settings.create({
+        data: {
+          provider: 'deepseek',
+          apiKeys: {
+            openai: '',
+            claude: '',
+            deepseek: '',
+            gemini: '',
+            custom: '',
+          },
+          customApi: {
+            host: '',
+            endpoint: '',
+          },
+          defaultModel: '',
+          modelParams: {
+            temperature: 0.7,
+            maxTokens: 4000,
+            topP: 1,
+          },
+          general: {
+            initialDirectory: '',
+            language: 'zh-CN',
+            theme: 'dark',
+            autoSave: true,
+            saveInterval: 30,
+          },
+        }
+      })
+    }
+
+    // 检查是否有本地目录数据
+    const localDir = await prisma.localDirectory.findFirst()
+    if (!localDir) {
+      console.log('📝 创建初始本地目录数据...')
+      await prisma.localDirectory.create({
+        data: {
+          directory: '',
+          projectName: null,
+        }
+      })
+    }
+
+  } catch (error) {
+    console.error('❌ 创建初始数据失败:', error.message)
+    throw error
   }
 }
 
