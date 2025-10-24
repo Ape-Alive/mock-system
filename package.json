@@ -12,11 +12,14 @@
     "build": "electron-builder",
     "build-mac": "ELECTRON_MIRROR=https://registry.npmmirror.com/-/binary/electron/ electron-builder --mac",
     "build-mac-pre": "CSC_IDENTITY_AUTO_DISCOVERY=false ELECTRON_MIRROR=https://registry.npmmirror.com/-/binary/electron/ electron-builder --mac",
-    "build-win": "ELECTRON_MIRROR=https://registry.npmmirror.com/-/binary/electron/ electron-builder --win",
+    "build-win": "electron-builder --win",
     "build-linux": "ELECTRON_MIRROR=https://registry.npmmirror.com/-/binary/electron/ electron-builder --linux",
     "dist": "npm run build",
     "build-production": "chmod +x build-production.sh && ./build-production.sh \"$@\"",
     "build-production-js": "node build-production.js",
+    "build-windows-production": "node build-windows-production.js",
+    "build-windows-production-db": "node build-windows-production.js --init-db-only",
+    "build-win-safe": "npx electron-builder --win --config.directories.output=dist-$(Get-Date -Format 'yyyyMMdd_HHmmss')",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Liuqihui",
@@ -24,7 +27,7 @@
   "description": "一个强大的API Mock和代码生成工具",
   "dependencies": {
     "@prisma/client": "^6.15.0",
-    "@xiaobaidadada/node-pty-prebuilt": "^1.0.5",
+    "@xiaobaidadada/node-pty-prebuilt": "1.0.5",
     "axios": "^1.10.0",
     "body-parser": "^2.2.0",
     "chokidar": "^4.0.3",
@@ -118,6 +121,13 @@
         "filter": [
           "**/*"
         ]
+      },
+      {
+        "from": "node_modules/@xiaobaidadada/node-pty-prebuilt",
+        "to": "node_modules/@xiaobaidadada/node-pty-prebuilt",
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "mac": {
@@ -141,7 +151,16 @@
     },
     "win": {
       "target": "nsis",
-      "icon": "assets/icon.png"
+      "icon": "assets/icon.png",
+      "extraResources": [
+        {
+          "from": "node_modules/@xiaobaidadada/node-pty-prebuilt/build/Release",
+          "to": "node_modules/@xiaobaidadada/node-pty-prebuilt/build/Release",
+          "filter": [
+            "*.node"
+          ]
+        }
+      ]
     },
     "linux": {
       "target": "AppImage",

@@ -641,6 +641,13 @@ class AIAgentManager {
     menus.forEach((menu) => menu.remove())
   }
 
+  // 标准化路径，统一处理Windows和Unix路径分隔符
+  normalizePath(path) {
+    if (!path) return path
+    // 将反斜杠转换为正斜杠，统一路径格式
+    return path.replace(/\\/g, '/')
+  }
+
   // 打开文件
   async openFile(node) {
     try {
@@ -648,9 +655,21 @@ class AIAgentManager {
       const data = await response.json()
 
       if (data.success) {
-        this.currentFile = node.path
-        this.openTab(node.path, node.name, data.data.content)
-        this.setEditorLanguage(node.path)
+        // 标准化路径，确保前后端路径格式一致
+        const normalizedPath = this.normalizePath(node.path)
+        const serverPath = this.normalizePath(data.data.path)
+
+        console.log('原始路径:', node.path)
+        console.log('标准化路径:', normalizedPath)
+        console.log('服务器路径:', serverPath)
+
+        this.currentFile = normalizedPath
+        this.openTab(normalizedPath, node.name, data.data.content)
+
+        // 延迟设置编辑器语言，确保编辑器已创建完成
+        setTimeout(() => {
+          this.setEditorLanguage(normalizedPath)
+        }, 100)
       } else {
         this.showError(data.error)
       }
@@ -661,9 +680,12 @@ class AIAgentManager {
 
   // 打开标签页
   openTab(filePath, fileName, content) {
+    // 标准化路径
+    const normalizedPath = this.normalizePath(filePath)
+
     // 检查是否已经打开
-    if (this.openTabs.has(filePath)) {
-      this.switchTab(filePath)
+    if (this.openTabs.has(normalizedPath)) {
+      this.switchTab(normalizedPath)
       return
     }
 
@@ -671,10 +693,10 @@ class AIAgentManager {
     const tabsContainer = document.querySelector('.editor-tabs')
     const tab = document.createElement('div')
     tab.className = 'tab'
-    tab.setAttribute('data-file', filePath)
+    tab.setAttribute('data-file', normalizedPath)
     tab.innerHTML = `
       <span class="tab-name">${fileName}</span>
-      <button class="close-tab" data-file="${filePath}">
+      <button class="close-tab" data-file="${normalizedPath}">
         <i class="fas fa-times"></i>
       </button>
     `
@@ -682,42 +704,44 @@ class AIAgentManager {
     // 绑定关闭事件
     tab.querySelector('.close-tab').addEventListener('click', (e) => {
       e.stopPropagation()
-      this.closeTab(filePath)
+      this.closeTab(normalizedPath)
     })
 
     // 绑定切换事件
-    tab.addEventListener('click', () => this.switchTab(filePath))
+    tab.addEventListener('click', () => this.switchTab(normalizedPath))
 
     tabsContainer.appendChild(tab)
-    this.openTabs.set(filePath, { fileName, content })
+    this.openTabs.set(normalizedPath, { fileName, content })
 
     // 切换到新标签页
-    this.switchTab(filePath)
+    this.switchTab(normalizedPath)
   }
 
   // 切换标签页
   switchTab(filePath) {
-    console.log('切换到 tab:', filePath)
+    // 标准化路径
+    const normalizedPath = this.normalizePath(filePath)
+    console.log('切换到 tab:', normalizedPath)
 
     // 更新标签页状态
     document.querySelectorAll('.tab').forEach((tab) => {
       tab.classList.remove('active')
     })
 
-    const currentTab = document.querySelector(`[data-file="${filePath}"]`)
+    const currentTab = document.querySelector(`[data-file="${normalizedPath}"]`)
     if (currentTab) {
       currentTab.classList.add('active')
       // 自动滚动到当前tab
       currentTab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
     } else {
-      console.error('找不到对应的 tab:', filePath)
+      console.error('找不到对应的 tab:', normalizedPath)
       return
     }
 
     // 更新编辑器内容
-    const tabData = this.openTabs.get(filePath)
+    const tabData = this.openTabs.get(normalizedPath)
     if (tabData) {
-      this.currentFile = filePath
+      this.currentFile = normalizedPath
 
       // 如果是iframe tab，特殊处理（只显示/隐藏）
       if (tabData.isIframe && tabData.iframeSrc) {
@@ -946,14 +970,16 @@ class AIAgentManager {
 
   // 关闭标签页
   closeTab(filePath) {
-    console.log('关闭 tab:', filePath)
+    // 标准化路径
+    const normalizedPath = this.normalizePath(filePath)
+    console.log('关闭 tab:', normalizedPath)
 
-    const tab = document.querySelector(`[data-file="${filePath}"]`)
+    const tab = document.querySelector(`[data-file="${normalizedPath}"]`)
     if (tab) {
       // 如果是iframe tab，清理iframe引用
-      const tabData = this.openTabs.get(filePath)
+      const tabData = this.openTabs.get(normalizedPath)
       if (tabData && tabData.isIframe) {
-        console.log('清理iframe tab引用:', filePath)
+        console.log('清理iframe tab引用:', normalizedPath)
 
         // 清理iframe和加载指示器的引用
         tabData.iframeElement = null
@@ -961,10 +987,10 @@ class AIAgentManager {
       }
 
       tab.remove()
-      this.openTabs.delete(filePath)
+      this.openTabs.delete(normalizedPath)
 
       // 如果关闭的是当前标签页，切换到其他标签页
-      if (this.currentFile === filePath) {
+      if (this.currentFile === normalizedPath) {
         const remainingTabs = document.querySelectorAll('.tab')
         if (remainingTabs.length > 0) {
           const nextTab = remainingTabs[0]
@@ -987,8 +1013,22 @@ class AIAgentManager {
 
   // 设置编辑器语言
   setEditorLanguage(filePath) {
-    const language = this.getMonacoLanguage(filePath.split('.').pop().toLowerCase())
-    monaco.editor.setModelLanguage(this.editor.getModel(), language)
+    if (!this.editor) {
+      console.warn('编辑器未初始化，无法设置语言')
+      return
+    }
+
+    try {
+      const language = this.getMonacoLanguage(filePath.split('.').pop().toLowerCase())
+      const model = this.editor.getModel()
+      if (model) {
+        monaco.editor.setModelLanguage(model, language)
+      } else {
+        console.warn('编辑器模型未找到，无法设置语言')
+      }
+    } catch (error) {
+      console.error('设置编辑器语言失败:', error)
+    }
   }
 
   getMonacoLanguage(extension) {

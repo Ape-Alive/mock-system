@@ -1,15 +1,26 @@
 // 尝试导入pty模块，如果失败则使用备用方案
 let pty = null
+let useFallback = false
 try {
   pty = require('@xiaobaidadada/node-pty-prebuilt')
   console.log('✅ PTY模块加载成功')
 } catch (error) {
-  console.log('⚠️ PTY模块不可用，终端功能将被禁用:', error.message)
+  console.log('⚠️ PTY模块不可用，使用备用终端实现:', error.message)
+  useFallback = true
+
+  // 在Windows环境下提供更详细的错误信息
+  if (process.platform === 'win32') {
+    console.log('Windows环境下的常见解决方案:')
+    console.log('1. 确保Visual C++ Redistributable已安装')
+    console.log('2. 尝试以管理员权限运行应用')
+    console.log('3. 检查node-pty模块的二进制文件是否存在')
+  }
 }
 const WebSocket = require('ws')
 const dbService = require('./dbService')
 const path = require('path')
 const fs = require('fs')
+const { spawn } = require('child_process')
 
 // 通用黑名单
 const COMMON_BLACKLIST = [
@@ -51,11 +62,18 @@ function getShellAndArgs() {
   if (process.platform === 'win32') {
     // 优先 powershell
     if (process.env.ComSpec && process.env.ComSpec.toLowerCase().includes('powershell')) {
-      return { shell: process.env.ComSpec, args: [] }
+      return { shell: process.env.ComSpec, args: ['-NoLogo', '-ExecutionPolicy', 'Bypass'] }
     }
     // 检查 powershell 是否存在
     const psPath = 'C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe'
-    if (fs.existsSync(psPath)) return { shell: psPath, args: ['-NoLogo'] }
+    if (fs.existsSync(psPath)) {
+      return { shell: psPath, args: ['-NoLogo', '-ExecutionPolicy', 'Bypass'] }
+    }
+    // 检查 PowerShell Core
+    const psCorePath = 'C:/Program Files/PowerShell/7/pwsh.exe'
+    if (fs.existsSync(psCorePath)) {
+      return { shell: psCorePath, args: ['-NoLogo'] }
+    }
     // 退回 cmd
     return { shell: process.env.ComSpec || 'cmd.exe', args: [] }
   } else {
@@ -90,29 +108,60 @@ async function setupTerminalWS(server) {
         }
         if (type === 'create') {
           // 创建新终端窗口
-          if (!pty) {
-            ws.send(JSON.stringify({ type: 'error', data: '终端功能不可用：PTY模块未安装' }))
-            return
-          }
-
           if (sessions[sessionId]) {
             ws.send(JSON.stringify({ type: 'error', data: '该 sessionId 已存在' }))
             return
           }
-          const { shell, args } = getShellAndArgs()
-          const child = pty.spawn(shell, args, {
-            name: 'xterm-color',
-            cols: 80,
-            rows: 30,
-            cwd: allowedDir,
-            env: process.env,
-          })
-          sessions[sessionId] = { child, inputBuffer: '' }
-          child.on('data', (d) => ws.send(JSON.stringify({ type: 'stdout', data: d, sessionId })))
-          child.on('exit', (code) => {
-            ws.send(JSON.stringify({ type: 'close', code, sessionId }))
-            delete sessions[sessionId]
-          })
+
+          if (useFallback) {
+            // 使用备用终端实现
+            const { shell, args } = getShellAndArgs()
+            const child = spawn(shell, args, {
+              cwd: allowedDir,
+              env: process.env,
+              stdio: ['pipe', 'pipe', 'pipe']
+            })
+
+            sessions[sessionId] = { child, inputBuffer: '', isFallback: true }
+
+            child.stdout.on('data', (d) => {
+              ws.send(JSON.stringify({ type: 'stdout', data: d.toString(), sessionId }))
+            })
+
+            child.stderr.on('data', (d) => {
+              ws.send(JSON.stringify({ type: 'stderr', data: d.toString(), sessionId }))
+            })
+
+            child.on('exit', (code) => {
+              ws.send(JSON.stringify({ type: 'close', code, sessionId }))
+              delete sessions[sessionId]
+            })
+
+            child.on('error', (err) => {
+              ws.send(JSON.stringify({ type: 'error', data: err.message, sessionId }))
+            })
+          } else if (pty) {
+            // 使用PTY模块
+            const { shell, args } = getShellAndArgs()
+            const child = pty.spawn(shell, args, {
+              name: 'xterm-color',
+              cols: 80,
+              rows: 30,
+              cwd: allowedDir,
+              env: process.env,
+            })
+            sessions[sessionId] = { child, inputBuffer: '', isFallback: false }
+            child.on('data', (d) => ws.send(JSON.stringify({ type: 'stdout', data: d, sessionId })))
+            child.on('exit', (code) => {
+              ws.send(JSON.stringify({ type: 'close', code, sessionId }))
+              delete sessions[sessionId]
+            })
+          } else {
+            ws.send(JSON.stringify({ type: 'error', data: '终端功能不可用：PTY模块未安装' }))
+            return
+          }
+
+          ws.send(JSON.stringify({ type: 'created', sessionId }))
         } else if (type === 'stdin') {
           const session = sessions[sessionId]
           if (!session || !session.child) {
@@ -143,23 +192,32 @@ async function setupTerminalWS(server) {
               }
             }
             // 校验通过，写入子进程
-            child.write(line + '\n')
+            if (session.isFallback) {
+              child.stdin.write(line + '\n')
+            } else {
+              child.write(line + '\n')
+            }
             session.inputBuffer = session.inputBuffer.slice(idx + 1)
           }
           // 剩余部分（未回车的内容，直接写入，支持方向键、Tab等）
           if (session.inputBuffer.length > 0 && !session.inputBuffer.includes('\n')) {
-            child.write(data)
+            if (session.isFallback) {
+              child.stdin.write(data)
+            } else {
+              child.write(data)
+            }
           }
         } else if (type === 'resize') {
           const session = sessions[sessionId]
-          if (session && session.child) {
+          if (session && session.child && !session.isFallback) {
+            // 只有PTY模式支持resize
             session.child.resize(cols, rows)
           }
         } else if (type === 'close') {
           // 主动关闭终端窗口
-          const child = sessions[sessionId]
-          if (child) {
-            child.kill()
+          const session = sessions[sessionId]
+          if (session && session.child) {
+            session.child.kill()
             delete sessions[sessionId]
             ws.send(JSON.stringify({ type: 'closed', sessionId }))
           }
@@ -169,13 +227,11 @@ async function setupTerminalWS(server) {
 
     ws.on('close', () => {
       // 断开时关闭所有终端窗口
-      if (pty) {
-        Object.values(sessions).forEach((session) => {
-          if (session && session.child) {
-            session.child.kill()
-          }
-        })
-      }
+      Object.values(sessions).forEach((session) => {
+        if (session && session.child) {
+          session.child.kill()
+        }
+      })
     })
   })
 }

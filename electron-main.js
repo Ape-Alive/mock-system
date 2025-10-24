@@ -1,6 +1,7 @@
 const { app, BrowserWindow, Menu, ipcMain, dialog, Tray, nativeImage } = require('electron')
 const { startServer } = require('./app')
 const { initializeDatabase } = require('./services/dbService')
+const http = require('http')
 
 // 保持对窗口对象的全局引用
 let mainWindow
@@ -20,6 +21,39 @@ app.whenReady().then(async () => {
 
   createWindow()
 })
+
+// 等待服务器启动的函数
+async function waitForServer(maxRetries = 10, retryInterval = 500) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      await new Promise((resolve, reject) => {
+        const req = http.get('http://localhost:3400', (res) => {
+          console.log('服务器连接测试成功，状态码:', res.statusCode)
+          resolve()
+        })
+
+        req.on('error', (err) => {
+          console.log(`服务器连接测试失败 (尝试 ${i + 1}/${maxRetries}):`, err.message)
+          reject(err)
+        })
+
+        req.setTimeout(2000, () => {
+          req.destroy()
+          reject(new Error('连接超时'))
+        })
+      })
+
+      console.log('服务器已就绪')
+      return
+    } catch (error) {
+      if (i === maxRetries - 1) {
+        throw new Error(`服务器启动失败，已重试 ${maxRetries} 次: ${error.message}`)
+      }
+      console.log(`等待服务器启动... (${i + 1}/${maxRetries})`)
+      await new Promise(resolve => setTimeout(resolve, retryInterval))
+    }
+  }
+}
 
 async function createWindow() {
   // 创建浏览器窗口
@@ -72,16 +106,17 @@ async function createWindow() {
         serverStarted = true
         console.log('后端服务器启动成功')
 
-        // 服务器启动成功后，加载主页面
-        setTimeout(() => {
-          console.log('开始加载主页面: http://localhost:3400')
-          mainWindow.loadURL('http://localhost:3400')
+        // 等待服务器完全启动并测试连接
+        await waitForServer()
 
-          // 开发环境下打开开发者工具
-          if (process.env.NODE_ENV === 'development') {
-            mainWindow.webContents.openDevTools()
-          }
-        }, 1000) // 增加等待时间确保服务器完全启动
+        // 服务器启动成功后，加载主页面
+        console.log('开始加载主页面: http://localhost:3400')
+        mainWindow.loadURL('http://localhost:3400')
+
+        // 开发环境下打开开发者工具
+        if (process.env.NODE_ENV === 'development') {
+          mainWindow.webContents.openDevTools()
+        }
 
       } catch (error) {
         console.error('后端服务器启动失败:', error)
