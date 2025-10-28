@@ -123,13 +123,25 @@ class SettingsManager {
     const saveBtn = document.getElementById('save-settings')
 
     if (closeBtn) {
-      closeBtn.addEventListener('click', () => this.closeSettings())
+      closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation()
+        e.preventDefault()
+        this.closeSettings()
+      })
     }
     if (cancelBtn) {
-      cancelBtn.addEventListener('click', () => this.closeSettings())
+      cancelBtn.addEventListener('click', (e) => {
+        e.stopPropagation()
+        e.preventDefault()
+        this.closeSettings()
+      })
     }
     if (saveBtn) {
-      saveBtn.addEventListener('click', () => this.saveSettings())
+      saveBtn.addEventListener('click', (e) => {
+        e.stopPropagation()
+        e.preventDefault()
+        this.saveSettings()
+      })
     }
 
     // AI提供来源切换
@@ -355,20 +367,55 @@ class SettingsManager {
     console.log('SettingsManager.showSettings() 被调用')
     console.log('查找设置弹窗元素:', document.getElementById('settings-modal'))
     const modal = document.getElementById('settings-modal')
+    const overlay = document.getElementById('settings-modal-overlay')
+
     if (modal) {
+      // 显示遮罩层
+      if (overlay) {
+        overlay.style.display = 'block'
+      }
+
       modal.style.display = 'flex'
       // 先加载设置，然后初始化提供来源
       await this.loadSettings()
       // 初始化提供来源
       this.switchProvider(this.currentProvider)
+
+      // 阻止双击事件冒泡，防止触发窗口最大化（只阻止冒泡，不阻止默认行为）
+      const preventDblClick = (e) => {
+        e.stopPropagation()
+      }
+
+      // 使用 once 选项，每次显示时只绑定一次
+      modal.addEventListener('dblclick', preventDblClick, { capture: true, once: false })
+      const modalContent = modal.querySelector('.modal-content')
+      if (modalContent) {
+        modalContent.addEventListener('dblclick', preventDblClick, { capture: true, once: false })
+      }
+
+      // 点击遮罩层关闭弹窗
+      if (overlay) {
+        const overlayClickHandler = (e) => {
+          // 确保点击的是遮罩层本身，而不是子元素
+          if (e.target === overlay) {
+            this.closeSettings()
+          }
+        }
+        overlay.addEventListener('click', overlayClickHandler)
+      }
     }
   }
 
   // 关闭设置弹窗
   closeSettings() {
     const modal = document.getElementById('settings-modal')
+    const overlay = document.getElementById('settings-modal-overlay')
+
     if (modal) {
       modal.style.display = 'none'
+    }
+    if (overlay) {
+      overlay.style.display = 'none'
     }
   }
 
@@ -411,7 +458,7 @@ class SettingsManager {
       if (response.ok) {
         const result = await response.json()
         console.log('加载设置API响应:', result) // 添加调试日志
-        
+
         if (result.success && result.data) {
           // 修复：只保存和使用 data 部分
           this.currentSettings = result.data
@@ -524,7 +571,7 @@ class SettingsManager {
 
       if (response.ok) {
         this.showToast('设置保存成功', 'success')
-        
+
         // 刷新文件树（如果初始目录发生变化）
         if (settings.general && settings.general.initialDirectory) {
           console.log('设置保存成功，刷新文件树...')
@@ -533,7 +580,7 @@ class SettingsManager {
             console.log('文件树刷新完成')
           }
         }
-        
+
         this.closeSettings()
       } else {
         const error = await response.json()

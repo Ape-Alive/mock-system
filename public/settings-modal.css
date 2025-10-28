@@ -55,7 +55,8 @@
   font-size: 20px;
 }
 
-.close-modal {
+.close-modal,
+#close-settings {
   background: transparent;
   border: none;
   color: #ffffff;
@@ -69,9 +70,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  -webkit-app-region: no-drag;
+  z-index: 10000;
+  position: relative;
 }
 
-.close-modal:hover {
+.close-modal:hover,
+#close-settings:hover {
   background: #3c3c3c;
   color: #ffffff;
   transform: scale(1.1);
@@ -92,7 +97,22 @@
   background: linear-gradient(135deg, #2d2d30 0%, #1e1e1e 100%);
 }
 
-/* 设置弹窗特定样式 */
+/* 设置弹窗遮罩层 */
+.settings-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 2000;
+  backdrop-filter: blur(4px);
+  -webkit-app-region: no-drag;
+  pointer-events: auto;
+  /* 确保遮罩层不会阻挡弹窗的交互 */
+}
+
+/* 确保弹窗在遮罩层之上，并且可以交互 */
 .settings-modal {
   position: fixed;
   top: 50%;
@@ -107,9 +127,43 @@
   height: 700px;
   max-height: 700px;
   overflow: visible;
-  z-index: 2001;
+  z-index: 2001 !important;
   display: none;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  -webkit-app-region: no-drag !important; /* 防止拖拽干扰 */
+  pointer-events: auto !important; /* 确保可以交互 */
+}
+
+/* 确保弹窗内的所有交互元素都可以正常使用 */
+.settings-modal input,
+.settings-modal button,
+.settings-modal select,
+.settings-modal textarea,
+.settings-modal a,
+.settings-modal [role="button"],
+.settings-modal .btn,
+.settings-modal .menu-item,
+.settings-modal .btn-icon {
+  -webkit-app-region: no-drag !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  position: relative;
+  z-index: 1;
+}
+
+/* 输入框特殊处理 */
+.settings-modal input[type="text"],
+.settings-modal input[type="password"],
+.settings-modal input[type="number"],
+.settings-modal input[type="range"],
+.settings-modal input[type="checkbox"] {
+  cursor: text !important;
+  pointer-events: auto !important;
+  -webkit-app-region: no-drag !important;
+}
+
+.settings-modal input[type="checkbox"] {
+  cursor: pointer !important;
 }
 
 .settings-modal .modal-content.large {
@@ -119,6 +173,8 @@
   flex-direction: column;
   background: #2a2a2a;
   position: relative;
+  -webkit-app-region: no-drag !important; /* 防止拖拽干扰 */
+  pointer-events: auto !important;
 }
 
 .settings-modal .modal-header {
@@ -126,6 +182,8 @@
   border-bottom: 1px solid #555;
   background: #333;
   border-radius: 12px 12px 0 0;
+  -webkit-app-region: no-drag !important;
+  pointer-events: auto !important;
 }
 
 .settings-modal .modal-header h3 {
@@ -145,6 +203,8 @@
   background: #2a2a2a;
   display: flex;
   flex-direction: column;
+  -webkit-app-region: no-drag !important;
+  pointer-events: auto !important;
 }
 
 .settings-modal .modal-footer {
@@ -177,6 +237,7 @@
   gap: 8px;
   text-decoration: none;
   visibility: visible !important;
+  -webkit-app-region: no-drag;
 }
 
 .settings-modal .modal-footer .btn:hover {
@@ -224,6 +285,8 @@
   border-radius: 0;
   overflow: hidden;
   background: #2a2a2a;
+  -webkit-app-region: no-drag !important;
+  pointer-events: auto !important;
 }
 
 .settings-sidebar {
@@ -494,7 +557,7 @@
   gap: 10px;
 }
 
-.checkbox-group input[type='checkbox'] {
+.checkbox-group input[type="checkbox"] {
   width: 20px;
   height: 20px;
   cursor: pointer;
@@ -690,7 +753,7 @@
   margin-top: 8px;
 }
 
-.range-input-group input[type='range'] {
+.range-input-group input[type="range"] {
   flex: 1;
   height: 6px;
   background: #e0e0e0;
@@ -700,7 +763,7 @@
   appearance: none;
 }
 
-.range-input-group input[type='range']::-webkit-slider-thumb {
+.range-input-group input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 20px;
@@ -712,12 +775,12 @@
   transition: all 0.2s;
 }
 
-.range-input-group input[type='range']::-webkit-slider-thumb:hover {
+.range-input-group input[type="range"]::-webkit-slider-thumb:hover {
   background: #005a9e;
   transform: scale(1.1);
 }
 
-.range-input-group input[type='range']::-moz-range-thumb {
+.range-input-group input[type="range"]::-moz-range-thumb {
   width: 20px;
   height: 20px;
   background: #007acc;
@@ -728,7 +791,7 @@
   transition: all 0.2s;
 }
 
-.range-input-group input[type='range']::-moz-range-thumb:hover {
+.range-input-group input[type="range"]::-moz-range-thumb:hover {
   background: #005a9e;
   transform: scale(1.1);
 }
@@ -752,7 +815,7 @@
 }
 
 /* 数字输入框样式 */
-input[type='number'] {
+input[type="number"] {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid #ced4da;
@@ -762,14 +825,14 @@ input[type='number'] {
   background: #ffffff;
 }
 
-input[type='number']:focus {
+input[type="number"]:focus {
   outline: none;
   border-color: #007acc;
   box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.1);
 }
 
-input[type='number']::-webkit-inner-spin-button,
-input[type='number']::-webkit-outer-spin-button {
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
   opacity: 1;
   height: 20px;
 }

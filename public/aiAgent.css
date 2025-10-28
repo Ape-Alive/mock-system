@@ -44,11 +44,160 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    Ubuntu, Cantarell, sans-serif;
   background: #1e1e1e;
   color: #d4d4d4;
   overflow: hidden;
   height: 100vh;
+  -webkit-app-region: no-drag; /* 主页面不允许拖拽，只有标题栏可以拖拽 */
+}
+
+/* 自定义标题栏样式 */
+.custom-title-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 40px;
+  background: #2d2d30;
+  border-bottom: 1px solid #3e3e42;
+  padding: 0;
+  -webkit-app-region: drag;
+  user-select: none;
+  z-index: 10000;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+}
+
+.title-bar-left {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  height: 100%;
+  -webkit-app-region: no-drag;
+}
+
+.app-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #d4d4d4;
+  padding: 0 16px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  border-right: 1px solid #3e3e42;
+}
+
+.title-bar-menu {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  gap: 0;
+}
+
+.title-bar-menu .menu-item {
+  position: relative;
+  padding: 0 12px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 13px;
+  color: #d4d4d4;
+  transition: background-color 0.15s ease;
+  -webkit-app-region: no-drag;
+}
+
+.title-bar-menu .menu-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.title-bar-menu .menu-item.active {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.title-bar-menu .menu-item.active .menu-dropdown {
+  display: block;
+}
+
+.menu-dropdown {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: #2d2d30;
+  border: 1px solid #3e3e42;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  min-width: 200px;
+  padding: 4px 0;
+  z-index: 10001;
+  margin-top: 2px;
+}
+
+.menu-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 16px;
+  font-size: 13px;
+  color: #d4d4d4;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  -webkit-app-region: no-drag;
+}
+
+.menu-dropdown-item:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.menu-shortcut {
+  font-size: 11px;
+  color: #858585;
+  margin-left: 20px;
+}
+
+.menu-separator {
+  height: 1px;
+  background: #3e3e42;
+  margin: 4px 0;
+}
+
+.title-bar-right {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  -webkit-app-region: no-drag;
+}
+
+.title-bar-button {
+  width: 46px;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: #d4d4d4;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease;
+  padding: 0;
+}
+
+.title-bar-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.title-bar-button.close-btn:hover {
+  background-color: #e81123;
+  color: white;
+}
+
+.title-bar-button svg {
+  pointer-events: none;
 }
 
 /* 主容器 */
@@ -56,6 +205,14 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  -webkit-app-region: no-drag; /* 确保主容器不可拖拽，允许交互 */
+  pointer-events: auto;
+}
+
+/* 当有自定义标题栏时，调整主容器位置 */
+body.has-custom-title-bar .ai-agent-container {
+  margin-top: 40px;
+  height: calc(100vh - 40px);
 }
 
 /* 工具栏 */
@@ -67,6 +224,9 @@ body {
   background: #2d2d30;
   border-bottom: 1px solid #3e3e42;
   min-height: 60px;
+  -webkit-app-region: drag; /* 工具栏可以拖拽窗口 */
+  pointer-events: auto;
+  user-select: none; /* 防止拖拽时选中文本 */
 }
 
 .toolbar-left h1 {
@@ -86,6 +246,7 @@ body {
   flex-direction: column;
   gap: 8px;
   align-items: flex-start;
+  -webkit-app-region: no-drag; /* 模式切换器不可拖拽 */
 }
 
 .mode-title {
@@ -103,6 +264,7 @@ body {
   border-radius: 20px;
   padding: 4px;
   position: relative;
+  -webkit-app-region: no-drag; /* 模式切换不可拖拽 */
 }
 
 .mode-option {
@@ -183,6 +345,7 @@ body {
   background: #3c3c3c;
   border-radius: 6px;
   overflow: hidden;
+  -webkit-app-region: no-drag; /* 搜索容器不可拖拽，允许交互 */
 }
 
 .search-container input {
@@ -192,6 +355,8 @@ body {
   background: transparent;
   color: #d4d4d4;
   font-size: 14px;
+  -webkit-app-region: no-drag; /* 输入框不可拖拽 */
+  cursor: text;
 }
 
 .search-container input::placeholder {
@@ -205,6 +370,7 @@ body {
   color: white;
   cursor: pointer;
   transition: background 0.2s;
+  -webkit-app-region: no-drag; /* 按钮不可拖拽 */
 }
 
 .search-container button:hover {
@@ -214,6 +380,20 @@ body {
 .toolbar-right {
   display: flex;
   gap: 8px;
+  -webkit-app-region: no-drag; /* 右侧按钮区域不可拖拽 */
+}
+
+/* 工具栏内所有按钮和交互元素不可拖拽 */
+.toolbar button,
+.toolbar .btn,
+.toolbar input,
+.toolbar select,
+.toolbar textarea,
+.toolbar .mode-toggle,
+.toolbar .mode-switch,
+.toolbar .mode-option {
+  -webkit-app-region: no-drag !important;
+  pointer-events: auto !important;
 }
 
 /* 按钮样式 */
@@ -273,6 +453,8 @@ body {
   width: 100%;
   height: calc(100% - 60px);
   min-width: 0; /* 关键：防止被子项撑开 */
+  -webkit-app-region: no-drag; /* 主内容区域不可拖拽 */
+  pointer-events: auto;
 }
 
 /* 侧边栏 */
@@ -359,7 +541,11 @@ body {
 }
 
 .file-tree-node.selected {
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+  background: linear-gradient(
+    135deg,
+    var(--primary-color),
+    var(--primary-hover)
+  );
   color: var(--text-primary);
   box-shadow: var(--shadow-md);
 }
@@ -481,12 +667,12 @@ body {
 }
 
 /* iframe tab双击提示样式 */
-.tab[data-file*='mock'] {
+.tab[data-file*="mock"] {
   cursor: pointer;
 }
 
-.tab[data-file*='mock']:hover::after {
-  content: '双击刷新';
+.tab[data-file*="mock"]:hover::after {
+  content: "双击刷新";
   position: absolute;
   top: -25px;
   left: 50%;
@@ -1391,7 +1577,7 @@ body {
 .search-dropdown-summary {
   font-size: 12px;
   color: #bdbdbd;
-  font-family: 'Fira Mono', 'Consolas', 'Menlo', monospace;
+  font-family: "Fira Mono", "Consolas", "Menlo", monospace;
   white-space: pre;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1529,7 +1715,7 @@ body {
   padding: 4px 50px 4px 8px;
   border-radius: 4px;
   font-size: 13px;
-  font-family: 'Fira Mono', 'Consolas', 'Menlo', monospace;
+  font-family: "Fira Mono", "Consolas", "Menlo", monospace;
   transition: background 0.2s;
   flex: 1 1 auto;
   white-space: pre-wrap;
@@ -1606,7 +1792,7 @@ body {
   margin-bottom: 1px;
   margin-left: 2px;
   line-height: 1.3;
-  font-family: 'Fira Mono', 'Consolas', 'Menlo', monospace;
+  font-family: "Fira Mono", "Consolas", "Menlo", monospace;
   opacity: 0.85;
 }
 
@@ -2073,7 +2259,7 @@ body {
   border-radius: 3px;
   font-size: 10px;
   font-weight: 600;
-  font-family: 'Fira Mono', 'Consolas', 'Menlo', monospace;
+  font-family: "Fira Mono", "Consolas", "Menlo", monospace;
 }
 
 /* 只读Popover样式 */
@@ -2098,7 +2284,7 @@ body {
   display: flex;
 }
 .selected-paths-popover:before {
-  content: '';
+  content: "";
   position: absolute;
   top: -10px;
   left: 10px;
@@ -2286,7 +2472,7 @@ body {
   color: #ffd700;
   padding: 4px 8px;
   border-radius: 6px;
-  font-family: 'Fira Mono', 'Consolas', 'Menlo', monospace;
+  font-family: "Fira Mono", "Consolas", "Menlo", monospace;
   font-size: 13px;
   border: 1px solid #3e3e42;
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
@@ -2313,7 +2499,7 @@ body {
 }
 
 .markdown-summary li:before {
-  content: '•';
+  content: "•";
   color: #007acc;
   font-weight: bold;
   position: absolute;
@@ -2341,7 +2527,7 @@ body {
 }
 
 .markdown-summary ol li:before {
-  content: counter(item) '.';
+  content: counter(item) ".";
   color: #28a745;
   font-weight: bold;
   position: absolute;
@@ -2642,14 +2828,14 @@ body {
   border-radius: 12px;
   font-size: 11px;
   font-weight: 700;
-  font-family: 'Fira Mono', 'Consolas', 'Menlo', monospace;
+  font-family: "Fira Mono", "Consolas", "Menlo", monospace;
   box-shadow: 0 2px 4px rgba(0, 122, 204, 0.3);
   flex-shrink: 0;
 }
 
 .file-path {
   color: #d4d4d4;
-  font-family: 'Fira Mono', 'Consolas', 'Menlo', monospace;
+  font-family: "Fira Mono", "Consolas", "Menlo", monospace;
   font-size: 12px;
   flex: 1;
   min-width: 0;
@@ -2832,7 +3018,7 @@ body {
   background: rgba(255, 255, 255, 0.05);
   padding: 8px 12px;
   border-radius: 4px;
-  font-family: 'Fira Mono', 'Consolas', 'Menlo', monospace;
+  font-family: "Fira Mono", "Consolas", "Menlo", monospace;
   font-size: 12px;
   color: #bdbdbd;
   display: block;
@@ -2887,7 +3073,7 @@ body {
 }
 
 .loading-indicator::before {
-  content: '🔄';
+  content: "🔄";
   margin-right: 8px;
   animation: spin 1s linear infinite;
 }
@@ -2906,7 +3092,7 @@ body {
 }
 
 .content-preview::before {
-  content: '📝';
+  content: "📝";
   margin-right: 8px;
   font-size: 16px;
 }
@@ -2960,7 +3146,7 @@ body {
   background: rgba(255, 255, 255, 0.05);
   padding: 8px 12px;
   border-radius: 4px;
-  font-family: 'Fira Mono', 'Consolas', 'Menlo', monospace;
+  font-family: "Fira Mono", "Consolas", "Menlo", monospace;
   font-size: 12px;
   color: #bdbdbd;
   display: block;

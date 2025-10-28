@@ -57,7 +57,7 @@ async function waitForServer(maxRetries = 10, retryInterval = 500) {
 
 async function createWindow() {
   // 创建浏览器窗口
-  mainWindow = new BrowserWindow({
+  const windowOptions = {
     width: 1400,
     height: 900,
     minWidth: 1200,
@@ -69,10 +69,26 @@ async function createWindow() {
       preload: require('path').join(__dirname, 'electron-preload.js')
     },
     show: false, // 先不显示，等启动画面加载后再显示
-    titleBarStyle: 'default'
+  }
+
+  // Windows 系统使用自定义标题栏
+  if (process.platform === 'win32') {
+    windowOptions.frame = false
+  } else {
+    windowOptions.titleBarStyle = 'default'
+  }
+
+  mainWindow = new BrowserWindow(windowOptions)
+
+  // 监听窗口最大化状态变化
+  mainWindow.on('maximize', () => {
+    mainWindow.webContents.send('window-maximized')
+  })
+  mainWindow.on('unmaximize', () => {
+    mainWindow.webContents.send('window-unmaximized')
   })
 
-  // 创建菜单
+  // 创建菜单（仅用于快捷键功能，不显示原生菜单栏）
   createMenu()
 
   // 创建系统托盘
@@ -342,7 +358,13 @@ function createMenu() {
   }
 
   const menu = Menu.buildFromTemplate(template)
-  Menu.setApplicationMenu(menu)
+  // 在 Windows 上，隐藏原生菜单栏（使用自定义菜单栏）
+  if (process.platform === 'win32') {
+    // 设置菜单但不显示菜单栏
+    Menu.setApplicationMenu(null)
+  } else {
+    Menu.setApplicationMenu(menu)
+  }
 }
 
 // 创建系统托盘
@@ -544,6 +566,29 @@ ipcMain.handle('show-open-dialog', async (event, options) => {
 ipcMain.handle('force-quit', () => {
   isQuitting = true
   app.quit()
+})
+
+// 窗口控制
+ipcMain.handle('window-minimize', () => {
+  if (mainWindow) mainWindow.minimize()
+})
+
+ipcMain.handle('window-maximize', () => {
+  if (mainWindow) {
+    if (mainWindow.isMaximized()) {
+      mainWindow.unmaximize()
+    } else {
+      mainWindow.maximize()
+    }
+  }
+})
+
+ipcMain.handle('window-close', () => {
+  if (mainWindow) mainWindow.close()
+})
+
+ipcMain.handle('window-is-maximized', () => {
+  return mainWindow ? mainWindow.isMaximized() : false
 })
 
 // 防止新窗口打开

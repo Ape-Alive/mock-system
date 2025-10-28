@@ -4,20 +4,28 @@ const { contextBridge, ipcRenderer } = require('electron')
 contextBridge.exposeInMainWorld('electronAPI', {
   // 获取应用版本
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
-  
+
   // 显示消息框
   showMessageBox: (options) => ipcRenderer.invoke('show-message-box', options),
-  
+
   // 显示保存对话框
   showSaveDialog: (options) => ipcRenderer.invoke('show-save-dialog', options),
-  
+
   // 显示打开对话框
   showOpenDialog: (options) => ipcRenderer.invoke('show-open-dialog', options),
-  
+
   // 监听菜单事件
   onMenuNewProject: (callback) => ipcRenderer.on('menu-new-project', callback),
   onMenuOpenProject: (callback) => ipcRenderer.on('menu-open-project', callback),
-  
+
   // 移除监听器
-  removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel)
+  removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel),
+
+  // 窗口控制
+  minimizeWindow: () => ipcRenderer.invoke('window-minimize'),
+  maximizeWindow: () => ipcRenderer.invoke('window-maximize'),
+  closeWindow: () => ipcRenderer.invoke('window-close'),
+  isMaximized: () => ipcRenderer.invoke('window-is-maximized'),
+  onWindowMaximized: (callback) => ipcRenderer.on('window-maximized', callback),
+  onWindowUnmaximized: (callback) => ipcRenderer.on('window-unmaximized', callback)
 })
