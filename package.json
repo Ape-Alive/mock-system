@@ -17,6 +17,7 @@
     "dist": "npm run build",
     "build-production": "chmod +x build-production.sh && ./build-production.sh \"$@\"",
     "build-production-js": "node build-production.js",
+    "build-cross-platform": "chmod +x scripts/build-cross-platform.sh && ./scripts/build-cross-platform.sh",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Liuqihui",
@@ -117,6 +118,13 @@
         "to": "prisma",
         "filter": [
           "**/*"
+        ]
+      },
+      {
+        "from": "assets",
+        "to": "assets",
+        "filter": [
+          "icon.*"
         ]
       }
     ],

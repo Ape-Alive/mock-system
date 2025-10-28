@@ -70,11 +70,8 @@ async function createWindow() {
       try {
         startServer()
         serverStarted = true
-        console.log('后端服务器启动成功')
-
         // 服务器启动成功后，加载主页面
         setTimeout(() => {
-          console.log('开始加载主页面: http://localhost:3400')
           mainWindow.loadURL('http://localhost:3400')
 
           // 开发环境下打开开发者工具
@@ -313,21 +310,143 @@ function createMenu() {
 // 创建系统托盘
 function createTray() {
   const path = require('path')
+  const fs = require('fs')
 
   // 创建托盘图标
-  let iconPath
+  let icon
+
   if (process.platform === 'darwin') {
-    iconPath = path.join(__dirname, 'assets', 'icon.png')
+    // 方法1: 尝试从应用图标获取（最可靠）
+    try {
+      if (app) {
+        const appIcon = app.getAppPath()
+        // 尝试从应用图标路径获取
+        const exePath = app.getPath('exe')
+
+        if (exePath) {
+          // macOS App Bundle 结构: /path/to/app.app/Contents/MacOS/app
+          // 资源路径: /path/to/app.app/Contents/Resources
+          const appBundlePath = path.dirname(path.dirname(path.dirname(exePath)))
+          const resourcesPath = path.join(appBundlePath, 'Contents', 'Resources')
+
+          // 检查资源路径中的图标文件
+          const iconPaths = [
+            path.join(resourcesPath, 'assets', 'icon.icns'),
+            path.join(resourcesPath, 'assets', 'icon.png'),
+            path.join(resourcesPath, 'icon.icns'),
+            path.join(resourcesPath, 'icon.png')
+          ]
+
+          for (const iconPath of iconPaths) {
+            if (fs.existsSync(iconPath)) {
+              icon = nativeImage.createFromPath(iconPath)
+              if (!icon.isEmpty()) {
+                console.log('图标加载成功，尺寸:', icon.getSize())
+                break
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('从应用路径获取图标失败:', error)
+    }
+
+    // 方法2: 如果方法1失败，尝试其他路径
+    if (!icon || icon.isEmpty()) {
+      console.log('尝试其他路径...')
+      const appPath = app ? app.getAppPath() : __dirname
+      const resourcesPath = process.resourcesPath || __dirname
+
+      const possiblePaths = [
+        path.join(resourcesPath, 'assets', 'icon.icns'),
+        path.join(resourcesPath, 'assets', 'icon.png'),
+        path.join(__dirname, 'assets', 'icon.icns'),
+        path.join(__dirname, 'assets', 'icon.png'),
+        path.join(appPath, 'assets', 'icon.icns'),
+        path.join(appPath, 'assets', 'icon.png')
+      ]
+
+      for (const iconPath of possiblePaths) {
+        if (fs.existsSync(iconPath)) {
+          console.log('找到图标文件:', iconPath)
+          try {
+            icon = nativeImage.createFromPath(iconPath)
+            if (!icon.isEmpty()) {
+              console.log('图标加载成功，尺寸:', icon.getSize())
+              break
+            }
+          } catch (error) {
+            console.error('加载图标失败:', iconPath, error)
+          }
+        }
+      }
+    }
+
+    // 调整图标大小（macOS 菜单栏标准）
+    if (icon && !icon.isEmpty()) {
+      const size = icon.getSize()
+      if (size.width > 22 || size.height > 22) {
+        icon = icon.resize({
+          width: 22,
+          height: 22,
+          quality: 'best'
+        })
+      }
+    }
   } else {
-    iconPath = path.join(__dirname, 'assets', 'icon.png')
+    const iconPath = path.join(__dirname, 'assets', 'icon.png')
+    try {
+      icon = nativeImage.createFromPath(iconPath)
+    } catch (error) {
+      icon = null
+    }
   }
 
-  const icon = nativeImage.createFromPath(iconPath)
-  if (process.platform === 'darwin') {
-    icon.setTemplateImage(true) // macOS 模板图标
+  // 如果没有找到图标，创建备用图标
+  if (!icon || icon.isEmpty()) {
+    console.warn('未找到图标文件或图标无效，创建备用图标')
+    try {
+      // 创建一个简单的 22x22 图标作为备用（macOS 菜单栏标准大小）
+      // 使用简单的蓝色方块作为备用图标
+      const size = 22
+      const buffer = Buffer.alloc(size * size * 4)
+
+      // 填充为蓝色
+      for (let i = 0; i < buffer.length; i += 4) {
+        buffer[i] = 59      // R
+        buffer[i + 1] = 130 // G
+        buffer[i + 2] = 246 // B
+        buffer[i + 3] = 255 // A
+      }
+
+      icon = nativeImage.createFromBuffer(buffer, {
+        width: size,
+        height: size,
+        scaleFactor: 1.0
+      })
+
+      if (icon.isEmpty()) {
+        throw new Error('备用图标创建失败')
+      }
+
+    } catch (fallbackError) {
+      console.error('创建备用图标也失败:', fallbackError)
+      return
+    }
   }
 
-  tray = new Tray(icon)
+  if (!icon || icon.isEmpty()) {
+    console.error('最终图标无效，无法创建托盘')
+    return
+  }
+
+  try {
+    tray = new Tray(icon)
+  } catch (trayError) {
+    console.error('创建托盘对象失败:', trayError)
+    return
+  }
 
   // 在 macOS 上，确保托盘图标正确显示
   if (process.platform === 'darwin') {
